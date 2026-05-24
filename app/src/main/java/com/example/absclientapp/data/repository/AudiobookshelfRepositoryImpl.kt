@@ -79,6 +79,10 @@ class AudiobookshelfRepositoryImpl(
         return bookDao.getAllBooksFlow().map { list -> list.map { it.toDomain() } }
     }
 
+    override fun getAllProgressFlow(): Flow<List<PlaybackProgress>> {
+        return progressDao.getAllProgressFlow().map { list -> list.map { it.toDomain() } }
+    }
+
     override fun getBookWithProgressFlow(bookId: String): Flow<Pair<Book?, PlaybackProgress?>> {
         return bookDao.getBookByIdFlow(bookId).combine(progressDao.getProgressForBookFlow(bookId)) { bookEntity, progressEntity ->
             bookEntity?.toDomain() to progressEntity?.toDomain()

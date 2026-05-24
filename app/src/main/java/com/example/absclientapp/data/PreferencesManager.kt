@@ -37,6 +37,24 @@ class PreferencesManager(context: Context) {
 
     fun getLibraryId(): String? = prefs.getString("library_id", null)
 
+    fun saveReadStatusFilter(filter: String) {
+        prefs.edit().putString("filter_read_status", filter).apply()
+    }
+
+    fun getReadStatusFilter(): String? = prefs.getString("filter_read_status", null)
+
+    fun saveSortOption(sort: String) {
+        prefs.edit().putString("sort_option", sort).apply()
+    }
+
+    fun getSortOption(): String? = prefs.getString("sort_option", null)
+
+    fun saveDownloadedOnlyFilter(downloadedOnly: Boolean) {
+        prefs.edit().putBoolean("filter_downloaded_only", downloadedOnly).apply()
+    }
+
+    fun getDownloadedOnlyFilter(): Boolean = prefs.getBoolean("filter_downloaded_only", false)
+
     fun clear() {
         prefs.edit().clear().apply()
         _serverUrl.value = null

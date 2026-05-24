@@ -67,6 +67,9 @@ interface PlaybackProgressDao {
 
     @Query("SELECT * FROM playback_progress WHERE bookId = :bookId")
     fun getProgressForBookFlow(bookId: String): Flow<PlaybackProgressEntity?>
+
+    @Query("SELECT * FROM playback_progress")
+    fun getAllProgressFlow(): Flow<List<PlaybackProgressEntity>>
 }
 
 @Database(entities = [BookEntity::class, PlaybackProgressEntity::class], version = 1, exportSchema = false)

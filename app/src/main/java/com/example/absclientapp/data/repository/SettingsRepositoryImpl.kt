@@ -23,6 +23,24 @@ class SettingsRepositoryImpl(
         preferencesManager.saveLibraryId(libraryId)
     }
 
+    override fun getReadStatusFilter(): String? = preferencesManager.getReadStatusFilter()
+
+    override fun saveReadStatusFilter(filter: String) {
+        preferencesManager.saveReadStatusFilter(filter)
+    }
+
+    override fun getSortOption(): String? = preferencesManager.getSortOption()
+
+    override fun saveSortOption(sort: String) {
+        preferencesManager.saveSortOption(sort)
+    }
+
+    override fun getDownloadedOnlyFilter(): Boolean = preferencesManager.getDownloadedOnlyFilter()
+
+    override fun saveDownloadedOnlyFilter(downloadedOnly: Boolean) {
+        preferencesManager.saveDownloadedOnlyFilter(downloadedOnly)
+    }
+
     override fun isLoggedIn(): Boolean = preferencesManager.isLoggedIn()
 
     override fun clear() {

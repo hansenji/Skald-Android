@@ -13,6 +13,7 @@ interface AudiobookshelfRepository {
     suspend fun fetchLibraries(): Result<List<Library>>
     suspend fun syncLibraryBooks(libraryId: String): Result<Unit>
     fun getBooksFlow(): Flow<List<Book>>
+    fun getAllProgressFlow(): Flow<List<PlaybackProgress>>
     fun getBookWithProgressFlow(bookId: String): Flow<Pair<Book?, PlaybackProgress?>>
     suspend fun fetchBookDetails(bookId: String): Result<Book>
     suspend fun enqueueBookDownloads(bookId: String): Result<Unit>
