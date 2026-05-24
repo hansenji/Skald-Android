@@ -28,9 +28,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
-import com.example.absclientapp.data.database.BookEntity
-import com.example.absclientapp.data.database.LocalChapter
-import com.example.absclientapp.data.repository.AudiobookshelfRepository
+import com.example.absclientapp.domain.repository.SettingsRepository
 import com.example.absclientapp.ui.detail.formatDuration
 import com.example.absclientapp.ui.detail.formatPosition
 import org.koin.androidx.compose.get
@@ -51,9 +49,9 @@ fun PlayerScreen(
     val playbackSpeed by viewModel.playbackSpeed.collectAsState()
     val sleepTimerRemaining by viewModel.sleepTimerRemaining.collectAsState()
 
-    val repository: AudiobookshelfRepository = get()
-    val serverUrl = remember { repository.preferencesManager.getServerUrl() ?: "" }
-    val token = remember { repository.preferencesManager.getToken() ?: "" }
+    val settingsRepository: SettingsRepository = get()
+    val serverUrl = remember { settingsRepository.getServerUrl() ?: "" }
+    val token = remember { settingsRepository.getToken() ?: "" }
 
     var showChaptersSheet by remember { mutableStateOf(false) }
     var showSpeedDialog by remember { mutableStateOf(false) }

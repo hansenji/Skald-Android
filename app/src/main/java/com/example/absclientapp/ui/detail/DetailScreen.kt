@@ -28,10 +28,10 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
-import com.example.absclientapp.data.database.BookEntity
-import com.example.absclientapp.data.database.LocalChapter
-import com.example.absclientapp.data.database.PlaybackProgressEntity
-import com.example.absclientapp.data.repository.AudiobookshelfRepository
+import com.example.absclientapp.domain.model.Book
+import com.example.absclientapp.domain.model.Chapter
+import com.example.absclientapp.domain.model.PlaybackProgress
+import com.example.absclientapp.domain.repository.SettingsRepository
 import org.koin.androidx.compose.get
 import org.koin.androidx.compose.koinViewModel
 import java.io.File
@@ -41,7 +41,7 @@ import java.io.File
 fun DetailScreen(
     bookId: String,
     onBackClick: () -> Unit,
-    onPlayClick: (BookEntity, Double) -> Unit,
+    onPlayClick: (Book, Double) -> Unit,
     viewModel: DetailViewModel = koinViewModel()
 ) {
     LaunchedEffect(bookId) {
@@ -57,9 +57,9 @@ fun DetailScreen(
     val downloadingFileName by viewModel.downloadingFileName.collectAsState()
     val downloadError by viewModel.downloadError.collectAsState()
 
-    val repository: AudiobookshelfRepository = get()
-    val serverUrl = remember { repository.preferencesManager.getServerUrl() ?: "" }
-    val token = remember { repository.preferencesManager.getToken() ?: "" }
+    val settingsRepository: SettingsRepository = get()
+    val serverUrl = remember { settingsRepository.getServerUrl() ?: "" }
+    val token = remember { settingsRepository.getToken() ?: "" }
 
     Scaffold(
         topBar = {
@@ -114,8 +114,8 @@ fun DetailScreen(
 
 @Composable
 fun DetailContent(
-    book: BookEntity,
-    progress: PlaybackProgressEntity?,
+    book: Book,
+    progress: PlaybackProgress?,
     serverUrl: String,
     token: String,
     isDownloading: Boolean,
@@ -176,7 +176,7 @@ fun DetailContent(
                                             colors = listOf(
                                                 MaterialTheme.colorScheme.primary,
                                                 MaterialTheme.colorScheme.tertiary
-                                            )
+                                             )
                                         )
                                     ),
                                 contentAlignment = Alignment.Center
@@ -383,7 +383,7 @@ fun DetailContent(
 
 @Composable
 fun ChapterItem(
-    chapter: LocalChapter,
+    chapter: Chapter,
     index: Int,
     onClick: () -> Unit
 ) {

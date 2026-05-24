@@ -2,17 +2,25 @@ package com.example.absclientapp.ui.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.absclientapp.data.repository.AudiobookshelfRepository
+import com.example.absclientapp.domain.repository.SettingsRepository
+import com.example.absclientapp.domain.usecase.FetchLibrariesUseCase
+import com.example.absclientapp.domain.usecase.LoginUseCase
+import com.example.absclientapp.domain.usecase.SyncLibraryBooksUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class LoginViewModel(private val repository: AudiobookshelfRepository) : ViewModel() {
-    private val _serverUrl = MutableStateFlow(repository.preferencesManager.getServerUrl() ?: "")
+class LoginViewModel(
+    private val loginUseCase: LoginUseCase,
+    private val fetchLibrariesUseCase: FetchLibrariesUseCase,
+    private val syncLibraryBooksUseCase: SyncLibraryBooksUseCase,
+    private val settingsRepository: SettingsRepository
+) : ViewModel() {
+    private val _serverUrl = MutableStateFlow(settingsRepository.getServerUrl() ?: "")
     val serverUrl: StateFlow<String> = _serverUrl.asStateFlow()
 
-    private val _username = MutableStateFlow(repository.preferencesManager.getUsername() ?: "")
+    private val _username = MutableStateFlow(settingsRepository.getUsername() ?: "")
     val username: StateFlow<String> = _username.asStateFlow()
 
     private val _password = MutableStateFlow("")
@@ -50,16 +58,16 @@ class LoginViewModel(private val repository: AudiobookshelfRepository) : ViewMod
         _error.value = null
 
         viewModelScope.launch {
-            val loginResult = repository.login(url, user, pass)
+            val loginResult = loginUseCase(url, user, pass)
             if (loginResult.isSuccess) {
-                val librariesResult = repository.fetchLibraries()
+                val librariesResult = fetchLibrariesUseCase()
                 if (librariesResult.isSuccess) {
                     val libs = librariesResult.getOrThrow()
                     val audiobookLib = libs.find { it.type == "audiobook" } ?: libs.firstOrNull()
                     if (audiobookLib != null) {
-                        repository.preferencesManager.saveLibraryId(audiobookLib.id)
+                        settingsRepository.saveLibraryId(audiobookLib.id)
                         launch {
-                            repository.syncLibraryBooks(audiobookLib.id)
+                            syncLibraryBooksUseCase(audiobookLib.id)
                         }
                     }
                     _isLoading.value = false

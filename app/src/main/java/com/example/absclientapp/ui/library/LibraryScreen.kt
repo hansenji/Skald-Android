@@ -27,8 +27,8 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
-import com.example.absclientapp.data.database.BookEntity
-import com.example.absclientapp.data.repository.AudiobookshelfRepository
+import com.example.absclientapp.domain.model.Book
+import com.example.absclientapp.domain.repository.SettingsRepository
 import org.koin.androidx.compose.get
 import org.koin.androidx.compose.koinViewModel
 
@@ -45,9 +45,9 @@ fun LibraryScreen(
     
     var searchQuery by remember { mutableStateOf("") }
     
-    val repository: AudiobookshelfRepository = get()
-    val serverUrl = remember { repository.preferencesManager.getServerUrl() ?: "" }
-    val token = remember { repository.preferencesManager.getToken() ?: "" }
+    val settingsRepository: SettingsRepository = get()
+    val serverUrl = remember { settingsRepository.getServerUrl() ?: "" }
+    val token = remember { settingsRepository.getToken() ?: "" }
 
     val filteredBooks = remember(books, searchQuery) {
         if (searchQuery.isBlank()) {
@@ -154,7 +154,7 @@ fun LibraryScreen(
 
 @Composable
 fun BookCard(
-    book: BookEntity,
+    book: Book,
     serverUrl: String,
     token: String,
     onClick: () -> Unit

@@ -1,21 +1,19 @@
 package com.example.absclientapp.ui.player
 
 import androidx.lifecycle.ViewModel
-import com.example.absclientapp.data.database.BookEntity
-import com.example.absclientapp.data.database.LocalChapter
-import com.example.absclientapp.data.repository.AudiobookshelfRepository
+import com.example.absclientapp.domain.model.Book
+import com.example.absclientapp.domain.model.Chapter
 import com.example.absclientapp.player.PlayerManager
 import kotlinx.coroutines.flow.StateFlow
 
 class PlayerViewModel(
-    private val playerManager: PlayerManager,
-    private val repository: AudiobookshelfRepository
+    private val playerManager: PlayerManager
 ) : ViewModel() {
-    val currentBook: StateFlow<BookEntity?> = playerManager.currentBook
+    val currentBook: StateFlow<Book?> = playerManager.currentBook
     val isPlaying: StateFlow<Boolean> = playerManager.isPlaying
     val currentPosition: StateFlow<Double> = playerManager.currentPosition
     val duration: StateFlow<Double> = playerManager.duration
-    val currentChapter: StateFlow<LocalChapter?> = playerManager.currentChapter
+    val currentChapter: StateFlow<Chapter?> = playerManager.currentChapter
     val playbackSpeed: StateFlow<Float> = playerManager.playbackSpeed
     val sleepTimerRemaining: StateFlow<Long> = playerManager.sleepTimerRemaining
 

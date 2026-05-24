@@ -10,7 +10,13 @@ import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.example.absclientapp.data.PreferencesManager
 import com.example.absclientapp.data.database.AppDatabase
-import com.example.absclientapp.data.repository.AudiobookshelfRepository
+import com.example.absclientapp.data.repository.AudiobookshelfRepositoryImpl
+import com.example.absclientapp.data.repository.SettingsRepositoryImpl
+import com.example.absclientapp.data.remote.AudiobookshelfRemoteDataSource
+import com.example.absclientapp.data.remote.AudiobookshelfRemoteDataSourceImpl
+import com.example.absclientapp.domain.repository.AudiobookshelfRepository
+import com.example.absclientapp.domain.repository.SettingsRepository
+import com.example.absclientapp.domain.usecase.*
 import com.example.absclientapp.player.PlayerManager
 import com.example.absclientapp.ui.login.LoginViewModel
 import com.example.absclientapp.ui.library.LibraryViewModel
@@ -40,32 +46,46 @@ class AuthenticatedHttpDataSourceFactory(
 val appModule = module {
     single { PreferencesManager(androidContext()) }
     single { AppDatabase.create(androidContext()) }
-    single { AudiobookshelfRepository(androidContext(), get(), get()) }
-    
+    single<SettingsRepository> { SettingsRepositoryImpl(get()) }
+    single<AudiobookshelfRemoteDataSource> { AudiobookshelfRemoteDataSourceImpl(get()) }
+    single<AudiobookshelfRepository> { AudiobookshelfRepositoryImpl(androidContext(), get(), get(), get()) }
+
+    // Use Cases
+    single { LoginUseCase(get()) }
+    single { FetchLibrariesUseCase(get()) }
+    single { SyncLibraryBooksUseCase(get()) }
+    single { GetBooksUseCase(get()) }
+    single { GetBookWithProgressUseCase(get()) }
+    single { FetchBookDetailsUseCase(get()) }
+    single { DownloadAudioFileUseCase(get()) }
+    single { SaveProgressUseCase(get()) }
+    single { StartPlaybackSessionUseCase(get()) }
+    single { LogoutUseCase(get(), get()) }
+
     // Playback Components
     single {
         val preferencesManager: PreferencesManager = get()
         val httpDataSourceFactory = AuthenticatedHttpDataSourceFactory(preferencesManager)
         val dataSourceFactory = DefaultDataSource.Factory(androidContext(), httpDataSourceFactory)
         val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
-        
+
         val audioAttributes = AudioAttributes.Builder()
             .setUsage(C.USAGE_MEDIA)
             .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
             .build()
-            
+
         ExoPlayer.Builder(androidContext())
             .setMediaSourceFactory(mediaSourceFactory)
             .setSeekParameters(SeekParameters.CLOSEST_SYNC)
             .setAudioAttributes(audioAttributes, true)
             .build()
     }
-    
-    single { PlayerManager(androidContext(), get(), get()) }
-    
+
+    single { PlayerManager(androidContext(), get(), get(), get(), get()) }
+
     // ViewModels
-    viewModel { LoginViewModel(get()) }
-    viewModel { LibraryViewModel(get()) }
-    viewModel { DetailViewModel(get()) }
-    viewModel { PlayerViewModel(get(), get()) }
+    viewModel { LoginViewModel(get(), get(), get(), get()) }
+    viewModel { LibraryViewModel(get(), get(), get(), get()) }
+    viewModel { DetailViewModel(get(), get(), get(), get()) }
+    viewModel { PlayerViewModel(get()) }
 }

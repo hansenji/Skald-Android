@@ -7,10 +7,12 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
-import com.example.absclientapp.data.database.BookEntity
-import com.example.absclientapp.data.database.LocalAudioFile
-import com.example.absclientapp.data.database.LocalChapter
-import com.example.absclientapp.data.repository.AudiobookshelfRepository
+import com.example.absclientapp.domain.model.Book
+import com.example.absclientapp.domain.model.AudioFile
+import com.example.absclientapp.domain.model.Chapter
+import com.example.absclientapp.domain.repository.SettingsRepository
+import com.example.absclientapp.domain.usecase.SaveProgressUseCase
+import com.example.absclientapp.domain.usecase.StartPlaybackSessionUseCase
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -21,14 +23,16 @@ import java.util.UUID
 class PlayerManager(
     private val context: Context,
     private val exoPlayer: ExoPlayer,
-    private val repository: AudiobookshelfRepository
+    private val settingsRepository: SettingsRepository,
+    private val saveProgressUseCase: SaveProgressUseCase,
+    private val startPlaybackSessionUseCase: StartPlaybackSessionUseCase
 ) {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var positionUpdateJob: Job? = null
     private var sleepTimerJob: Job? = null
     
-    private val _currentBook = MutableStateFlow<BookEntity?>(null)
-    val currentBook: StateFlow<BookEntity?> = _currentBook.asStateFlow()
+    private val _currentBook = MutableStateFlow<Book?>(null)
+    val currentBook: StateFlow<Book?> = _currentBook.asStateFlow()
 
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
@@ -39,8 +43,8 @@ class PlayerManager(
     private val _duration = MutableStateFlow(0.0)
     val duration: StateFlow<Double> = _duration.asStateFlow()
 
-    private val _currentChapter = MutableStateFlow<LocalChapter?>(null)
-    val currentChapter: StateFlow<LocalChapter?> = _currentChapter.asStateFlow()
+    private val _currentChapter = MutableStateFlow<Chapter?>(null)
+    val currentChapter: StateFlow<Chapter?> = _currentChapter.asStateFlow()
 
     private val _playbackSpeed = MutableStateFlow(1.0f)
     val playbackSpeed: StateFlow<Float> = _playbackSpeed.asStateFlow()
@@ -48,7 +52,7 @@ class PlayerManager(
     private val _sleepTimerRemaining = MutableStateFlow(0L) // in milliseconds
     val sleepTimerRemaining: StateFlow<Long> = _sleepTimerRemaining.asStateFlow()
 
-    private var sortedFiles: List<LocalAudioFile> = emptyList()
+    private var sortedFiles: List<AudioFile> = emptyList()
     private var cumulativeDurations: DoubleArray = DoubleArray(0)
     
     private var sessionId: String? = null
@@ -93,7 +97,7 @@ class PlayerManager(
         })
     }
 
-    fun playBook(book: BookEntity, startPosition: Double) {
+    fun playBook(book: Book, startPosition: Double) {
         scope.launch {
             // Stop current playback
             exoPlayer.stop()
@@ -117,7 +121,7 @@ class PlayerManager(
                 val uriString = if (file.localPath != null && File(file.localPath).exists()) {
                     file.localPath
                 } else {
-                    val serverUrl = repository.preferencesManager.getServerUrl() ?: ""
+                    val serverUrl = settingsRepository.getServerUrl() ?: ""
                     val sanitizedBase = if (serverUrl.endsWith("/")) serverUrl else "$serverUrl/"
                     "${sanitizedBase}api/items/${book.id}/file/${file.ino}/download"
                 }
@@ -125,7 +129,7 @@ class PlayerManager(
                 val coverUri = if (book.coverPath != null && File(book.coverPath).exists()) {
                     android.net.Uri.fromFile(File(book.coverPath))
                 } else {
-                    val serverUrl = repository.preferencesManager.getServerUrl() ?: ""
+                    val serverUrl = settingsRepository.getServerUrl() ?: ""
                     val sanitizedBase = if (serverUrl.endsWith("/")) serverUrl else "$serverUrl/"
                     android.net.Uri.parse("${sanitizedBase}api/items/${book.id}/cover")
                 }
@@ -170,7 +174,7 @@ class PlayerManager(
             
             // Start session async
             launch(Dispatchers.IO) {
-                val result = repository.startPlaybackSession(book.id, deviceId, deviceName)
+                val result = startPlaybackSessionUseCase(book.id, deviceId, deviceName)
                 if (result.isSuccess) {
                     sessionId = result.getOrNull()
                 }
@@ -298,15 +302,15 @@ class PlayerManager(
 
         scope.launch(Dispatchers.IO) {
             // Always save locally first
-            repository.saveLocalProgress(book.id, currentPos, totalDur)
+            saveProgressUseCase.saveLocal(book.id, currentPos, totalDur)
             
             // Sync with server if online and we have an active session
             if (activeSessionId != null && timeListenedToSend > 0) {
-                repository.syncPlaybackProgress(activeSessionId, timeListenedToSend, currentPos)
+                saveProgressUseCase.syncPlayback(activeSessionId, timeListenedToSend, currentPos)
             } else {
                 // If offline, save progress for future batch/static update
                 val progress = if (totalDur > 0) (currentPos / totalDur).toFloat() else 0f
-                repository.syncStaticProgress(book.id, currentPos, progress, progress >= 0.99f)
+                saveProgressUseCase.syncStatic(book.id, currentPos, progress, progress >= 0.99f)
             }
         }
     }
