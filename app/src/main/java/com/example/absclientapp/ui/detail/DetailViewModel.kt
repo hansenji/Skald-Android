@@ -10,6 +10,7 @@ import com.example.absclientapp.domain.repository.AudiobookshelfRepository
 import com.example.absclientapp.domain.usecase.GetBookWithProgressUseCase
 import com.example.absclientapp.domain.usecase.FetchBookDetailsUseCase
 import com.example.absclientapp.domain.usecase.DownloadAudioFileUseCase
+import com.example.absclientapp.domain.usecase.DeleteLocalBookFilesUseCase
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -19,6 +20,7 @@ class DetailViewModel(
     private val getBookWithProgressUseCase: GetBookWithProgressUseCase,
     private val fetchBookDetailsUseCase: FetchBookDetailsUseCase,
     private val downloadAudioFileUseCase: DownloadAudioFileUseCase,
+    private val deleteLocalBookFilesUseCase: DeleteLocalBookFilesUseCase,
     private val repository: AudiobookshelfRepository
 ) : ViewModel() {
     private val _bookId = MutableStateFlow<String?>(null)
@@ -93,6 +95,19 @@ class DetailViewModel(
             if (result.isFailure) {
                 _downloadError.value = result.exceptionOrNull()?.message ?: "Failed to start download"
             }
+        }
+    }
+
+    fun deleteDownloadedBook() {
+        val book = bookAndProgress.value?.first ?: return
+        viewModelScope.launch {
+            _isLoading.value = true
+            _downloadError.value = null
+            val result = deleteLocalBookFilesUseCase(book.id)
+            if (result.isFailure) {
+                _downloadError.value = result.exceptionOrNull()?.message ?: "Failed to delete downloaded files"
+            }
+            _isLoading.value = false
         }
     }
 }

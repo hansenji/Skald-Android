@@ -306,6 +306,56 @@ class AudiobookshelfRepositoryImpl(
         bookDao.insertBook(book.copy(audioFiles = updatedFiles, isDownloaded = isAllDownloaded))
     }
 
+    override suspend fun deleteLocalBookFiles(bookId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val book = bookDao.getBookById(bookId) ?: throw Exception("Book not found")
+
+            // 1. Cancel active downloads in DownloadManager
+            val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            val query = DownloadManager.Query()
+            val idsToRemove = mutableListOf<Long>()
+            runCatching {
+                downloadManager.query(query).use { cursor ->
+                    val uriColumn = cursor.getColumnIndex(DownloadManager.COLUMN_URI)
+                    val idColumn = cursor.getColumnIndex(DownloadManager.COLUMN_ID)
+                    if (uriColumn != -1 && idColumn != -1) {
+                        while (cursor.moveToNext()) {
+                            val remoteUri = cursor.getString(uriColumn) ?: continue
+                            val id = cursor.getLong(idColumn)
+
+                            val regex = Regex(".*/api/items/([^/]+)/file/([^/]+)/download.*")
+                            val match = regex.matchEntire(remoteUri) ?: continue
+                            val itemBookId = match.groupValues[1]
+
+                            if (itemBookId == bookId) {
+                                idsToRemove.add(id)
+                            }
+                        }
+                    }
+                }
+            }
+            if (idsToRemove.isNotEmpty()) {
+                downloadManager.remove(*idsToRemove.toLongArray())
+            }
+
+            // 2. Delete local directory recursively
+            val folder = File(context.getExternalFilesDir(null), "downloads/$bookId")
+            if (folder.exists()) {
+                val deleted = folder.deleteRecursively()
+                if (!deleted) {
+                    throw Exception("Failed to delete local book files directory")
+                }
+            }
+
+            // 3. Update database
+            val updatedFiles = book.audioFiles.map {
+                it.copy(localPath = null, downloadStatus = "NOT_DOWNLOADED")
+            }
+            val updatedBook = book.copy(audioFiles = updatedFiles, isDownloaded = false)
+            bookDao.insertBook(updatedBook)
+        }
+    }
+
     override suspend fun clearLocalData() = withContext(Dispatchers.IO) {
         db.clearAllTables()
     }

@@ -11,6 +11,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -97,6 +98,7 @@ fun DetailScreen(
                     downloadingFileName = downloadingFileName,
                     downloadError = downloadError,
                     onDownloadClick = { viewModel.downloadBook() },
+                    onRemoveDownloadClick = { viewModel.deleteDownloadedBook() },
                     onPlayClick = { startPos -> onPlayClick(book, startPos) },
                     modifier = Modifier.padding(paddingValues)
                 )
@@ -123,6 +125,7 @@ fun DetailContent(
     downloadingFileName: String?,
     downloadError: String?,
     onDownloadClick: () -> Unit,
+    onRemoveDownloadClick: () -> Unit,
     onPlayClick: (Double) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -267,18 +270,17 @@ fun DetailContent(
             // Download Button
             if (book.isDownloaded) {
                 Button(
-                    onClick = {},
-                    enabled = false,
+                    onClick = onRemoveDownloadClick,
                     modifier = Modifier.weight(1f).height(48.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        disabledContainerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f),
-                        disabledContentColor = MaterialTheme.colorScheme.secondary
+                        containerColor = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer
                     )
                 ) {
-                    Icon(Icons.Default.DownloadDone, contentDescription = null)
+                    Icon(Icons.Default.Delete, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Downloaded", fontWeight = FontWeight.Bold)
+                    Text("Remove", fontWeight = FontWeight.Bold)
                 }
             } else {
                 Button(

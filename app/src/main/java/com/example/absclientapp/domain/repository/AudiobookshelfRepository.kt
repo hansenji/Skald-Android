@@ -21,5 +21,6 @@ interface AudiobookshelfRepository {
     suspend fun startPlaybackSession(bookId: String, deviceId: String, deviceName: String): Result<String>
     suspend fun syncPlaybackProgress(sessionId: String, timeListened: Double, currentTime: Double): Result<Unit>
     suspend fun syncStaticProgress(bookId: String, currentTime: Double, progress: Float, isFinished: Boolean): Result<Unit>
+    suspend fun deleteLocalBookFiles(bookId: String): Result<Unit>
     suspend fun clearLocalData()
 }

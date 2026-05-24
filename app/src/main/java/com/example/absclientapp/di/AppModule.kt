@@ -58,6 +58,7 @@ val appModule = module {
     single { GetBookWithProgressUseCase(get()) }
     single { FetchBookDetailsUseCase(get()) }
     single { DownloadAudioFileUseCase(get()) }
+    single { DeleteLocalBookFilesUseCase(get()) }
     single { SaveProgressUseCase(get()) }
     single { StartPlaybackSessionUseCase(get()) }
     single { LogoutUseCase(get(), get()) }
@@ -86,6 +87,6 @@ val appModule = module {
     // ViewModels
     viewModel { LoginViewModel(get(), get(), get(), get()) }
     viewModel { LibraryViewModel(get(), get(), get(), get()) }
-    viewModel { DetailViewModel(get(), get(), get(), get()) }
+    viewModel { DetailViewModel(get(), get(), get(), get(), get()) }
     viewModel { PlayerViewModel(get()) }
 }
