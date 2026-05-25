@@ -6,10 +6,10 @@ plugins {
 }
 
 android {
-    namespace = "com.example.absclientapp"
+    namespace = "dev.vikingsen.absclientapp"
     compileSdk = 36
     defaultConfig {
-        applicationId = "com.example.absclientapp"
+        applicationId = "dev.vikingsen.absclientapp"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
