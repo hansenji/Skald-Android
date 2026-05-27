@@ -99,7 +99,7 @@ class AndroidAutoBrowseCallbackTest {
             }
         }
         val activeNetwork = mockk<android.net.Network>()
-        every { cm.activeNetwork } returns activeNetwork
+        every { cm.allNetworks } returns arrayOf(activeNetwork)
         every { cm.getNetworkCapabilities(activeNetwork) } returns netCapabilities
         every { netCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) } returns true
 
@@ -172,7 +172,7 @@ class AndroidAutoBrowseCallbackTest {
     @Test
     fun testGetChildren_continueListening_offline() {
         // Mock offline
-        every { cm.activeNetwork } returns null
+        every { cm.allNetworks } returns emptyArray()
 
         val result = callback.onGetChildren(mockk(), mockk(), "continue_listening", 0, 10, null).get()
         val list = result.value ?: emptyList()

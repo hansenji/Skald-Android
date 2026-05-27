@@ -43,10 +43,17 @@ class AndroidAutoBrowseCallback(
     private val scope = CoroutineScope(Dispatchers.Main)
 
     private fun isOnline(): Boolean {
-        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
-        val net = cm.activeNetwork ?: return false
-        val cap = cm.getNetworkCapabilities(net) ?: return false
-        return cap.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        return try {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return true
+            val networks = cm.allNetworks
+            if (networks.isEmpty()) return false
+            networks.any { net ->
+                val cap = cm.getNetworkCapabilities(net)
+                cap != null && cap.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            }
+        } catch (e: Exception) {
+            true // Default to online if system check fails or permission is missing
+        }
     }
 
     private fun buildBrowsableItem(id: String, title: String, subtitle: String? = null): MediaItem {

@@ -1,5 +1,8 @@
 package dev.vikingsen.absclientapp.core.player
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Bundle
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
@@ -23,11 +26,26 @@ import kotlinx.coroutines.launch
 
 @OptIn(UnstableApi::class)
 class AudiobookSessionCallback(
+    private val context: Context,
     private val playerManager: PlayerManager,
     private val settingsRepository: SettingsRepository,
     private val getBooksUseCase: GetBooksUseCase,
     private val getPlaybackProgressUseCase: GetPlaybackProgressUseCase
 ) : MediaLibrarySession.Callback {
+
+    private fun isOnline(): Boolean {
+        return try {
+            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return true
+            val networks = cm.allNetworks
+            if (networks.isEmpty()) return false
+            networks.any { net ->
+                val cap = cm.getNetworkCapabilities(net)
+                cap != null && cap.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            }
+        } catch (e: Exception) {
+            true // Default to online if system check fails or permission is missing
+        }
+    }
 
     private val scope = CoroutineScope(Dispatchers.Main)
 
@@ -158,6 +176,8 @@ class AudiobookSessionCallback(
             try {
                 val books = getBooksUseCase().first()
                 val progressList = getPlaybackProgressUseCase().first()
+                val isOffline = !isOnline()
+                val playableBooks = if (isOffline) books.filter { it.isDownloaded } else books
 
                 // Check search query (Voice command)
                 val searchQuery = firstItem.requestMetadata.searchQuery ?: firstItem.mediaMetadata.title?.toString()
@@ -174,11 +194,11 @@ class AudiobookSessionCallback(
                             .filter { it.progress > 0f && it.progress < 0.99f && !it.isFinished }
                             .maxByOrNull { it.lastUpdated }
                         
-                        val book = activeProgress?.let { prog -> books.find { it.id == prog.bookId } }
-                        book ?: books.firstOrNull { it.isDownloaded } ?: books.firstOrNull()
+                        val book = activeProgress?.let { prog -> playableBooks.find { it.id == prog.bookId } }
+                        book ?: playableBooks.firstOrNull()
                     } else {
                         // Search by query term (title or author)
-                        val matches = books.filter {
+                        val matches = playableBooks.filter {
                             it.title.contains(searchQuery, ignoreCase = true) ||
                                     it.author.contains(searchQuery, ignoreCase = true)
                         }
@@ -203,6 +223,10 @@ class AudiobookSessionCallback(
                     val cleanId = firstItem.mediaId.substringBefore("_")
                     val book = books.find { it.id == cleanId }
                     if (book != null) {
+                        if (isOffline && !book.isDownloaded) {
+                            future.set(emptyList())
+                            return@launch
+                        }
                         val progress = progressList.find { it.bookId == book.id }
                         val startPos = progress?.currentTime ?: 0.0
                         playerManager.playBook(book, startPos)

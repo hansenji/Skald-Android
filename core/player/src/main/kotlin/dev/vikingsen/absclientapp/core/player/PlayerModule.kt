@@ -53,6 +53,7 @@ val corePlayerModule = module {
 
     single {
         AudiobookSessionCallback(
+            context = androidContext(),
             playerManager = get(),
             settingsRepository = get(),
             getBooksUseCase = get(),

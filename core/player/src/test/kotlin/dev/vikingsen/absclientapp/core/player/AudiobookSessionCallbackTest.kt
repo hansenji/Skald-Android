@@ -1,5 +1,8 @@
 package dev.vikingsen.absclientapp.core.player
 
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.os.Bundle
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
@@ -24,6 +27,10 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class AudiobookSessionCallbackTest {
 
+    private val context = mockk<Context>(relaxed = true)
+    private val cm = mockk<ConnectivityManager>(relaxed = true)
+    private val netCapabilities = mockk<NetworkCapabilities>(relaxed = true)
+
     private val playerManager = mockk<PlayerManager>(relaxed = true)
     private val settingsRepository = mockk<SettingsRepository>(relaxed = true)
     private val getBooksUseCase = mockk<GetBooksUseCase>(relaxed = true)
@@ -37,7 +44,15 @@ class AudiobookSessionCallbackTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
+
+        every { context.getSystemService(Context.CONNECTIVITY_SERVICE) } returns cm
+        val activeNetwork = mockk<android.net.Network>()
+        every { cm.allNetworks } returns arrayOf(activeNetwork)
+        every { cm.getNetworkCapabilities(activeNetwork) } returns netCapabilities
+        every { netCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) } returns true
+
         callback = AudiobookSessionCallback(
+            context = context,
             playerManager = playerManager,
             settingsRepository = settingsRepository,
             getBooksUseCase = getBooksUseCase,
