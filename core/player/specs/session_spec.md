@@ -60,6 +60,31 @@ The callback intercepts and executes the following custom Media3 commands (`Sess
   3. **Jump to Prior Chapter**: If the current chapter has been playing for `5` seconds or less, seek to the start of the previous chapter.
   4. If there is no previous chapter, seek to the beginning of the book (`0.0s`).
 
+### C. Voice Search & Playback Resumption (`onAddMediaItems`)
+
+When Google Assistant, Android Auto, or another media controller invokes voice commands, the requests are routed through the session callback's `onAddMediaItems` method. The app must handle these requests as follows:
+
+#### 1. Checking Search Intent
+- Query `MediaItem.requestMetadata.searchQuery` from the requested list of media items.
+- If a query or specific intent is present, trigger search resolution.
+
+#### 2. Generic Resumption ("Continue Reading", "Pickup Where I Left Off")
+- **Trigger**: The search query is empty, null, or contains generic terms (e.g., `"audiobook"`, `"book"`, `"continue reading"`, `"resume"`).
+- **Execution Rules**:
+  1. Query the database/repository for the user's active in-progress audiobooks (checking the `playback_progress` table where `progress > 0.0f` and `progress < 1.0f`).
+  2. Sort results by `lastUpdated` descending to locate the most recently played audiobook.
+  3. Construct a playable `MediaItem` representing the active book. Include the saved playback progress (`currentTime`) in its initialization.
+  4. Return the playable `MediaItem` to start playback immediately from the saved position.
+  5. If no active audiobook is found, fall back to the first downloaded book, or return an empty list with an appropriate error state.
+
+#### 3. Specific Content Search ("Play [Book Title]")
+- **Trigger**: The search query contains specific terms (e.g., `"play The Hobbit"`).
+- **Execution Rules**:
+  1. Query the local cache or server search endpoint for books matching the search query terms (checking titles and authors).
+  2. If a single match is found, construct its playable `MediaItem`. If it has progress stored in the database, set the start position to the saved progress `currentTime`.
+  3. If multiple matches are found, return the most relevant result (highest match score or most recently accessed).
+  4. Return the resolved `MediaItem` to start playback.
+
 ---
 
 ## 3. Dependency Injection Configuration

@@ -88,6 +88,12 @@ Android Auto uses the Media3 `MediaLibraryService` templates to render the playb
 - **Empty States**: If a category (e.g., "Downloads") is empty, return an empty list. Android Auto will display a standard empty state message.
 - **Offline Mode**: When the device is offline, filter **all** categories (including "Continue Listening" and "All Audiobooks") to only show downloaded books, ensuring every visible item can be played immediately.
 
+### D. Voice Command Integration (Google Assistant)
+
+Google Assistant voice commands (e.g., in Android Auto or hands-free driving) must be supported to enhance driver safety. These commands bypass the manual browse tree:
+- **Generic Resumption Requests**: Commands like "continue reading my book", "read my audiobook", or "pickup where I last left off" must automatically resume the most recently played audiobook with saved progress.
+- **Specific Content Requests**: Commands like "play [Book Title] on ABS Client App" must query local and remote repositories to find the matching title and start playback.
+
 ---
 
 ## 3. Proposed Architectural Changes
