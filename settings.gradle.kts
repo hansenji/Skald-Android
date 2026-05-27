@@ -44,5 +44,6 @@ include(
     ":feature:library:api",
     ":feature:library:impl",
     ":feature:player:api",
-    ":feature:player:impl"
+    ":feature:player:impl",
+    ":feature:androidauto"
 )

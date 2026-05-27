@@ -60,6 +60,7 @@ To ensure consistency, maintainability, and compatibility, the codebase must adh
 - **Local Caching & Persistence**: Cached media files, libraries, progress, and download queues are persisted locally in a SQLite database via Room.
 - **Media Playback**: Audio playback and OS media controls integration must utilize Android Media3 (ExoPlayer and MediaSession).
 - **Image Loading**: Image loading, dynamic cover rendering, and caching are managed using the **Coil** library (`io.coil-kt:coil-compose`).
+- **Localization**: Always use localizable strings (Android resource strings) for displayable user-facing content that does not come directly from the server. Hardcoded string literals in UI layouts, Compose components, and platform integration logic are prohibited.
 
 ---
 

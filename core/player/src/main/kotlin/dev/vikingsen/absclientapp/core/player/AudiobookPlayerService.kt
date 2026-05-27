@@ -10,6 +10,7 @@ import org.koin.android.ext.android.inject
 
 class AudiobookPlayerService : MediaLibraryService() {
     private val exoPlayer: ExoPlayer by inject()
+    private val sessionCallback: MediaLibrarySession.Callback by inject()
     private var mediaLibrarySession: MediaLibrarySession? = null
 
     override fun onCreate() {
@@ -18,9 +19,7 @@ class AudiobookPlayerService : MediaLibraryService() {
         mediaLibrarySession = MediaLibrarySession.Builder(
             this,
             exoPlayer,
-            object : MediaLibrarySession.Callback {
-                // MediaLibrarySession callbacks can go here if needed.
-            }
+            sessionCallback
         ).build()
     }
 

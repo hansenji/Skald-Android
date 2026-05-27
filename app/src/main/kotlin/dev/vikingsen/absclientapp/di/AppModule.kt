@@ -9,6 +9,7 @@ import dev.vikingsen.absclientapp.domain.domainModule
 import dev.vikingsen.absclientapp.feature.library.featureLibraryModule
 import dev.vikingsen.absclientapp.feature.login.featureLoginModule
 import dev.vikingsen.absclientapp.feature.player.featurePlayerModule
+import dev.vikingsen.absclientapp.feature.androidauto.featureAndroidAutoModule
 import org.koin.dsl.module
 
 val appModule = module {
@@ -21,6 +22,7 @@ val appModule = module {
         dataModule,
         featureLoginModule,
         featureLibraryModule,
-        featurePlayerModule
+        featurePlayerModule,
+        featureAndroidAutoModule
     )
 }

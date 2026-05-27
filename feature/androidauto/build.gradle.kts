@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "dev.vikingsen.absclientapp.core.player"
+    namespace = "dev.vikingsen.absclientapp.feature.androidauto"
     compileSdk = 36
     defaultConfig {
         minSdk = 26
@@ -21,14 +21,11 @@ android {
 
 dependencies {
     implementation(project(":core:model"))
-    implementation(project(":core:preferences"))
+    implementation(project(":core:player"))
     implementation(project(":domain"))
-    
-    // Android Media3
+
     implementation(libs.media3.common)
-    implementation(libs.media3.exoplayer)
     implementation(libs.media3.session)
-    
     implementation(libs.androidx.core.ktx)
     implementation(libs.koin.android)
 

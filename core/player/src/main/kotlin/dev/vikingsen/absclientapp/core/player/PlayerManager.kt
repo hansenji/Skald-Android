@@ -97,6 +97,41 @@ class PlayerManager(
         })
     }
 
+    fun createMediaItemsForBook(book: Book): List<MediaItem> {
+        val sorted = book.audioFiles.sortedBy { it.index }
+        return sorted.map { file ->
+            val uriString = if (file.localPath != null && File(file.localPath).exists()) {
+                file.localPath
+            } else {
+                val serverUrl = settingsRepository.getServerUrl() ?: ""
+                val sanitizedBase = if (serverUrl.endsWith("/")) serverUrl else "$serverUrl/"
+                "${sanitizedBase}api/items/${book.id}/file/${file.ino}/download"
+            }
+
+            val coverUri = if (book.coverPath != null && File(book.coverPath).exists()) {
+                android.net.Uri.fromFile(File(book.coverPath))
+            } else {
+                val serverUrl = settingsRepository.getServerUrl() ?: ""
+                val sanitizedBase = if (serverUrl.endsWith("/")) serverUrl else "$serverUrl/"
+                android.net.Uri.parse("${sanitizedBase}api/items/${book.id}/cover")
+            }
+
+            val mediaMetadata = androidx.media3.common.MediaMetadata.Builder()
+                .setTitle(book.title)
+                .setArtist(book.author)
+                .setAlbumArtist(book.narrator)
+                .setArtworkUri(coverUri)
+                .setMediaType(androidx.media3.common.MediaMetadata.MEDIA_TYPE_AUDIO_BOOK_CHAPTER)
+                .build()
+
+            MediaItem.Builder()
+                .setUri(uriString)
+                .setMediaId("${book.id}_${file.ino}")
+                .setMediaMetadata(mediaMetadata)
+                .build()
+        }
+    }
+
     fun playBook(book: Book, startPosition: Double) {
         scope.launch {
             // Stop current playback
@@ -117,40 +152,14 @@ class PlayerManager(
             _duration.value = sum
             
             // Create MediaItems
-            val mediaItems = sortedFiles.map { file ->
-                val uriString = if (file.localPath != null && File(file.localPath).exists()) {
-                    file.localPath
-                } else {
-                    val serverUrl = settingsRepository.getServerUrl() ?: ""
-                    val sanitizedBase = if (serverUrl.endsWith("/")) serverUrl else "$serverUrl/"
-                    "${sanitizedBase}api/items/${book.id}/file/${file.ino}/download"
-                }
-
-                val coverUri = if (book.coverPath != null && File(book.coverPath).exists()) {
-                    android.net.Uri.fromFile(File(book.coverPath))
-                } else {
-                    val serverUrl = settingsRepository.getServerUrl() ?: ""
-                    val sanitizedBase = if (serverUrl.endsWith("/")) serverUrl else "$serverUrl/"
-                    android.net.Uri.parse("${sanitizedBase}api/items/${book.id}/cover")
-                }
-
-                val mediaMetadata = androidx.media3.common.MediaMetadata.Builder()
-                    .setTitle(book.title)
-                    .setArtist(book.author)
-                    .setAlbumArtist(book.narrator)
-                    .setArtworkUri(coverUri)
-                    .setMediaType(androidx.media3.common.MediaMetadata.MEDIA_TYPE_AUDIO_BOOK_CHAPTER)
-                    .build()
-
-                MediaItem.Builder()
-                    .setUri(uriString)
-                    .setMediaId("${book.id}_${file.ino}")
-                    .setMediaMetadata(mediaMetadata)
-                    .build()
-            }
+            val mediaItems = createMediaItemsForBook(book)
             
             exoPlayer.setMediaItems(mediaItems)
             exoPlayer.prepare()
+            
+            // Restore playback speed
+            val speed = settingsRepository.getPlaybackSpeed()
+            setPlaybackSpeed(speed)
             
             // Seek to start position
             seekTo(startPosition)

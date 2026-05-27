@@ -15,4 +15,10 @@ interface SettingsRepository {
     fun saveDownloadedOnlyFilter(downloadedOnly: Boolean)
     fun isLoggedIn(): Boolean
     fun clear()
+    fun getSkipForwardDuration(): Int
+    fun saveSkipForwardDuration(duration: Int)
+    fun getSkipBackwardDuration(): Int
+    fun saveSkipBackwardDuration(duration: Int)
+    fun getPlaybackSpeed(): Float
+    fun savePlaybackSpeed(speed: Float)
 }

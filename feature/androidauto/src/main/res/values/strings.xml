@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="auto_login_required">Please log in on your phone</string>
+    <string name="auto_continue_listening">Continue Listening</string>
+    <string name="auto_downloads">Downloads</string>
+    <string name="auto_all_audiobooks">All Audiobooks</string>
+    <string name="auto_by_author">By Author</string>
+    <string name="auto_a_z">A-Z</string>
+    <string name="auto_root">Root</string>
+</resources>

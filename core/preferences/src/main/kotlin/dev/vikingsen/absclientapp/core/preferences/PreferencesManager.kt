@@ -61,5 +61,20 @@ class PreferencesManager(context: Context) {
         _username.value = null
     }
 
+    fun getSkipForwardDuration(): Int = prefs.getInt("skip_forward_duration", 30)
+    fun saveSkipForwardDuration(duration: Int) {
+        prefs.edit().putInt("skip_forward_duration", duration).apply()
+    }
+
+    fun getSkipBackwardDuration(): Int = prefs.getInt("skip_backward_duration", 10)
+    fun saveSkipBackwardDuration(duration: Int) {
+        prefs.edit().putInt("skip_backward_duration", duration).apply()
+    }
+
+    fun getPlaybackSpeed(): Float = prefs.getFloat("playback_speed", 1.0f)
+    fun savePlaybackSpeed(speed: Float) {
+        prefs.edit().putFloat("playback_speed", speed).apply()
+    }
+
     fun isLoggedIn(): Boolean = !getToken().isNullOrEmpty() && !getServerUrl().isNullOrEmpty()
 }

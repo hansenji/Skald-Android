@@ -46,4 +46,22 @@ class SettingsRepositoryImpl(
     override fun clear() {
         preferencesManager.clear()
     }
+
+    override fun getSkipForwardDuration(): Int = preferencesManager.getSkipForwardDuration()
+
+    override fun saveSkipForwardDuration(duration: Int) {
+        preferencesManager.saveSkipForwardDuration(duration)
+    }
+
+    override fun getSkipBackwardDuration(): Int = preferencesManager.getSkipBackwardDuration()
+
+    override fun saveSkipBackwardDuration(duration: Int) {
+        preferencesManager.saveSkipBackwardDuration(duration)
+    }
+
+    override fun getPlaybackSpeed(): Float = preferencesManager.getPlaybackSpeed()
+
+    override fun savePlaybackSpeed(speed: Float) {
+        preferencesManager.savePlaybackSpeed(speed)
+    }
 }
