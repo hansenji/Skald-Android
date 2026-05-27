@@ -41,6 +41,7 @@ To ensure consistency, maintainability, and compatibility, the codebase must adh
     - `:feature:login`: Login flows, server connection configuration, and credentials processing.
     - `:feature:library`: Library browsing, search grid, and book detail screens.
     - `:feature:player`: Audiobook player controls, sleep timer, speed controller, and chapters bottom sheet.
+    - `:feature:androidauto`: Android Auto media integration, browsing content tree, and media session delegation.
   - **Data Module (`:data`)**: Repository implementations coordinating network, local database, and preferences data access.
   - **Domain Module (`:domain`)**: Use Cases and repository interfaces (pure Kotlin, free of Android platform dependencies).
   - **Core Utility & Infrastructure Modules**: Core cross-cutting services and platform interfaces:
@@ -58,6 +59,7 @@ To ensure consistency, maintainability, and compatibility, the codebase must adh
 - **Dependency Injection**: Application services and ViewModels are wired and managed via Koin.
 - **Local Caching & Persistence**: Cached media files, libraries, progress, and download queues are persisted locally in a SQLite database via Room.
 - **Media Playback**: Audio playback and OS media controls integration must utilize Android Media3 (ExoPlayer and MediaSession).
+- **Image Loading**: Image loading, dynamic cover rendering, and caching are managed using the **Coil** library (`io.coil-kt:coil-compose`).
 
 ---
 
