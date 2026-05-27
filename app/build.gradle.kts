@@ -2,7 +2,6 @@ plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.serialization)
-  alias(libs.plugins.ksp)
 }
 
 android {
@@ -20,6 +19,11 @@ android {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
+    }
+    testOptions {
+        unitTests {
+            isReturnDefaultValues = true
         }
     }
     compileOptions {
@@ -74,6 +78,8 @@ dependencies {
   // Local tests: jUnit, coroutines, Android runner
   testImplementation(libs.junit)
   testImplementation(libs.kotlinx.coroutines.test)
+  testImplementation(libs.mockk)
+  testImplementation(libs.ktor.client.mock)
 
   // Instrumented tests: jUnit rules and runners
   androidTestImplementation(libs.androidx.test.core)
@@ -86,28 +92,19 @@ dependencies {
   implementation(libs.androidx.navigation3.runtime)
   implementation(libs.androidx.lifecycle.viewmodel.navigation3)
 
-  // Ktor Client
-  implementation(libs.ktor.client.core)
-  implementation(libs.ktor.client.okhttp)
-  implementation(libs.ktor.client.content.negotiation)
-  implementation(libs.ktor.serialization.kotlinx.json)
-  implementation(libs.ktor.client.logging)
-
   // Koin DI
   implementation(libs.koin.android)
   implementation(libs.koin.androidx.compose)
 
-  // Android Media3
-  implementation(libs.media3.common)
-  implementation(libs.media3.exoplayer)
-  implementation(libs.media3.session)
-
-  // Room Database
-  implementation(libs.room.runtime)
-  implementation(libs.room.ktx)
-  ksp(libs.room.compiler)
-
-  // Coil Image Loader
-  implementation(libs.coil.compose)
+  // Subproject Modules
+  implementation(project(":core:model"))
+  implementation(project(":core:preferences"))
+  implementation(project(":core:database"))
+  implementation(project(":core:network"))
+  implementation(project(":core:player"))
+  implementation(project(":domain"))
+  implementation(project(":data"))
+  implementation(project(":feature:login"))
+  implementation(project(":feature:library"))
+  implementation(project(":feature:player"))
 }
-

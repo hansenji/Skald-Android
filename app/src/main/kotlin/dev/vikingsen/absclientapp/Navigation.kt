@@ -5,12 +5,12 @@ import androidx.compose.runtime.remember
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
-import dev.vikingsen.absclientapp.data.PreferencesManager
-import dev.vikingsen.absclientapp.player.PlayerManager
-import dev.vikingsen.absclientapp.ui.login.LoginScreen
-import dev.vikingsen.absclientapp.ui.library.LibraryScreen
-import dev.vikingsen.absclientapp.ui.detail.DetailScreen
-import dev.vikingsen.absclientapp.ui.player.PlayerScreen
+import dev.vikingsen.absclientapp.core.preferences.PreferencesManager
+import dev.vikingsen.absclientapp.core.player.PlayerManager
+import dev.vikingsen.absclientapp.feature.login.LoginScreen
+import dev.vikingsen.absclientapp.feature.library.LibraryScreen
+import dev.vikingsen.absclientapp.feature.library.DetailScreen
+import dev.vikingsen.absclientapp.feature.player.PlayerScreen
 import org.koin.compose.koinInject
 
 @Composable

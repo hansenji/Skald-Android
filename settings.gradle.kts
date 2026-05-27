@@ -30,4 +30,16 @@ plugins {
 }
 
 rootProject.name = "ABS Client App"
-include(":app")
+include(
+    ":app",
+    ":core:model",
+    ":core:preferences",
+    ":core:database",
+    ":core:network",
+    ":core:player",
+    ":domain",
+    ":data",
+    ":feature:login",
+    ":feature:library",
+    ":feature:player"
+)
