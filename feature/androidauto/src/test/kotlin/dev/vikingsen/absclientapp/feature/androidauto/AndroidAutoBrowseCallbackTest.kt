@@ -163,10 +163,9 @@ class AndroidAutoBrowseCallbackTest {
     fun testGetChildren_continueListening_online() {
         val result = callback.onGetChildren(mockk(), mockk(), "continue_listening", 0, 10, null).get()
         val list = result.value ?: emptyList()
-        // Both books are in progress. Sorted by lastUpdated descending (Book 2 has 2000L, Book 1 has 1000L)
-        assertEquals(2, list.size)
-        assertEquals("2", list[0].mediaId)
-        assertEquals("1", list[1].mediaId)
+        // Only downloaded books are returned, so only Book 1 is present
+        assertEquals(1, list.size)
+        assertEquals("1", list[0].mediaId)
     }
 
     @Test
@@ -176,7 +175,7 @@ class AndroidAutoBrowseCallbackTest {
 
         val result = callback.onGetChildren(mockk(), mockk(), "continue_listening", 0, 10, null).get()
         val list = result.value ?: emptyList()
-        // Offline: only downloaded book (Book 1) is returned
+        // Only downloaded book (Book 1) is returned
         assertEquals(1, list.size)
         assertEquals("1", list[0].mediaId)
     }
@@ -185,18 +184,18 @@ class AndroidAutoBrowseCallbackTest {
     fun testGetChildren_byAuthor() {
         val result = callback.onGetChildren(mockk(), mockk(), "by_author", 0, 10, null).get()
         val list = result.value ?: emptyList()
-        assertEquals(2, list.size)
+        // Only downloaded books are considered, so only Author A is present
+        assertEquals(1, list.size)
         assertEquals("author_Author A", list[0].mediaId)
-        assertEquals("author_Author B", list[1].mediaId)
     }
 
     @Test
     fun testGetChildren_a_z() {
         val result = callback.onGetChildren(mockk(), mockk(), "a_z", 0, 10, null).get()
         val list = result.value ?: emptyList()
-        assertEquals(2, list.size)
+        // Only downloaded books are considered, so only letter A is present
+        assertEquals(1, list.size)
         assertEquals("letter_A", list[0].mediaId)
-        assertEquals("letter_B", list[1].mediaId)
     }
 
     @Test
@@ -211,8 +210,13 @@ class AndroidAutoBrowseCallbackTest {
     fun testGetChildren_letter() {
         val result = callback.onGetChildren(mockk(), mockk(), "letter_B", 0, 10, null).get()
         val list = result.value ?: emptyList()
-        assertEquals(1, list.size)
-        assertEquals("2", list[0].mediaId)
+        // Book 2 (starting with B) is not downloaded, so the list should be empty
+        assertEquals(0, list.size)
+
+        val resultA = callback.onGetChildren(mockk(), mockk(), "letter_A", 0, 10, null).get()
+        val listA = resultA.value ?: emptyList()
+        assertEquals(1, listA.size)
+        assertEquals("1", listA[0].mediaId)
     }
 
     @Test
@@ -224,5 +228,24 @@ class AndroidAutoBrowseCallbackTest {
         assertEquals(1, list.size)
         assertEquals("login_required", list[0].mediaId)
         assertEquals("Please log in on your phone", list[0].mediaMetadata.title?.toString())
+    }
+
+    @Test
+    fun testOnGetItem_downloaded() {
+        val result = callback.onGetItem(mockk(), mockk(), "1").get()
+        assertEquals("1", result.value?.mediaId)
+        assertEquals("Alpha Book", result.value?.mediaMetadata?.title?.toString())
+    }
+
+    @Test
+    fun testOnGetItem_notDownloaded() {
+        val result = callback.onGetItem(mockk(), mockk(), "2").get()
+        assertEquals(SessionResult.RESULT_ERROR_BAD_VALUE, result.resultCode)
+    }
+
+    @Test
+    fun testOnGetItem_notFound() {
+        val result = callback.onGetItem(mockk(), mockk(), "non_existent").get()
+        assertEquals(SessionResult.RESULT_ERROR_BAD_VALUE, result.resultCode)
     }
 }

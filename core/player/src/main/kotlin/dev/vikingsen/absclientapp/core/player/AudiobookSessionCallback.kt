@@ -1,8 +1,6 @@
 package dev.vikingsen.absclientapp.core.player
 
 import android.content.Context
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import android.os.Bundle
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
@@ -32,20 +30,6 @@ class AudiobookSessionCallback(
     private val getBooksUseCase: GetBooksUseCase,
     private val getPlaybackProgressUseCase: GetPlaybackProgressUseCase
 ) : MediaLibrarySession.Callback {
-
-    private fun isOnline(): Boolean {
-        return try {
-            val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return true
-            val networks = cm.allNetworks
-            if (networks.isEmpty()) return false
-            networks.any { net ->
-                val cap = cm.getNetworkCapabilities(net)
-                cap != null && cap.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            }
-        } catch (e: Exception) {
-            true // Default to online if system check fails or permission is missing
-        }
-    }
 
     private val scope = CoroutineScope(Dispatchers.Main)
 
@@ -176,8 +160,7 @@ class AudiobookSessionCallback(
             try {
                 val books = getBooksUseCase().first()
                 val progressList = getPlaybackProgressUseCase().first()
-                val isOffline = !isOnline()
-                val playableBooks = if (isOffline) books.filter { it.isDownloaded } else books
+                val playableBooks = books.filter { it.isDownloaded }
 
                 // Check search query (Voice command)
                 val searchQuery = firstItem.requestMetadata.searchQuery ?: firstItem.mediaMetadata.title?.toString()
@@ -219,11 +202,10 @@ class AudiobookSessionCallback(
                         future.set(emptyList())
                     }
                 } else {
-                    // Direct playback by ID
                     val cleanId = firstItem.mediaId.substringBefore("_")
                     val book = books.find { it.id == cleanId }
                     if (book != null) {
-                        if (isOffline && !book.isDownloaded) {
+                        if (!book.isDownloaded) {
                             future.set(emptyList())
                             return@launch
                         }
@@ -235,7 +217,9 @@ class AudiobookSessionCallback(
                         future.set(mediaItems)
                     }
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
+                println("DEBUG: Exception in onAddMediaItems: $e")
+                e.printStackTrace()
                 future.setException(e)
             }
         }

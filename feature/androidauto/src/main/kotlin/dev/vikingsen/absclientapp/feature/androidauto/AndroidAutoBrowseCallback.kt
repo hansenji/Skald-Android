@@ -41,6 +41,72 @@ class AndroidAutoBrowseCallback(
 ) : MediaLibrarySession.Callback {
 
     private val scope = CoroutineScope(Dispatchers.Main)
+    private var mediaLibrarySession: MediaLibrarySession? = null
+
+    init {
+        scope.launch {
+            var lastDownloadedIds = emptySet<String>()
+            getBooksUseCase().collect { allBooks ->
+                val downloadedBooks = allBooks.filter { it.isDownloaded }
+                val downloadedIds = downloadedBooks.map { it.id }.toSet()
+                if (downloadedIds != lastDownloadedIds) {
+                    lastDownloadedIds = downloadedIds
+                    val session = mediaLibrarySession ?: return@collect
+                    session.notifyLibraryParentChangedIfPossible("root", 3)
+                    session.notifyLibraryParentChangedIfPossible("downloads", downloadedBooks.size)
+                    session.notifyLibraryParentChangedIfPossible("all_audiobooks", 2)
+                    
+                    val authorsCount = downloadedBooks.map { it.author }.distinct().size
+                    session.notifyLibraryParentChangedIfPossible("by_author", authorsCount)
+                    
+                    val lettersCount = downloadedBooks.map { it.title.firstOrNull()?.uppercaseChar() }
+                        .filterNotNull()
+                        .distinct()
+                        .size
+                    session.notifyLibraryParentChangedIfPossible("a_z", lettersCount)
+
+                    for (author in downloadedBooks.map { it.author }.distinct()) {
+                        val count = downloadedBooks.count { it.author == author }
+                        session.notifyLibraryParentChangedIfPossible("author_$author", count)
+                    }
+                    for (letter in downloadedBooks.map { it.title.firstOrNull()?.uppercaseChar() }.filterNotNull().distinct()) {
+                        val count = downloadedBooks.count { it.title.firstOrNull()?.uppercaseChar() == letter }
+                        session.notifyLibraryParentChangedIfPossible("letter_$letter", count)
+                    }
+                }
+            }
+        }
+
+        scope.launch {
+            var lastInProgressIds = emptyList<String>()
+            getPlaybackProgressUseCase().collect { progressList ->
+                val allBooks = getBooksUseCase().first()
+                val downloadedBooks = allBooks.filter { it.isDownloaded }
+                
+                val filteredProgress = progressList
+                    .filter { it.progress > 0f && it.progress < 0.99f && !it.isFinished }
+                    .sortedByDescending { it.lastUpdated }
+                
+                val inProgressIds = filteredProgress
+                    .map { it.bookId }
+                    .filter { id -> downloadedBooks.any { it.id == id } }
+                
+                if (inProgressIds != lastInProgressIds) {
+                    lastInProgressIds = inProgressIds
+                    val session = mediaLibrarySession ?: return@collect
+                    session.notifyLibraryParentChangedIfPossible("continue_listening", inProgressIds.size)
+                }
+            }
+        }
+    }
+
+    private fun MediaLibrarySession.notifyLibraryParentChangedIfPossible(parentId: String, count: Int) {
+        try {
+            notifyChildrenChanged(parentId, count, null)
+        } catch (e: Exception) {
+            // Safe fallback
+        }
+    }
 
     private fun isOnline(): Boolean {
         return try {
@@ -116,6 +182,9 @@ class AndroidAutoBrowseCallback(
         session: MediaSession,
         controller: MediaSession.ControllerInfo
     ): MediaSession.ConnectionResult {
+        if (session is MediaLibrarySession) {
+            this.mediaLibrarySession = session
+        }
         return coreCallback.onConnect(session, controller)
     }
 
@@ -141,6 +210,7 @@ class AndroidAutoBrowseCallback(
         browser: MediaSession.ControllerInfo,
         params: LibraryParams?
     ): ListenableFuture<LibraryResult<MediaItem>> {
+        this.mediaLibrarySession = session
         val rootItem = MediaItem.Builder()
             .setMediaId("root")
             .setMediaMetadata(
@@ -162,6 +232,7 @@ class AndroidAutoBrowseCallback(
         pageSize: Int,
         params: LibraryParams?
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        this.mediaLibrarySession = session
         val future = SettableFuture.create<LibraryResult<ImmutableList<MediaItem>>>()
 
         scope.launch {
@@ -177,14 +248,9 @@ class AndroidAutoBrowseCallback(
 
                 val allBooks = getBooksUseCase().first()
                 val progressList = getPlaybackProgressUseCase().first()
-                val isOffline = !isOnline()
 
-                // If offline, filter all queries to show only downloaded books
-                val books = if (isOffline) {
-                    allBooks.filter { it.isDownloaded }
-                } else {
-                    allBooks
-                }
+                // Android Auto only plays/shows downloaded content, regardless of network state
+                val books = allBooks.filter { it.isDownloaded }
 
                 when (parentId) {
                     "root" -> {
@@ -259,6 +325,7 @@ class AndroidAutoBrowseCallback(
         browser: MediaSession.ControllerInfo,
         mediaId: String
     ): ListenableFuture<LibraryResult<MediaItem>> {
+        this.mediaLibrarySession = session
         val future = SettableFuture.create<LibraryResult<MediaItem>>()
 
         scope.launch {
@@ -271,6 +338,10 @@ class AndroidAutoBrowseCallback(
                 val allBooks = getBooksUseCase().first()
                 val book = allBooks.find { it.id == mediaId }
                 if (book != null) {
+                    if (!book.isDownloaded) {
+                        future.set(LibraryResult.ofError(SessionResult.RESULT_ERROR_BAD_VALUE))
+                        return@launch
+                    }
                     future.set(LibraryResult.ofItem(buildPlayableBookItem(book), null))
                 } else {
                     future.set(LibraryResult.ofError(SessionResult.RESULT_ERROR_BAD_VALUE))

@@ -1,9 +1,8 @@
 package dev.vikingsen.absclientapp.core.player
 
 import android.content.Context
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
 import android.os.Bundle
+import kotlinx.coroutines.flow.flowOf
 import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionResult
@@ -28,8 +27,6 @@ import org.junit.Test
 class AudiobookSessionCallbackTest {
 
     private val context = mockk<Context>(relaxed = true)
-    private val cm = mockk<ConnectivityManager>(relaxed = true)
-    private val netCapabilities = mockk<NetworkCapabilities>(relaxed = true)
 
     private val playerManager = mockk<PlayerManager>(relaxed = true)
     private val settingsRepository = mockk<SettingsRepository>(relaxed = true)
@@ -44,12 +41,6 @@ class AudiobookSessionCallbackTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
-
-        every { context.getSystemService(Context.CONNECTIVITY_SERVICE) } returns cm
-        val activeNetwork = mockk<android.net.Network>()
-        every { cm.allNetworks } returns arrayOf(activeNetwork)
-        every { cm.getNetworkCapabilities(activeNetwork) } returns netCapabilities
-        every { netCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) } returns true
 
         callback = AudiobookSessionCallback(
             context = context,
@@ -171,5 +162,99 @@ class AudiobookSessionCallbackTest {
 
         assertEquals(SessionResult.RESULT_SUCCESS, result.resultCode)
         verify { playerManager.seekTo(0.0) }
+    }
+
+    @Test
+    fun testOnAddMediaItems_playDownloadedBook_success() {
+        val book = Book(
+            id = "1",
+            title = "Alpha Book",
+            author = "Author A",
+            narrator = "Narrator X",
+            description = "Desc",
+            duration = 100.0,
+            coverPath = "/path/to/1",
+            isDownloaded = true,
+            audioFiles = emptyList(),
+            chapters = emptyList()
+        )
+        every { getBooksUseCase.invoke() } returns flowOf(listOf(book))
+        every { getPlaybackProgressUseCase.invoke() } returns flowOf(emptyList())
+        val mediaItem = androidx.media3.common.MediaItem.Builder()
+            .setMediaId("1")
+            .build()
+
+        callback.onAddMediaItems(mockSession, mockController, listOf(mediaItem)).get()
+
+        verify { playerManager.playBook(book, 0.0) }
+    }
+
+    @Test
+    fun testOnAddMediaItems_playNonDownloadedBook_fails() {
+        val book = Book(
+            id = "2",
+            title = "Beta Book",
+            author = "Author B",
+            narrator = "Narrator Y",
+            description = "Desc",
+            duration = 200.0,
+            coverPath = null,
+            isDownloaded = false,
+            audioFiles = emptyList(),
+            chapters = emptyList()
+        )
+        every { getBooksUseCase.invoke() } returns flowOf(listOf(book))
+        every { getPlaybackProgressUseCase.invoke() } returns flowOf(emptyList())
+        val mediaItem = androidx.media3.common.MediaItem.Builder()
+            .setMediaId("2")
+            .build()
+
+        val result = callback.onAddMediaItems(mockSession, mockController, listOf(mediaItem)).get()
+
+        assertEquals(0, result.size)
+        verify(exactly = 0) { playerManager.playBook(any(), any()) }
+    }
+
+    @Test
+    fun testOnAddMediaItems_voiceSearch_resolvesDownloadedOnly() {
+        val downloadedBook = Book(
+            id = "1",
+            title = "Alpha Book",
+            author = "Author A",
+            narrator = "Narrator X",
+            description = "Desc",
+            duration = 100.0,
+            coverPath = "/path/to/1",
+            isDownloaded = true,
+            audioFiles = emptyList(),
+            chapters = emptyList()
+        )
+        val nonDownloadedBook = Book(
+            id = "2",
+            title = "Beta Book",
+            author = "Author B",
+            narrator = "Narrator Y",
+            description = "Desc",
+            duration = 200.0,
+            coverPath = null,
+            isDownloaded = false,
+            audioFiles = emptyList(),
+            chapters = emptyList()
+        )
+        every { getBooksUseCase.invoke() } returns flowOf(listOf(downloadedBook, nonDownloadedBook))
+        every { getPlaybackProgressUseCase.invoke() } returns flowOf(emptyList())
+
+        val requestMetadata = androidx.media3.common.MediaItem.RequestMetadata.Builder()
+            .setSearchQuery("Book")
+            .build()
+        val mediaItem = androidx.media3.common.MediaItem.Builder()
+            .setMediaId("play_from_search")
+            .setRequestMetadata(requestMetadata)
+            .build()
+
+        callback.onAddMediaItems(mockSession, mockController, listOf(mediaItem)).get()
+
+        verify { playerManager.playBook(downloadedBook, 0.0) }
+        verify(exactly = 0) { playerManager.playBook(nonDownloadedBook, any()) }
     }
 }
