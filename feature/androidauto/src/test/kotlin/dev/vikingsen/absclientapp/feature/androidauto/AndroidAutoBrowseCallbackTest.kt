@@ -214,4 +214,15 @@ class AndroidAutoBrowseCallbackTest {
         assertEquals(1, list.size)
         assertEquals("2", list[0].mediaId)
     }
+
+    @Test
+    fun testGetChildren_loggedOut() {
+        every { settingsRepository.isLoggedIn() } returns false
+
+        val result = callback.onGetChildren(mockk(), mockk(), "root", 0, 10, null).get()
+        val list = result.value ?: emptyList()
+        assertEquals(1, list.size)
+        assertEquals("login_required", list[0].mediaId)
+        assertEquals("Please log in on your phone", list[0].mediaMetadata.title?.toString())
+    }
 }

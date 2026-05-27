@@ -92,6 +92,19 @@ class AndroidAutoBrowseCallback(
             .build()
     }
 
+    private fun buildLoginRequiredItem(): MediaItem {
+        val meta = MediaMetadata.Builder()
+            .setTitle(context.getString(R.string.auto_login_required))
+            .setFolderType(MediaMetadata.FOLDER_TYPE_NONE)
+            .setIsPlayable(false)
+            .setIsBrowsable(false)
+            .build()
+        return MediaItem.Builder()
+            .setMediaId("login_required")
+            .setMediaMetadata(meta)
+            .build()
+    }
+
     override fun onConnect(
         session: MediaSession,
         controller: MediaSession.ControllerInfo
@@ -121,25 +134,11 @@ class AndroidAutoBrowseCallback(
         browser: MediaSession.ControllerInfo,
         params: LibraryParams?
     ): ListenableFuture<LibraryResult<MediaItem>> {
-        if (!settingsRepository.isLoggedIn()) {
-            val meta = MediaMetadata.Builder()
-                .setTitle(context.getString(R.string.auto_login_required))
-                .setFolderType(MediaMetadata.FOLDER_TYPE_NONE)
-                .setIsPlayable(false)
-                .setIsBrowsable(false)
-                .build()
-            val rootItem = MediaItem.Builder()
-                .setMediaId("root")
-                .setMediaMetadata(meta)
-                .build()
-            return Futures.immediateFuture(LibraryResult.ofItem(rootItem, params))
-        }
-
         val rootItem = MediaItem.Builder()
             .setMediaId("root")
             .setMediaMetadata(
                 MediaMetadata.Builder()
-                    .setTitle(context.getString(R.string.auto_root))
+                    .setTitle(if (!settingsRepository.isLoggedIn()) context.getString(R.string.auto_login_required) else context.getString(R.string.auto_root))
                     .setFolderType(MediaMetadata.FOLDER_TYPE_MIXED)
                     .setIsPlayable(false)
                     .setIsBrowsable(true)
@@ -161,7 +160,11 @@ class AndroidAutoBrowseCallback(
         scope.launch {
             try {
                 if (!settingsRepository.isLoggedIn()) {
-                    future.set(LibraryResult.ofItemList(ImmutableList.of(), params))
+                    if (parentId == "root") {
+                        future.set(LibraryResult.ofItemList(ImmutableList.of(buildLoginRequiredItem()), params))
+                    } else {
+                        future.set(LibraryResult.ofItemList(ImmutableList.of(), params))
+                    }
                     return@launch
                 }
 
