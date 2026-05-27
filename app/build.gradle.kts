@@ -104,7 +104,10 @@ dependencies {
   implementation(project(":core:player"))
   implementation(project(":domain"))
   implementation(project(":data"))
-  implementation(project(":feature:login"))
-  implementation(project(":feature:library"))
-  implementation(project(":feature:player"))
+  implementation(project(":feature:login:api"))
+  implementation(project(":feature:login:impl"))
+  implementation(project(":feature:library:api"))
+  implementation(project(":feature:library:impl"))
+  implementation(project(":feature:player:api"))
+  implementation(project(":feature:player:impl"))
 }

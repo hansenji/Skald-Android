@@ -19,6 +19,7 @@ android {
 }
 
 dependencies {
+    implementation(project(":feature:library:api"))
     implementation(project(":domain"))
     implementation(project(":core:model"))
     implementation(project(":core:preferences"))

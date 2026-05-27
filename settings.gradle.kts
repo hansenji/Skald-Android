@@ -39,7 +39,10 @@ include(
     ":core:player",
     ":domain",
     ":data",
-    ":feature:login",
-    ":feature:library",
-    ":feature:player"
+    ":feature:login:api",
+    ":feature:login:impl",
+    ":feature:library:api",
+    ":feature:library:impl",
+    ":feature:player:api",
+    ":feature:player:impl"
 )

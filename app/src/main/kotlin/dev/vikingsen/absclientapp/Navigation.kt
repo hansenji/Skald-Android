@@ -8,9 +8,13 @@ import androidx.navigation3.ui.NavDisplay
 import dev.vikingsen.absclientapp.core.preferences.PreferencesManager
 import dev.vikingsen.absclientapp.core.player.PlayerManager
 import dev.vikingsen.absclientapp.feature.login.LoginScreen
+import dev.vikingsen.absclientapp.feature.login.api.Login
 import dev.vikingsen.absclientapp.feature.library.LibraryScreen
 import dev.vikingsen.absclientapp.feature.library.DetailScreen
+import dev.vikingsen.absclientapp.feature.library.api.Library
+import dev.vikingsen.absclientapp.feature.library.api.Detail
 import dev.vikingsen.absclientapp.feature.player.PlayerScreen
+import dev.vikingsen.absclientapp.feature.player.api.Player
 import org.koin.compose.koinInject
 
 @Composable
