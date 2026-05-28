@@ -1,6 +1,6 @@
 # Feature Specification: Offline Download Manager
 
-This document defines the specific behaviors, rules, and local directory configurations for the offline media download manager, extending the high-level goals in [app_spec.md](file:///home/hansenji/src/abs-client-app/specs/app_spec.md).
+This document defines the specific behaviors, rules, and local directory configurations for the offline media download manager, extending the high-level goals in [project_spec.md](../../specs/project_spec.md).
 
 ---
 

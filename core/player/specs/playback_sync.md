@@ -1,6 +1,6 @@
 # Feature Specification: Playback Tracking & Progress Sync
 
-This document defines the specific behaviors, rules, and network payload formats for media playback tracking and synchronization, extending the high-level goals in [app_spec.md](file:///home/hansenji/src/abs-client-app/specs/app_spec.md).
+This document defines the specific behaviors, rules, and network payload formats for media playback tracking and synchronization, extending the high-level goals in [project_spec.md](../../../specs/project_spec.md).
 
 ---
 

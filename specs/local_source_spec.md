@@ -14,7 +14,7 @@ The client uses two primary data storage strategies:
 
 ## 2. Key-Value Storage (SharedPreferences)
 
-Managed via `PreferencesManager` under the filename `abs_client_prefs`. For detailed behavioral rules, see [settings_spec.md](file:///home/hansenji/.gemini/antigravity/worktrees/abs-client-app/android-auto-spec-init/specs/settings_spec.md).
+Managed via `PreferencesManager` under the filename `abs_client_prefs`. For detailed behavioral rules, see [settings_spec.md](settings_spec.md).
 
 ### Summary of Keys:
 - `server_url` (String?): Base URL of the connection instance.
