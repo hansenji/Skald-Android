@@ -2,6 +2,7 @@ package dev.vikingsen.absclientapp.core.player
 
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
+import androidx.media3.common.Player
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.DefaultHttpDataSource
@@ -50,6 +51,14 @@ val corePlayerModule = module {
     }
 
     single { PlayerManager(androidContext(), get(), get(), get(), get()) }
+    
+    single<Player> {
+        AudiobookForwardingPlayer(
+            player = get<ExoPlayer>(),
+            playerManager = get(),
+            settingsRepository = get()
+        )
+    }
 
     single {
         AudiobookSessionCallback(

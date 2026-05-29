@@ -69,18 +69,42 @@ Android Auto uses the Media3 `MediaLibraryService` templates to render the playb
 
 #### 1. Controls Arrangement
 - **Primary Controls (Main Playback Row)**:
-  - **Play / Pause**: Standard play/pause toggling.
-  - **Skip Backward**: Seeks backward by the user-defined duration. Maps to the standard "Previous" button if the book has no chapters, or to a custom action command button.
-  - **Skip Forward**: Seeks forward by the user-defined duration. Maps to the standard "Next" button if the book has no chapters, or to a custom action command button.
-- **Secondary Controls (Overflow Menu)**:
-  - **Playback Speed**: A custom action command button that cycles through playback speeds (`0.5x` to `3.0x` in `0.25x` steps).
-  - **Skip to Previous Chapter**: Skips to the previous chapter. Only displayed when chapter metadata is available.
-  - **Skip to Next Chapter**: Skips to the next chapter. Only displayed when chapter metadata is available.
+  - **Playback Speed**: A custom action command button that cycles through playback speeds (`0.5x` to `2.0x` in `0.25x` steps). Positioned as the first button (leftmost). For the "icon" use the speedX value.
+  - **Skip Backward**: Seeks backward by the user-defined duration. Always maps to a custom action command button. Positioned as the second button (left-of-center). Use the Replay icon from Material Symbols.
+  - **Play / Pause**: Standard play/pause toggling. Positioned in the center.
+  - **Skip Forward**: Seeks forward by the user-defined duration. Always maps to a custom action command button. Positioned as the fourth button (right-of-center). Use the Forward Media icon from Material Symbols.
+- **Secondary Controls (Overflow Menu)**: Only show the overflow when chapter metadata is available.
+  - **Skip to Previous Chapter**: Skips to the previous chapter. Positioned behind the overflow. Use the Skip Previous icon from Material Symbols
+  - **Skip to Next Chapter**: Skips to the next chapter. Positioned behind the overflow. Use the Skip Next icon from Material Symbols
 
 #### 2. Callback Delegation Mechanism
 - **AndroidAutoBrowseCallback**: The `MediaLibrarySession.Callback` implementation in `:feature:androidauto` handles browsing queries (`onGetLibraryRoot`, `onGetChildren`, `onGetItem`).
 - **Control Delegation**: 
-  - To prevent circular dependencies and ensure a single playback engine, `AndroidAutoBrowseCallback` delegates all playback-related callbacks (such as `onConnect`, `onCustomCommand`, `onAddMediaItems`, `onSetPlaybackSpeed`) directly to `AudiobookSessionCallback` located in `:core:player`.
+  - To prevent circular dependencies and ensure a single playback engine, `AndroidAutoBrowseCallback` delegates all playback-related callbacks (such as `onConnect`, `onPostConnect`, `onCustomCommand`, `onAddMediaItems`, `onSetPlaybackSpeed`) directly to `AudiobookSessionCallback` located in `:core:player`.
+
+#### 3. Layout Slot Mapping Technical Notes
+
+Due to Android Auto's template-based rendering architecture, custom session commands are mapped to available control slots in a non-linear index order. To enforce the specified control layout, developers must keep these technical constraints in mind:
+
+- **Custom Button Slot Mapping**:
+  - The **first** button (Index 0) in the custom layout list is mapped to **Slot 2** (left-of-center).
+  - The **second** button (Index 1) in the custom layout list is mapped to **Slot 4** (right-of-center).
+  - The **third** button (Index 2) in the custom layout list is mapped to **Slot 1** (leftmost).
+  - Any subsequent buttons are mapped to **Slot 5** or pushed to the **Overflow Menu**.
+
+- **Required Layout Order**:
+  To achieve the correct visual order (Playback Speed in Slot 1, Skip Backward in Slot 2, Skip Forward in Slot 4), the list of buttons passed to `setCustomLayout()` and `setMediaButtonPreferences()` must be ordered exactly as follows:
+  1. `COMMAND_SKIP_BACKWARD` (Index 0 -> Slot 2)
+  2. `COMMAND_SKIP_FORWARD` (Index 1 -> Slot 4)
+  3. `COMMAND_CYCLE_SPEED` (Index 2 -> Slot 1)
+  4. `COMMAND_SKIP_TO_PREVIOUS_CHAPTER` (Index 3 -> Overflow)
+  5. `COMMAND_SKIP_TO_NEXT_CHAPTER` (Index 4 -> Overflow)
+
+- **Standard Command Disabling**:
+  To prevent Android Auto from rendering its default transport buttons on the main row (such as standard Seek Forward/Backward and Skip Previous/Next), standard player commands `COMMAND_SEEK_TO_PREVIOUS`, `COMMAND_SEEK_TO_NEXT`, `COMMAND_SEEK_TO_PREVIOUS_MEDIA_ITEM`, `COMMAND_SEEK_TO_NEXT_MEDIA_ITEM`, `COMMAND_SEEK_BACK`, and `COMMAND_SEEK_FORWARD` must be explicitly removed in `ForwardingPlayer.getAvailableCommands()`.
+
+- **Forcing Chapter Buttons into Overflow**:
+  To prevent the chapter previous/next skip actions from occupying Slot 5 of the main row, the boolean extra key `"com.google.android.gms.car.media.ALWAYS_IN_OVERFLOW"` must be set to `true` on the `CommandButton`'s extras bundle.
 
 ### C. Authentication & Error Handling
 
@@ -96,75 +120,7 @@ Google Assistant voice commands (e.g., in Android Auto or hands-free driving) mu
 
 ---
 
-## 3. Proposed Architectural Changes
-
-### Module Relationships
-- **`:feature:androidauto`**: Implements `AndroidAutoBrowseCallback` (extending `MediaLibrarySession.Callback`). Depends on `:core:player` to delegate player session controls, and `:domain` for content queries.
-- **`:core:player`**: Implements `AudiobookSessionCallback` (extending `MediaSession.Callback`) to handle standard/custom controls. It has no dependencies on feature modules.
-
-```mermaid
-graph TD
-    subgraph App Layer
-        app[":app"]
-    end
-
-    subgraph Feature Layer
-        aa[":feature:androidauto"]
-    end
-
-    subgraph Core Layer
-        player[":core:player"]
-        domain[":domain"]
-        model[":core:model"]
-    end
-
-    app --> aa
-    app --> player
-    
-    aa --> domain
-    aa --> model
-    aa --> player
-    
-    player --> model
-    domain --> model
-```
-
-### Dependency Setup (Koin Injection)
-1. **Define a Koin Module in `:feature:androidauto`**:
-   ```kotlin
-   val featureAndroidAutoModule = module {
-       single<MediaLibrarySession.Callback> {
-           AndroidAutoBrowseCallback(
-               getBooksUseCase = get(),
-               getPlaybackProgressUseCase = get(),
-               coreCallback = get() // Injected from :core:player
-           )
-       }
-   }
-   ```
-2. **Setup in `AudiobookPlayerService` (`:core:player`)**:
-   ```kotlin
-   class AudiobookPlayerService : MediaLibraryService() {
-       private val exoPlayer: ExoPlayer by inject()
-       // Injected callback: binds to AndroidAutoBrowseCallback if available,
-       // otherwise falls back to the base AudiobookSessionCallback.
-       private val sessionCallback: MediaLibrarySession.Callback by inject()
-       private var mediaLibrarySession: MediaLibrarySession? = null
-
-       override fun onCreate() {
-           super.onCreate()
-           mediaLibrarySession = MediaLibrarySession.Builder(
-               this,
-               exoPlayer,
-               sessionCallback
-           ).build()
-       }
-   }
-   ```
-
----
-
-## 4. Verification Plan
+## 3. Verification Plan
 
 ### Automated / Integration Tests
 - **Callback Unit Tests**: Verify that `AndroidAutoBrowseCallback` constructs the correct browse items based on mock server states.

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="control_playback_speed">Playback Speed</string>
+    <string name="control_skip_backward">Skip Backward</string>
+    <string name="control_skip_forward">Skip Forward</string>
+    <string name="control_prev_chapter">Previous Chapter</string>
+    <string name="control_next_chapter">Next Chapter</string>
+</resources>

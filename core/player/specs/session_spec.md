@@ -87,18 +87,99 @@ When Google Assistant, Android Auto, or another media controller invokes voice c
 
 ---
 
-## 3. Dependency Injection Configuration
+## 3. Contextual Architecture & Module Relationships
 
-The core player module declares Koin bindings for the session callback:
+To support optional features like Android Auto while maintaining a strict modular dependency structure (preventing feature modules from introducing circular dependencies into `:core:player`), a layered callback delegation design is used.
 
+### Module Relationships
+- **`:feature:androidauto`**: Implements `AndroidAutoBrowseCallback` (extending `MediaLibrarySession.Callback`). Depends on `:core:player` to delegate player session controls, and `:domain` for content queries.
+- **`:core:player`**: Implements `AudiobookSessionCallback` (extending `MediaLibrarySession.Callback`) to handle standard/custom controls. It has no dependencies on feature modules.
+
+```mermaid
+graph TD
+    subgraph App Layer
+        app[":app"]
+    end
+
+    subgraph Feature Layer
+        aa[":feature:androidauto"]
+    end
+
+    subgraph Core Layer
+        player[":core:player"]
+        domain[":domain"]
+        model[":core:model"]
+    end
+
+    app --> aa
+    app --> player
+    
+    aa --> domain
+    aa --> model
+    aa --> player
+    
+    player --> model
+    domain --> model
+```
+
+---
+
+## 4. Dependency Injection Configuration
+
+Dependency Injection coordinates callback overrides via Koin modules resolved inside the `:app` entry point.
+
+### A. Core Player Module (`:core:player`)
+Declares the base `AudiobookSessionCallback` and binds it as the default implementation of `MediaLibrarySession.Callback`:
 ```kotlin
 val corePlayerModule = module {
-    // Default base implementation for lock screen and standard systems
-    single<MediaSession.Callback> {
+    single {
         AudiobookSessionCallback(
+            context = androidContext(),
             playerManager = get(),
-            settingsRepository = get()
+            settingsRepository = get(),
+            getBooksUseCase = get(),
+            getPlaybackProgressUseCase = get()
         )
+    }
+
+    single<MediaLibrarySession.Callback> {
+        get<AudiobookSessionCallback>()
+    }
+}
+```
+
+### B. Android Auto Module (`:feature:androidauto`)
+If present in the dependency tree, it overrides the `MediaLibrarySession.Callback` registration, decorating it with `AndroidAutoBrowseCallback` and injecting the base `AudiobookSessionCallback` as its delegation target:
+```kotlin
+val featureAndroidAutoModule = module {
+    single<MediaLibrarySession.Callback> {
+        AndroidAutoBrowseCallback(
+            context = androidContext(),
+            settingsRepository = get(),
+            getBooksUseCase = get(),
+            getPlaybackProgressUseCase = get(),
+            coreCallback = get()
+        )
+    }
+}
+```
+
+### C. Service Binding (`:core:player`)
+`AudiobookPlayerService` injects the registered `MediaLibrarySession.Callback`. Due to Koin module loading order in the `:app` module, this resolves to `AndroidAutoBrowseCallback` if the Android Auto feature is present, and falls back to `AudiobookSessionCallback` otherwise:
+```kotlin
+class AudiobookPlayerService : MediaLibraryService() {
+    private val player: Player by inject()
+    private val sessionCallback: MediaLibrarySession.Callback by inject()
+    private var mediaLibrarySession: MediaLibrarySession? = null
+
+    override fun onCreate() {
+        super.onCreate()
+        
+        mediaLibrarySession = MediaLibrarySession.Builder(
+            this,
+            player,
+            sessionCallback
+        ).build()
     }
 }
 ```

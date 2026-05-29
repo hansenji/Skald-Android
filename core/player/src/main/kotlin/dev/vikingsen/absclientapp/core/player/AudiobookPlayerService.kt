@@ -3,13 +3,13 @@ package dev.vikingsen.absclientapp.core.player
 import android.content.Intent
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.common.Player
 import androidx.media3.session.MediaLibraryService
 import androidx.media3.session.MediaSession
 import org.koin.android.ext.android.inject
 
 class AudiobookPlayerService : MediaLibraryService() {
-    private val exoPlayer: ExoPlayer by inject()
+    private val player: Player by inject()
     private val sessionCallback: MediaLibrarySession.Callback by inject()
     private var mediaLibrarySession: MediaLibrarySession? = null
 
@@ -18,7 +18,7 @@ class AudiobookPlayerService : MediaLibraryService() {
         
         mediaLibrarySession = MediaLibrarySession.Builder(
             this,
-            exoPlayer,
+            player,
             sessionCallback
         ).build()
     }

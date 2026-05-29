@@ -5,6 +5,7 @@ import android.os.Bundle
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.session.CommandButton
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.media3.session.MediaSession
@@ -32,6 +33,32 @@ class AudiobookSessionCallback(
 ) : MediaLibrarySession.Callback {
 
     private val scope = CoroutineScope(Dispatchers.Main)
+    private var activeSession: MediaSession? = null
+
+    init {
+        scope.launch {
+            playerManager.currentBook.collect { book ->
+                val session = activeSession ?: return@collect
+                val layout = buildCustomLayout()
+                session.setCustomLayout(layout)
+                session.setMediaButtonPreferences(layout)
+                for (controller in session.connectedControllers) {
+                    session.setCustomLayout(controller, layout)
+                }
+            }
+        }
+        scope.launch {
+            playerManager.playbackSpeed.collect { speed ->
+                val session = activeSession ?: return@collect
+                val layout = buildCustomLayout()
+                session.setCustomLayout(layout)
+                session.setMediaButtonPreferences(layout)
+                for (controller in session.connectedControllers) {
+                    session.setCustomLayout(controller, layout)
+                }
+            }
+        }
+    }
 
     companion object {
         const val COMMAND_SKIP_FORWARD = "COMMAND_SKIP_FORWARD"
@@ -53,16 +80,108 @@ class AudiobookSessionCallback(
         session: MediaSession,
         controller: MediaSession.ControllerInfo
     ): MediaSession.ConnectionResult {
+        activeSession = session
         // Expose custom commands to connecting controllers (like Android Auto / Bluetooth / Wearable)
         val connectionResult = super.onConnect(session, controller)
         val availableSessionCommands = connectionResult.availableSessionCommands.buildUpon()
         for (cmd in ALL_CUSTOM_COMMANDS) {
-            availableSessionCommands.add(SessionCommand(cmd, Bundle.EMPTY))
+            availableSessionCommands.add(SessionCommand(cmd, Bundle()))
         }
         return MediaSession.ConnectionResult.accept(
             availableSessionCommands.build(),
             connectionResult.availablePlayerCommands
         )
+    }
+
+    override fun onPostConnect(session: MediaSession, controller: MediaSession.ControllerInfo) {
+        activeSession = session
+        val layout = buildCustomLayout()
+        session.setCustomLayout(controller, layout)
+        session.setMediaButtonPreferences(layout)
+    }
+
+    private fun getSpeedIconResId(speed: Float): Int {
+        return when {
+            speed < 0.625f -> R.drawable.ic_speed_0_50
+            speed < 0.875f -> R.drawable.ic_speed_0_75
+            speed < 1.125f -> R.drawable.ic_speed_1_00
+            speed < 1.375f -> R.drawable.ic_speed_1_25
+            speed < 1.625f -> R.drawable.ic_speed_1_50
+            speed < 1.875f -> R.drawable.ic_speed_1_75
+            speed < 2.125f -> R.drawable.ic_speed_2_00
+            speed < 2.375f -> R.drawable.ic_speed_2_25
+            speed < 2.625f -> R.drawable.ic_speed_2_50
+            speed < 2.875f -> R.drawable.ic_speed_2_75
+            else -> R.drawable.ic_speed_3_00
+        }
+    }
+
+    private fun buildCustomLayout(): List<CommandButton> {
+        val book = playerManager.currentBook.value
+        val hasChapters = book?.chapters?.isNotEmpty() == true
+
+        val layout = mutableListOf<CommandButton>()
+
+        // 1. Skip Backward (Replay) -> maps to Slot 2
+        layout.add(
+            CommandButton.Builder()
+                .setSessionCommand(SessionCommand(COMMAND_SKIP_BACKWARD, Bundle()))
+                .setDisplayName(context.getString(R.string.control_skip_backward))
+                .setIconResId(R.drawable.ic_replay)
+                .setEnabled(true)
+                .build()
+        )
+
+        // 2. Skip Forward (Forward Media) -> maps to Slot 4
+        layout.add(
+            CommandButton.Builder()
+                .setSessionCommand(SessionCommand(COMMAND_SKIP_FORWARD, Bundle()))
+                .setDisplayName(context.getString(R.string.control_skip_forward))
+                .setIconResId(R.drawable.ic_forward_media)
+                .setEnabled(true)
+                .build()
+        )
+
+        // 3. Playback Speed -> maps to Slot 1
+        val speedIcon = getSpeedIconResId(playerManager.playbackSpeed.value)
+        layout.add(
+            CommandButton.Builder()
+                .setSessionCommand(SessionCommand(COMMAND_CYCLE_SPEED, Bundle()))
+                .setDisplayName(context.getString(R.string.control_playback_speed))
+                .setIconResId(speedIcon)
+                .setEnabled(true)
+                .build()
+        )
+
+        // 4. Previous & Next Chapter (only if book has chapters, positioned behind overflow) -> maps to Slot 5 / Overflow
+        if (hasChapters) {
+            val prevChapterExtras = Bundle().apply {
+                putBoolean("com.google.android.gms.car.media.ALWAYS_IN_OVERFLOW", true)
+            }
+            layout.add(
+                CommandButton.Builder()
+                    .setSessionCommand(SessionCommand(COMMAND_SKIP_TO_PREVIOUS_CHAPTER, Bundle()))
+                    .setDisplayName(context.getString(R.string.control_prev_chapter))
+                    .setIconResId(R.drawable.ic_skip_previous)
+                    .setExtras(prevChapterExtras)
+                    .setEnabled(true)
+                    .build()
+            )
+            val nextChapterExtras = Bundle().apply {
+                putBoolean("com.google.android.gms.car.media.ALWAYS_IN_OVERFLOW", true)
+            }
+            layout.add(
+                CommandButton.Builder()
+                    .setSessionCommand(SessionCommand(COMMAND_SKIP_TO_NEXT_CHAPTER, Bundle()))
+                    .setDisplayName(context.getString(R.string.control_next_chapter))
+                    .setIconResId(R.drawable.ic_skip_next)
+                    .setExtras(nextChapterExtras)
+                    .setEnabled(true)
+                    .build()
+            )
+        }
+
+        return layout
     }
 
     override fun onCustomCommand(
@@ -93,7 +212,7 @@ class AudiobookSessionCallback(
                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
             COMMAND_CYCLE_SPEED -> {
-                val speeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.25f, 2.5f, 2.75f, 3.0f)
+                val speeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
                 val currentSpeed = playerManager.playbackSpeed.value
                 // Find next speed in the cycle. Default to 1.0f if not found.
                 val currentIndex = speeds.indexOfFirst { Math.abs(it - currentSpeed) < 0.01f }

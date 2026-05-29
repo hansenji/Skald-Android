@@ -188,6 +188,11 @@ class AndroidAutoBrowseCallback(
         return coreCallback.onConnect(session, controller)
     }
 
+    override fun onPostConnect(session: MediaSession, controller: MediaSession.ControllerInfo) {
+        coreCallback.onPostConnect(session, controller)
+    }
+
+
     override fun onCustomCommand(
         session: MediaSession,
         controller: MediaSession.ControllerInfo,

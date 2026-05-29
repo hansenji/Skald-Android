@@ -41,6 +41,9 @@ class AudiobookSessionCallbackTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
+        every { context.getString(any()) } returns "Mock String"
+        every { playerManager.currentBook } returns MutableStateFlow(null)
+        every { playerManager.playbackSpeed } returns MutableStateFlow(1.0f)
 
         callback = AudiobookSessionCallback(
             context = context,
@@ -256,5 +259,58 @@ class AudiobookSessionCallbackTest {
 
         verify { playerManager.playBook(downloadedBook, 0.0) }
         verify(exactly = 0) { playerManager.playBook(nonDownloadedBook, any()) }
+    }
+
+    @Test
+    fun testOnPostConnect_noChapters() {
+        val currentBookFlow = MutableStateFlow<Book?>(null)
+        every { playerManager.currentBook } returns currentBookFlow
+
+        // Trigger onPostConnect
+        callback.onPostConnect(mockSession, mockController)
+
+        // Verify setCustomLayout was called on mockSession with 3 custom command buttons
+        val customLayoutSlot = slot<List<androidx.media3.session.CommandButton>>()
+        verify { mockSession.setCustomLayout(mockController, capture(customLayoutSlot)) }
+
+        val layout = customLayoutSlot.captured
+        assertEquals(3, layout.size)
+        assertEquals(AudiobookSessionCallback.COMMAND_SKIP_BACKWARD, layout[0].sessionCommand?.customAction)
+        assertEquals(AudiobookSessionCallback.COMMAND_SKIP_FORWARD, layout[1].sessionCommand?.customAction)
+        assertEquals(AudiobookSessionCallback.COMMAND_CYCLE_SPEED, layout[2].sessionCommand?.customAction)
+    }
+
+    @Test
+    fun testOnPostConnect_hasChapters() {
+        mockkConstructor(Bundle::class)
+        every { anyConstructed<Bundle>().getBoolean("com.google.android.gms.car.media.ALWAYS_IN_OVERFLOW") } returns true
+
+        val mockBook = mockk<Book>()
+        every { mockBook.chapters } returns listOf(
+            Chapter(0.0, 50.0, "Chapter 1"),
+            Chapter(50.0, 100.0, "Chapter 2")
+        )
+        val currentBookFlow = MutableStateFlow<Book?>(mockBook)
+        every { playerManager.currentBook } returns currentBookFlow
+
+        // Trigger onPostConnect
+        callback.onPostConnect(mockSession, mockController)
+
+        // Verify setCustomLayout was called on mockSession with 5 custom command buttons
+        val customLayoutSlot = slot<List<androidx.media3.session.CommandButton>>()
+        verify { mockSession.setCustomLayout(mockController, capture(customLayoutSlot)) }
+
+        val layout = customLayoutSlot.captured
+        assertEquals(5, layout.size)
+        assertEquals(AudiobookSessionCallback.COMMAND_SKIP_BACKWARD, layout[0].sessionCommand?.customAction)
+        assertEquals(AudiobookSessionCallback.COMMAND_SKIP_FORWARD, layout[1].sessionCommand?.customAction)
+        assertEquals(AudiobookSessionCallback.COMMAND_CYCLE_SPEED, layout[2].sessionCommand?.customAction)
+        assertEquals(AudiobookSessionCallback.COMMAND_SKIP_TO_PREVIOUS_CHAPTER, layout[3].sessionCommand?.customAction)
+        assertEquals(AudiobookSessionCallback.COMMAND_SKIP_TO_NEXT_CHAPTER, layout[4].sessionCommand?.customAction)
+        
+        assertEquals(true, layout[3].extras.getBoolean("com.google.android.gms.car.media.ALWAYS_IN_OVERFLOW"))
+        assertEquals(true, layout[4].extras.getBoolean("com.google.android.gms.car.media.ALWAYS_IN_OVERFLOW"))
+
+        unmockkConstructor(Bundle::class)
     }
 }

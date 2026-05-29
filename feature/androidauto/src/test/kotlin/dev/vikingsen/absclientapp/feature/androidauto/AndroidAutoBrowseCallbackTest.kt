@@ -7,6 +7,7 @@ import android.net.Uri
 import androidx.media3.common.MediaItem
 import androidx.media3.session.LibraryResult
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
+import androidx.media3.session.MediaSession
 import androidx.media3.session.SessionResult
 import com.google.common.collect.ImmutableList
 import dev.vikingsen.absclientapp.core.model.Book
@@ -247,5 +248,13 @@ class AndroidAutoBrowseCallbackTest {
     fun testOnGetItem_notFound() {
         val result = callback.onGetItem(mockk(), mockk(), "non_existent").get()
         assertEquals(SessionResult.RESULT_ERROR_BAD_VALUE, result.resultCode)
+    }
+
+    @Test
+    fun testOnPostConnect_delegated() {
+        val mockSession = mockk<MediaLibrarySession>()
+        val mockController = mockk<MediaSession.ControllerInfo>()
+        callback.onPostConnect(mockSession, mockController)
+        verify { coreCallback.onPostConnect(mockSession, mockController) }
     }
 }

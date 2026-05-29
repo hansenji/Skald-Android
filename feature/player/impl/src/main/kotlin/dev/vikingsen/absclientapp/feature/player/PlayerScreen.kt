@@ -34,6 +34,8 @@ import dev.vikingsen.absclientapp.core.model.formatPosition
 import org.koin.androidx.compose.get
 import org.koin.androidx.compose.koinViewModel
 import java.io.File
+import androidx.compose.ui.graphics.vector.ImageVector
+import dev.vikingsen.absclientapp.feature.player.icons.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -296,7 +298,7 @@ fun PlayerScreen(
                         modifier = Modifier.size(56.dp)
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.FastRewind, contentDescription = "Skip Back 10s", tint = Color.White, modifier = Modifier.size(32.dp))
+                            Icon(replay, contentDescription = "Skip Back 10s", tint = Color.White, modifier = Modifier.size(32.dp))
                             Text("10s", fontSize = 10.sp, color = Color.LightGray)
                         }
                     }
@@ -324,7 +326,7 @@ fun PlayerScreen(
                         modifier = Modifier.size(56.dp)
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.FastForward, contentDescription = "Skip Forward 30s", tint = Color.White, modifier = Modifier.size(32.dp))
+                            Icon(forward_media, contentDescription = "Skip Forward 30s", tint = Color.White, modifier = Modifier.size(32.dp))
                             Text("30s", fontSize = 10.sp, color = Color.LightGray)
                         }
                     }
@@ -339,7 +341,7 @@ fun PlayerScreen(
                 ) {
                     // Speed Control
                     TextButton(onClick = { showSpeedDialog = true }) {
-                        Icon(Icons.Default.Speed, contentDescription = null, tint = Color.Gray)
+                        Icon(getSpeedIcon(playbackSpeed), contentDescription = null, tint = Color.Gray)
                         Spacer(modifier = Modifier.width(4.dp))
                         Text("${playbackSpeed}x", color = Color.White)
                     }
@@ -498,5 +500,17 @@ fun PlayerScreen(
                 }
             )
         }
+    }
+}
+
+private fun getSpeedIcon(speed: Float): ImageVector {
+    return when {
+        speed < 0.625f -> speed_0_5x
+        speed < 0.875f -> speed_0_7x
+        speed < 1.125f -> speed_1x
+        speed < 1.375f -> speed_1_2x
+        speed < 1.625f -> speed_1_5x
+        speed < 1.875f -> speed_1_7x
+        else -> speed_2x
     }
 }

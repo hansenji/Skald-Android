@@ -23,7 +23,7 @@ The mobile player UI must support cover art display, a progress scrubber bar, ch
    - Rewinding past 0.0s must reset the playback position to 0.0s.
 
 ### B. Playback Speed Control
-1. **Speed Range & Increments**: The user can adjust the playback speed multiplier. The speed cycles from `0.5x` to `3.0x` in `0.25x` steps (e.g., `1.0x -> 1.25x -> 1.5x -> 1.75x -> 2.0x -> 2.25x -> 2.5x -> 2.75x -> 3.0x -> 0.5x`).
+1. **Speed Range & Increments**: The user can adjust the playback speed multiplier. The speed cycles from `0.5x` to `2.0x` in `0.25x` steps (e.g., `1.0x -> 1.25x -> 1.5x -> 1.75x -> 2.0x -> 0.5x`).
 2. **Speed Persistence**:
    - The active playback speed must be saved immediately to the `SettingsRepository` via `savePlaybackSpeed(Float)`.
    - The active player speed must be applied to `PlayerManager` and the underlying `ExoPlayer` instance.
