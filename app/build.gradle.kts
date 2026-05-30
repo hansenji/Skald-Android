@@ -111,4 +111,5 @@ dependencies {
   implementation(project(":feature:player:api"))
   implementation(project(":feature:player:impl"))
   implementation(project(":feature:androidauto"))
+  implementation(project(":feature:miniplayer"))
 }

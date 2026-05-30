@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "dev.vikingsen.absclientapp.feature.library"
+    namespace = "dev.vikingsen.absclientapp.feature.miniplayer"
     compileSdk = 36
     defaultConfig {
         minSdk = 26
@@ -19,23 +19,18 @@ android {
 }
 
 dependencies {
-    implementation(project(":feature:library:api"))
     implementation(project(":domain"))
     implementation(project(":core:model"))
-    implementation(project(":core:preferences"))
     implementation(project(":core:player"))
-    
+    implementation(project(":feature:player:api"))
+
     val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
-    implementation(libs.androidx.activity.compose)
     implementation(libs.koin.androidx.compose)
-    
-    // Coil for displaying book covers
     implementation(libs.coil.compose)
 }

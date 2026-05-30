@@ -51,7 +51,7 @@ To ensure consistency, maintainability, and compatibility, the codebase must adh
     - `:core:network`: Ktor API client calling and response deserialization DTOs (`AudiobookshelfRemoteDataSource`).
     - `:core:player`: Media3 ExoPlayer orchestration, `AudiobookPlayerService` background service, and `PlayerManager`.
 - **Language**: Developed using Kotlin.
-- **UI Framework**: Built with Jetpack Compose using Material Design 3 guidelines.
+- **UI Framework**: Built with Jetpack Compose using Material Design 3 guidelines. To maintain strict separation of concerns, repositories, entities, DTOs, network objects, and data sources must not be referenced or used directly within UI code composables. Composable screens and components should only consume UI-specific state models and communicate user actions via event callbacks or ViewModels.
 - **Navigation**: Controlled globally using the **Androidx Navigation3** library (`androidx.navigation3.runtime` and `androidx.navigation3.ui`). Feature routing configuration follows the `api`/`impl` pattern of the `nowinandroid` project:
   - **Feature API**: Exposes navigation keys, destination routes, arguments, and public action interfaces.
   - **Feature Implementation**: Encapsulates internal screen composables, ViewModels, and UI fragments. Client modules interact with features exclusively through their public API, minimizing inter-module coupling.

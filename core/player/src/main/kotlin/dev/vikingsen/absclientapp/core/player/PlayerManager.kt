@@ -19,6 +19,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.io.File
 import java.util.UUID
+import android.content.ComponentName
+import androidx.media3.session.SessionToken
+import androidx.media3.session.MediaController
+import com.google.common.util.concurrent.MoreExecutors
 
 class PlayerManager(
     private val context: Context,
@@ -30,6 +34,7 @@ class PlayerManager(
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var positionUpdateJob: Job? = null
     private var sleepTimerJob: Job? = null
+    private var mediaController: MediaController? = null
     
     private val _currentBook = MutableStateFlow<Book?>(null)
     val currentBook: StateFlow<Book?> = _currentBook.asStateFlow()
@@ -95,6 +100,16 @@ class PlayerManager(
                 updateAbsolutePosition()
             }
         })
+
+        val sessionToken = SessionToken(context, ComponentName(context, AudiobookPlayerService::class.java))
+        val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+        controllerFuture.addListener({
+            try {
+                mediaController = controllerFuture.get()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }, MoreExecutors.directExecutor())
     }
 
     fun createMediaItemsForBook(book: Book): List<MediaItem> {
@@ -205,6 +220,19 @@ class PlayerManager(
 
     fun pause() {
         exoPlayer.pause()
+    }
+
+    fun stop() {
+        exoPlayer.stop()
+        _currentBook.value = null
+        stopTrackingPosition()
+        sessionId = null
+        accumulatedTimeListened = 0.0
+        
+        runCatching {
+            val intent = android.content.Intent(context, AudiobookPlayerService::class.java)
+            context.stopService(intent)
+        }
     }
 
     fun seekTo(position: Double) {
@@ -326,6 +354,8 @@ class PlayerManager(
 
     fun release() {
         scope.cancel()
+        mediaController?.release()
+        mediaController = null
         exoPlayer.release()
     }
 }

@@ -60,6 +60,9 @@ fun LibraryScreen(
     val settingsRepository: SettingsRepository = get()
     val serverUrl = remember { settingsRepository.getServerUrl() ?: "" }
     val token = remember { settingsRepository.getToken() ?: "" }
+    val playerManager: dev.vikingsen.absclientapp.core.player.PlayerManager = get()
+    val currentBook by playerManager.currentBook.collectAsState()
+    val showMiniPlayer = currentBook != null
 
     val filteredBooks = remember(books, searchQuery) {
         if (searchQuery.isBlank()) {
@@ -355,6 +358,7 @@ fun LibraryScreen(
                     columns = GridCells.Adaptive(minSize = 140.dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
+                    contentPadding = PaddingValues(bottom = if (showMiniPlayer) 80.dp else 16.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
                     items(filteredBooks, key = { it.book.id }) { bookWithProgress ->

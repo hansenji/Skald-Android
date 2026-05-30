@@ -132,12 +132,16 @@ fun DetailContent(
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
+    val playerManager: dev.vikingsen.absclientapp.core.player.PlayerManager = get()
+    val currentBook by playerManager.currentBook.collectAsState()
+    val showMiniPlayer = currentBook != null
+    val bottomPadding = if (showMiniPlayer) 80.dp else 16.dp
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
-            .padding(16.dp)
+            .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = bottomPadding)
     ) {
         // Book Header Area
         Row(
