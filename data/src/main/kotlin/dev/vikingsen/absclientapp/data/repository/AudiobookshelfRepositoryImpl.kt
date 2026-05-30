@@ -55,7 +55,34 @@ class AudiobookshelfRepositoryImpl(
     override suspend fun login(url: String, user: String, pass: String): Result<LoggedUser> = withContext(Dispatchers.IO) {
         runCatching {
             val (response, formattedUrl) = remoteDataSource.login(url, user, pass)
-            preferencesManager.saveConnectionDetails(formattedUrl, user, response.user.token)
+            
+            val previousUserId = preferencesManager.getUserId()
+            val previousUsername = preferencesManager.getUsername()
+
+            val isSameUser = if (!previousUserId.isNullOrEmpty() && !response.user.id.isNullOrEmpty()) {
+                previousUserId == response.user.id
+            } else if (!previousUsername.isNullOrEmpty()) {
+                previousUsername.equals(response.user.username, ignoreCase = true)
+            } else {
+                true
+            }
+
+            if (!isSameUser) {
+                clearLocalData()
+                val downloadsFolder = File(context.getExternalFilesDir(null), "downloads")
+                if (downloadsFolder.exists()) {
+                    downloadsFolder.deleteRecursively()
+                }
+                preferencesManager.clear()
+            }
+
+            preferencesManager.saveConnectionDetails(
+                url = formattedUrl,
+                user = response.user.username,
+                token = response.user.accessToken ?: response.user.token,
+                refreshToken = response.user.refreshToken,
+                userId = response.user.id
+            )
             response.toDomain()
         }
     }

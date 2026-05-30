@@ -51,59 +51,8 @@ interface AudiobookshelfRemoteDataSource {
 
 class AudiobookshelfRemoteDataSourceImpl(
     private val preferencesManager: PreferencesManager,
-    engine: io.ktor.client.engine.HttpClientEngine? = null
+    private val client: HttpClient
 ) : AudiobookshelfRemoteDataSource {
-
-    private val apiPlugin = createClientPlugin("AbsApiPlugin") {
-        onRequest { request, _ ->
-            val serverUrl = preferencesManager.getServerUrl()
-            val token = preferencesManager.getToken()
-
-            val host = request.url.host
-            val isRelative = host.isEmpty() || host == "localhost" || host == "127.0.0.1"
-
-            if (isRelative && !serverUrl.isNullOrEmpty()) {
-                val base = if (serverUrl.endsWith("/")) serverUrl else "$serverUrl/"
-                val relative = request.url.encodedPath.let { if (it.startsWith("/")) it.substring(1) else it }
-                request.url.takeFrom(base + relative)
-            }
-
-            if (!token.isNullOrEmpty() && !request.headers.contains("Authorization")) {
-                request.headers["Authorization"] = "Bearer $token"
-            }
-        }
-    }
-
-    private val client = engine?.let {
-        HttpClient(it) {
-            setupClient()
-        }
-    } ?: HttpClient {
-        setupClient()
-    }
-
-    private fun io.ktor.client.HttpClientConfig<*>.setupClient() {
-        install(ContentNegotiation) {
-            json(Json {
-                ignoreUnknownKeys = true
-                coerceInputValues = true
-            })
-        }
-        install(HttpTimeout) {
-            requestTimeoutMillis = 30000
-            connectTimeoutMillis = 10000
-            socketTimeoutMillis = 30000
-        }
-        install(Logging) {
-            logger = object : Logger {
-                override fun log(message: String) {
-                    Log.d("KtorClient", message)
-                }
-            }
-            level = LogLevel.ALL
-        }
-        install(apiPlugin)
-    }
 
     override suspend fun login(url: String, user: String, pass: String): Pair<LoggedUserResponse, String> = withContext(Dispatchers.IO) {
         var formattedUrl = url.trim().removeSuffix("/")
@@ -113,6 +62,7 @@ class AudiobookshelfRemoteDataSourceImpl(
         val base = "$formattedUrl/"
         val httpResponse = client.post("${base}login") {
             contentType(ContentType.Application.Json)
+            headers["x-return-tokens"] = "true"
             setBody(CredentialsLoginRequest(user, pass))
         }
 

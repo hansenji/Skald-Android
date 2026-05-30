@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
@@ -34,6 +35,17 @@ fun MainNavigation() {
     val miniPlayerState by miniPlayerViewModel.uiState.collectAsState()
     val currentKey = backStack.lastOrNull()
     val showMiniPlayer = miniPlayerState != null && currentKey != Login && currentKey != Player
+    
+    val isLoggedIn by mainViewModel.isLoggedIn.collectAsState()
+
+    LaunchedEffect(isLoggedIn) {
+        if (!isLoggedIn && backStack.lastOrNull() != Login) {
+            while (backStack.lastOrNull() != null) {
+                backStack.removeLastOrNull()
+            }
+            backStack.add(Login)
+        }
+    }
 
     MiniPlayerLayout(
         showMiniPlayer = showMiniPlayer,

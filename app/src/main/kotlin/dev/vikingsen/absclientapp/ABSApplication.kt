@@ -1,12 +1,17 @@
 package dev.vikingsen.absclientapp
 
 import android.app.Application
+import coil3.ImageLoader
+import coil3.SingletonImageLoader
+import coil3.network.ktor3.KtorNetworkFetcherFactory
 import dev.vikingsen.absclientapp.di.appModule
+import io.ktor.client.HttpClient
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
+import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 
-class ABSApplication : Application() {
+class ABSApplication : Application(), SingletonImageLoader.Factory {
     override fun onCreate() {
         super.onCreate()
         startKoin {
@@ -14,5 +19,14 @@ class ABSApplication : Application() {
             androidContext(this@ABSApplication)
             modules(appModule)
         }
+    }
+
+    override fun newImageLoader(context: android.content.Context): ImageLoader {
+        val httpClient = GlobalContext.get().get<HttpClient>()
+        return ImageLoader.Builder(context)
+            .components {
+                add(KtorNetworkFetcherFactory(httpClient))
+            }
+            .build()
     }
 }

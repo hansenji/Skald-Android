@@ -30,4 +30,10 @@ dependencies {
     
     implementation(libs.androidx.core.ktx)
     implementation(libs.koin.android)
+
+    // Unit Testing
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.mockk)
+    testImplementation(libs.ktor.client.mock)
 }

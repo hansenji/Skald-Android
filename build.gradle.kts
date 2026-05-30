@@ -19,7 +19,7 @@ subprojects {
         val extension = extensions.findByName("koinCompiler")
         if (extension != null) {
             val setter = extension.javaClass.methods.find { it.name == "setCompileSafety" }
-            setter?.invoke(extension, true)
+            setter?.invoke(extension, false)
         }
     }
 }

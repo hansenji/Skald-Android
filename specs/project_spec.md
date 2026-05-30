@@ -94,3 +94,11 @@ To help developers easily inspect the API source of truth, you can configure a l
    audiobookshelf.app.dir=/path/to/audiobookshelf-app
    ```
 
+---
+
+## 6. Related Specifications
+
+To inspect detailed configurations and workflows for specific features, refer to the following sub-specifications:
+- **[Authentication Specification](file:///home/hansenji/src/abs-client-app/specs/auth_spec.md)**: Outlines secure token storage (Tink-encrypted DataStore), proactive & reactive token refresh, and login validation policies.
+
+

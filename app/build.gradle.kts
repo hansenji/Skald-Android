@@ -98,6 +98,10 @@ dependencies {
   implementation(libs.koin.android)
   implementation(libs.koin.androidx.compose)
 
+  // Coil 3 & Ktor Network Fetcher
+  implementation(libs.coil.compose)
+  implementation(libs.coil.network.ktor3)
+
   // Subproject Modules
   implementation(project(":core:model"))
   implementation(project(":core:preferences"))

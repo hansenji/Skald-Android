@@ -22,4 +22,5 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.koin.android)
     implementation(libs.ktor.serialization.kotlinx.json)
+    implementation(libs.androidx.datastore.tink)
 }

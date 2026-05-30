@@ -16,7 +16,21 @@ data class LoggedUserResponse(
 @Serializable
 data class UserDetails(
     val token: String,
-    val username: String
+    val username: String,
+    val id: String? = null,
+    val accessToken: String? = null,
+    val refreshToken: String? = null
+)
+
+@Serializable
+data class RefreshResponse(
+    val user: RefreshUserDetails
+)
+
+@Serializable
+data class RefreshUserDetails(
+    val accessToken: String,
+    val refreshToken: String
 )
 
 @Serializable

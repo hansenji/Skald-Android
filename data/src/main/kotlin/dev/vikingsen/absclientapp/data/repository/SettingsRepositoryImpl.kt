@@ -23,7 +23,7 @@ class SettingsRepositoryImpl(
 
     override fun getLibraryId(): String? = preferencesManager.getLibraryId()
 
-    override fun saveConnectionDetails(url: String, username: String, token: String) {
+    override suspend fun saveConnectionDetails(url: String, username: String, token: String) {
         preferencesManager.saveConnectionDetails(url, username, token)
     }
 
@@ -51,7 +51,7 @@ class SettingsRepositoryImpl(
 
     override fun isLoggedIn(): Boolean = preferencesManager.isLoggedIn()
 
-    override fun clear() {
+    override suspend fun clear() {
         preferencesManager.clear()
     }
 

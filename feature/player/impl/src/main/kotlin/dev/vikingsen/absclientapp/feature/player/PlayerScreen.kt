@@ -25,9 +25,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import coil.compose.SubcomposeAsyncImage
-import coil.request.ImageRequest
+import coil3.compose.AsyncImage
+import coil3.compose.SubcomposeAsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import org.koin.androidx.compose.koinViewModel
 import androidx.compose.ui.graphics.vector.ImageVector
 import dev.vikingsen.absclientapp.feature.player.icons.*
@@ -96,11 +97,6 @@ fun PlayerScreen(
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(state.coverUrl)
-                        .apply {
-                            if (state.authorizationHeader != null) {
-                                setHeader("Authorization", state.authorizationHeader)
-                            }
-                        }
                         .build(),
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
@@ -139,50 +135,37 @@ fun PlayerScreen(
                         shape = RoundedCornerShape(24.dp),
                         elevation = CardDefaults.cardElevation(defaultElevation = 16.dp)
                     ) {
-                        if (state.authorizationHeader == null) {
-                            AsyncImage(
-                                model = ImageRequest.Builder(LocalContext.current)
-                                    .data(state.coverUrl)
-                                    .crossfade(true)
-                                    .build(),
-                                contentDescription = state.title,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-                        } else {
-                            SubcomposeAsyncImage(
-                                model = ImageRequest.Builder(LocalContext.current)
-                                    .data(state.coverUrl)
-                                    .setHeader("Authorization", state.authorizationHeader)
-                                    .crossfade(true)
-                                    .build(),
-                                contentDescription = state.title,
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize(),
-                                error = {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .background(
-                                                Brush.linearGradient(
-                                                    colors = listOf(
-                                                        MaterialTheme.colorScheme.primary,
-                                                        MaterialTheme.colorScheme.tertiary
-                                                    )
+                        SubcomposeAsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(state.coverUrl)
+                                .crossfade(true)
+                                .build(),
+                            contentDescription = state.title,
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize(),
+                            error = {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(
+                                            Brush.linearGradient(
+                                                colors = listOf(
+                                                    MaterialTheme.colorScheme.primary,
+                                                    MaterialTheme.colorScheme.tertiary
                                                 )
-                                            ),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text(
-                                            text = state.title.take(1).uppercase(),
-                                            color = Color.White,
-                                            fontSize = 64.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
+                                            )
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = state.title.take(1).uppercase(),
+                                        color = Color.White,
+                                        fontSize = 64.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
                                 }
-                            )
-                        }
+                            }
+                        )
                     }
                 }
 
