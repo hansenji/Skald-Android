@@ -13,7 +13,6 @@ import dev.vikingsen.absclientapp.domain.usecase.GetMiniPlayerStateUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -78,14 +77,14 @@ class LibraryViewModel(
 
     private val initialDownloadedOnly = settingsRepository.getDownloadedOnlyFilter()
 
-    private val _filterStatus = MutableStateFlow(initialFilterStatus)
-    val filterStatus: StateFlow<ReadStatusFilter> = _filterStatus.asStateFlow()
+    val filterStatus: StateFlow<ReadStatusFilter>
+        field = MutableStateFlow(initialFilterStatus)
 
-    private val _filterDownloadedOnly = MutableStateFlow(initialDownloadedOnly)
-    val filterDownloadedOnly: StateFlow<Boolean> = _filterDownloadedOnly.asStateFlow()
+    val filterDownloadedOnly: StateFlow<Boolean>
+        field = MutableStateFlow(initialDownloadedOnly)
 
-    private val _sortBy = MutableStateFlow(initialSortOption)
-    val sortBy: StateFlow<SortOption> = _sortBy.asStateFlow()
+    val sortBy: StateFlow<SortOption>
+        field = MutableStateFlow(initialSortOption)
 
     private val _books = getBooksUseCase()
     private val _progress = getPlaybackProgressUseCase()
@@ -93,9 +92,9 @@ class LibraryViewModel(
     val books: StateFlow<List<BookCardUiModel>> = combine(
         _books,
         _progress,
-        _filterStatus,
-        _filterDownloadedOnly,
-        _sortBy
+        filterStatus,
+        filterDownloadedOnly,
+        sortBy
     ) { booksList, progressList, status, downloadedOnly, sort ->
         val progressMap = progressList.associateBy { it.bookId }
         val serverUrl = settingsRepository.getServerUrl() ?: ""
@@ -161,46 +160,46 @@ class LibraryViewModel(
             }
     }.stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = emptyList())
 
-    private val _isRefreshing = MutableStateFlow(false)
-    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
+    val isRefreshing: StateFlow<Boolean>
+        field = MutableStateFlow(false)
 
-    private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> = _error.asStateFlow()
+    val error: StateFlow<String?>
+        field = MutableStateFlow<String?>(null)
 
     init {
         refresh()
     }
 
     fun setFilterStatus(status: ReadStatusFilter) {
-        _filterStatus.value = status
+        filterStatus.value = status
         settingsRepository.saveReadStatusFilter(status.name)
     }
 
     fun setFilterDownloadedOnly(downloadedOnly: Boolean) {
-        _filterDownloadedOnly.value = downloadedOnly
+        filterDownloadedOnly.value = downloadedOnly
         settingsRepository.saveDownloadedOnlyFilter(downloadedOnly)
     }
 
     fun setSortBy(sort: SortOption) {
-        _sortBy.value = sort
+        sortBy.value = sort
         settingsRepository.saveSortOption(sort.name)
     }
 
     fun refresh() {
         val libraryId = settingsRepository.getLibraryId()
         if (libraryId.isNullOrEmpty()) {
-            _error.value = "No library selected"
+            error.value = "No library selected"
             return
         }
 
-        _isRefreshing.value = true
-        _error.value = null
+        isRefreshing.value = true
+        error.value = null
         viewModelScope.launch {
             val result = syncLibraryBooksUseCase(libraryId)
             if (result.isFailure) {
-                _error.value = result.exceptionOrNull()?.message ?: "Failed to sync library"
+                error.value = result.exceptionOrNull()?.message ?: "Failed to sync library"
             }
-            _isRefreshing.value = false
+            isRefreshing.value = false
         }
     }
 

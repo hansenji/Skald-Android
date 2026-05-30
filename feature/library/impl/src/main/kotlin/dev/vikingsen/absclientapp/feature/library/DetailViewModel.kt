@@ -55,9 +55,10 @@ class DetailViewModel(
     private val playerManager: PlayerManager,
     private val getMiniPlayerStateUseCase: GetMiniPlayerStateUseCase
 ) : ViewModel() {
-    private val _bookId = MutableStateFlow<String?>(null)
+    val bookId: StateFlow<String?>
+        field = MutableStateFlow<String?>(null)
 
-    val bookAndProgress: StateFlow<Pair<Book?, PlaybackProgress?>?> = _bookId
+    val bookAndProgress: StateFlow<Pair<Book?, PlaybackProgress?>?> = bookId
         .filterNotNull()
         .flatMapLatest { id -> getBookWithProgressUseCase(id) }
         .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = null)
@@ -117,11 +118,11 @@ class DetailViewModel(
         .map { it != null }
         .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = false)
 
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+    val isLoading: StateFlow<Boolean>
+        field = MutableStateFlow(false)
 
-    private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> = _error.asStateFlow()
+    val error: StateFlow<String?>
+        field = MutableStateFlow<String?>(null)
 
     val isDownloading: StateFlow<Boolean> = bookAndProgress
         .map { pair ->
@@ -130,7 +131,7 @@ class DetailViewModel(
         }
         .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = false)
 
-    val downloadProgress: StateFlow<Float> = _bookId
+    val downloadProgress: StateFlow<Float> = bookId
         .filterNotNull()
         .flatMapLatest { id -> repository.getBookDownloadFlow(id) }
         .map { state ->
@@ -149,38 +150,38 @@ class DetailViewModel(
         }
         .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = null)
 
-    private val _downloadError = MutableStateFlow<String?>(null)
-    val downloadError: StateFlow<String?> = _downloadError.asStateFlow()
+    val downloadError: StateFlow<String?>
+        field = MutableStateFlow<String?>(null)
 
     fun setBookId(id: String) {
-        if (_bookId.value == id) return
-        _bookId.value = id
+        if (bookId.value == id) return
+        bookId.value = id
         fetchBookDetails(id)
     }
 
     private fun fetchBookDetails(id: String) {
-        _isLoading.value = true
-        _error.value = null
+        isLoading.value = true
+        error.value = null
         viewModelScope.launch {
             val result = fetchBookDetailsUseCase(id)
             if (result.isFailure) {
-                _error.value = result.exceptionOrNull()?.message ?: "Failed to load details"
+                error.value = result.exceptionOrNull()?.message ?: "Failed to load details"
             }
-            _isLoading.value = false
+            isLoading.value = false
         }
     }
 
     fun downloadBook() {
         val book = bookAndProgress.value?.first ?: return
         viewModelScope.launch {
-            _downloadError.value = null
+            downloadError.value = null
             
             val filesToDownload = book.audioFiles.filter { it.downloadStatus != DownloadStatus.COMPLETED }
             if (filesToDownload.isEmpty()) return@launch
             
             val result = downloadAudioFileUseCase(book.id)
             if (result.isFailure) {
-                _downloadError.value = result.exceptionOrNull()?.message ?: "Failed to start download"
+                downloadError.value = result.exceptionOrNull()?.message ?: "Failed to start download"
             }
         }
     }
@@ -188,13 +189,13 @@ class DetailViewModel(
     fun deleteDownloadedBook() {
         val book = bookAndProgress.value?.first ?: return
         viewModelScope.launch {
-            _isLoading.value = true
-            _downloadError.value = null
+            isLoading.value = true
+            downloadError.value = null
             val result = deleteLocalBookFilesUseCase(book.id)
             if (result.isFailure) {
-                _downloadError.value = result.exceptionOrNull()?.message ?: "Failed to delete downloaded files"
+                downloadError.value = result.exceptionOrNull()?.message ?: "Failed to delete downloaded files"
             }
-            _isLoading.value = false
+            isLoading.value = false
         }
     }
 

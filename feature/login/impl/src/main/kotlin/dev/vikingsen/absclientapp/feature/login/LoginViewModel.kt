@@ -8,7 +8,6 @@ import dev.vikingsen.absclientapp.domain.usecase.LoginUseCase
 import dev.vikingsen.absclientapp.domain.usecase.SyncLibraryBooksUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class LoginViewModel(
@@ -17,45 +16,45 @@ class LoginViewModel(
     private val syncLibraryBooksUseCase: SyncLibraryBooksUseCase,
     private val settingsRepository: SettingsRepository
 ) : ViewModel() {
-    private val _serverUrl = MutableStateFlow(settingsRepository.getServerUrl() ?: "")
-    val serverUrl: StateFlow<String> = _serverUrl.asStateFlow()
+    val serverUrl: StateFlow<String>
+        field = MutableStateFlow(settingsRepository.getServerUrl() ?: "")
 
-    private val _username = MutableStateFlow(settingsRepository.getUsername() ?: "")
-    val username: StateFlow<String> = _username.asStateFlow()
+    val username: StateFlow<String>
+        field = MutableStateFlow(settingsRepository.getUsername() ?: "")
 
-    private val _password = MutableStateFlow("")
-    val password: StateFlow<String> = _password.asStateFlow()
+    val password: StateFlow<String>
+        field = MutableStateFlow("")
 
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+    val isLoading: StateFlow<Boolean>
+        field = MutableStateFlow(false)
 
-    private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> = _error.asStateFlow()
+    val error: StateFlow<String?>
+        field = MutableStateFlow<String?>(null)
 
     fun updateServerUrl(url: String) {
-        _serverUrl.value = url
+        serverUrl.value = url
     }
 
     fun updateUsername(user: String) {
-        _username.value = user
+        username.value = user
     }
 
     fun updatePassword(pass: String) {
-        _password.value = pass
+        password.value = pass
     }
 
     fun login(onSuccess: () -> Unit) {
-        val url = _serverUrl.value.trim()
-        val user = _username.value.trim()
-        val pass = _password.value.trim()
+        val url = serverUrl.value.trim()
+        val user = username.value.trim()
+        val pass = password.value.trim()
 
         if (url.isEmpty() || user.isEmpty() || pass.isEmpty()) {
-            _error.value = "All fields are required"
+            error.value = "All fields are required"
             return
         }
 
-        _isLoading.value = true
-        _error.value = null
+        isLoading.value = true
+        error.value = null
 
         viewModelScope.launch {
             val loginResult = loginUseCase(url, user, pass)
@@ -70,15 +69,15 @@ class LoginViewModel(
                             syncLibraryBooksUseCase(audiobookLib.id)
                         }
                     }
-                    _isLoading.value = false
+                    isLoading.value = false
                     onSuccess()
                 } else {
-                    _isLoading.value = false
-                    _error.value = "Failed to fetch libraries: ${librariesResult.exceptionOrNull()?.message}"
+                    isLoading.value = false
+                    error.value = "Failed to fetch libraries: ${librariesResult.exceptionOrNull()?.message}"
                 }
             } else {
-                _isLoading.value = false
-                _error.value = loginResult.exceptionOrNull()?.message ?: "Login failed"
+                isLoading.value = false
+                error.value = loginResult.exceptionOrNull()?.message ?: "Login failed"
             }
         }
     }
