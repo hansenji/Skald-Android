@@ -1,0 +1,8 @@
+## This file serves as a template for your local.properties configuration.
+# Copy this file to local.properties and configure the paths as needed.
+
+# Location of the Android SDK.
+# sdk.dir=/path/to/Android/Sdk
+
+# Path to the local clone of the audiobookshelf mobile app repository (source of truth for the server API).
+# audiobookshelf.app.dir=/path/to/audiobookshelf-app

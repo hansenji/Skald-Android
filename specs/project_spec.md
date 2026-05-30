@@ -73,3 +73,24 @@ The overall quality and performance of the application will be measured against 
 - **Offline Transition Time**: The app must transition from online to offline mode (rendering downloaded and cached items) in under 300ms upon network loss.
 - **Battery Draw**: Active background audio playback must not consume more than 5% of device battery per hour on standard modern devices.
 - **Data Minimization**: Playback synchronization payloads sent over Ktor must remain lightweight (under 1KB per sync request) to conserve user bandwidth.
+
+---
+
+## 5. API Source of Truth & Local Configuration
+
+Since the official Audiobookshelf server API documentation can be out of date, the **Audiobookshelf mobile app repository** is designated as the primary source of truth for API schemas, endpoints, and expectations:
+- **Repository URL**: [audiobookshelf-app](https://github.com/advplyr/audiobookshelf-app)
+
+### Local Configuration
+To help developers easily inspect the API source of truth, you can configure a local reference to a clone of the `audiobookshelf-app` repository on your local machine.
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/advplyr/audiobookshelf-app.git
+   ```
+2. Add the path to your clone in the `local.properties` file at the root of the project (this file is excluded from git):
+   ```properties
+   # Path to local clone of the audiobookshelf mobile app repository
+   audiobookshelf.app.dir=/path/to/audiobookshelf-app
+   ```
+
