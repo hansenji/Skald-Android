@@ -2,7 +2,7 @@ package dev.vikingsen.absclientapp.data.repository
 
 import android.content.Context
 import dev.vikingsen.absclientapp.core.preferences.PreferencesManager
-import dev.vikingsen.absclientapp.core.database.AppDatabase
+import dev.vikingsen.absclientapp.core.database.AppDatabaseProvider
 import dev.vikingsen.absclientapp.core.database.BookEntity
 import dev.vikingsen.absclientapp.core.database.LocalAudioFile
 import dev.vikingsen.absclientapp.core.database.LocalChapter
@@ -30,10 +30,11 @@ import java.io.File
 
 class AudiobookshelfRepositoryImpl(
     private val context: Context,
-    private val db: AppDatabase,
+    private val dbProvider: AppDatabaseProvider,
     private val preferencesManager: PreferencesManager,
     private val remoteDataSource: AudiobookshelfRemoteDataSource
 ) : AudiobookshelfRepository {
+    private val db = dbProvider.database
     private val bookDao = db.bookDao()
     private val progressDao = db.playbackProgressDao()
 

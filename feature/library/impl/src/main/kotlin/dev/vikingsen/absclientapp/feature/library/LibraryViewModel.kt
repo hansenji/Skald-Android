@@ -66,7 +66,7 @@ class LibraryViewModel(
 
     val showMiniPlayer: StateFlow<Boolean> = getMiniPlayerStateUseCase()
         .map { it != null }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+        .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = false)
 
     private val initialFilterStatus = settingsRepository.getReadStatusFilter()?.let {
         runCatching { ReadStatusFilter.valueOf(it) }.getOrNull()
@@ -159,7 +159,7 @@ class LibraryViewModel(
                     }
                 }
             }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    }.stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = emptyList())
 
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()

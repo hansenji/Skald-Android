@@ -1,8 +1,9 @@
 package dev.vikingsen.absclientapp.feature.login
 
-import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
+import org.koin.plugin.module.dsl.viewModel
 
 val featureLoginModule = module {
-    viewModel { LoginViewModel(get(), get(), get(), get()) }
+    viewModel<LoginViewModel>()
 }
+

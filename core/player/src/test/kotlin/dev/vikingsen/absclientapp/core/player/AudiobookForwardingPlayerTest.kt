@@ -10,7 +10,10 @@ import org.junit.Test
 
 class AudiobookForwardingPlayerTest {
 
-    private val mockPlayer = mockk<Player>(relaxed = true)
+    private val mockExoPlayer = mockk<androidx.media3.exoplayer.ExoPlayer>(relaxed = true)
+    private val mockProvider = mockk<ExoPlayerProvider> {
+        every { exoPlayer } returns mockExoPlayer
+    }
     private val playerManager = mockk<PlayerManager>(relaxed = true)
     private val settingsRepository = mockk<SettingsRepository>(relaxed = true)
 
@@ -19,7 +22,7 @@ class AudiobookForwardingPlayerTest {
     @Before
     fun setUp() {
         forwardingPlayer = AudiobookForwardingPlayer(
-            player = mockPlayer,
+            exoPlayerProvider = mockProvider,
             playerManager = playerManager,
             settingsRepository = settingsRepository
         )
@@ -50,8 +53,8 @@ class AudiobookForwardingPlayerTest {
         val mockBuilder = mockk<Player.Commands.Builder>(relaxed = true)
         val mockResultCommands = mockk<Player.Commands>()
 
-        every { mockPlayer.getAvailableCommands() } returns mockCommands
-        every { mockPlayer.availableCommands } returns mockCommands
+        every { mockExoPlayer.getAvailableCommands() } returns mockCommands
+        every { mockExoPlayer.availableCommands } returns mockCommands
         every { mockCommands.buildUpon() } returns mockBuilder
         every { mockBuilder.remove(any()) } returns mockBuilder
         every { mockBuilder.build() } returns mockResultCommands

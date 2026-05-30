@@ -27,11 +27,12 @@ import com.google.common.util.concurrent.MoreExecutors
 
 class PlayerManager(
     private val context: Context,
-    private val exoPlayer: ExoPlayer,
+    private val exoPlayerProvider: ExoPlayerProvider,
     private val settingsRepository: SettingsRepository,
     private val saveProgressUseCase: SaveProgressUseCase,
     private val startPlaybackSessionUseCase: StartPlaybackSessionUseCase
 ) : PlaybackStateProvider {
+    private val exoPlayer: ExoPlayer get() = exoPlayerProvider.exoPlayer
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var positionUpdateJob: Job? = null
     private var sleepTimerJob: Job? = null

@@ -1,8 +1,9 @@
 package dev.vikingsen.absclientapp.feature.miniplayer
 
-import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
+import org.koin.plugin.module.dsl.viewModel
 
 val featureMiniPlayerModule = module {
-    viewModel { MiniPlayerViewModel(get(), get()) }
+    viewModel<MiniPlayerViewModel>()
 }
+

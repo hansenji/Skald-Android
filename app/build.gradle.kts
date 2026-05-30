@@ -2,7 +2,9 @@ plugins {
   alias(libs.plugins.android.application)
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.kotlin.serialization)
+  alias(libs.plugins.koin.compiler)
 }
+
 
 android {
     namespace = "dev.vikingsen.absclientapp"
@@ -113,3 +115,5 @@ dependencies {
   implementation(project(":feature:androidauto"))
   implementation(project(":feature:miniplayer"))
 }
+
+

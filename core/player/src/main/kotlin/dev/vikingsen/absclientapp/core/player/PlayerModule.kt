@@ -13,7 +13,10 @@ import dev.vikingsen.absclientapp.core.preferences.PreferencesManager
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import dev.vikingsen.absclientapp.domain.repository.PlaybackStateProvider
 import org.koin.android.ext.koin.androidContext
+import org.koin.dsl.bind
 import org.koin.dsl.module
+import org.koin.plugin.module.dsl.single
+
 
 class AuthenticatedHttpDataSourceFactory(
     private val preferencesManager: PreferencesManager
@@ -33,46 +36,12 @@ class AuthenticatedHttpDataSourceFactory(
 }
 
 val corePlayerModule = module {
-    single {
-        val preferencesManager: PreferencesManager = get()
-        val httpDataSourceFactory = AuthenticatedHttpDataSourceFactory(preferencesManager)
-        val dataSourceFactory = DefaultDataSource.Factory(androidContext(), httpDataSourceFactory)
-        val mediaSourceFactory = DefaultMediaSourceFactory(dataSourceFactory)
+    single<ExoPlayerProvider>()
 
-        val audioAttributes = AudioAttributes.Builder()
-            .setUsage(C.USAGE_MEDIA)
-            .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
-            .build()
-
-        ExoPlayer.Builder(androidContext())
-            .setMediaSourceFactory(mediaSourceFactory)
-            .setSeekParameters(SeekParameters.CLOSEST_SYNC)
-            .setAudioAttributes(audioAttributes, true)
-            .build()
-    }
-
-    single { PlayerManager(androidContext(), get(), get(), get(), get()) }
-    single<PlaybackStateProvider> { get<PlayerManager>() }
+    single<PlayerManager>() bind PlaybackStateProvider::class
     
-    single<Player> {
-        AudiobookForwardingPlayer(
-            player = get<ExoPlayer>(),
-            playerManager = get(),
-            settingsRepository = get()
-        )
-    }
+    single<AudiobookForwardingPlayer>() bind Player::class
 
-    single {
-        AudiobookSessionCallback(
-            context = androidContext(),
-            playerManager = get(),
-            settingsRepository = get(),
-            getBooksUseCase = get(),
-            getPlaybackProgressUseCase = get()
-        )
-    }
-
-    single<MediaLibrarySession.Callback> {
-        get<AudiobookSessionCallback>()
-    }
+    single<AudiobookSessionCallback>() bind MediaLibrarySession.Callback::class
 }
+

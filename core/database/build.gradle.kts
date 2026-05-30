@@ -2,7 +2,9 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.koin.compiler)
 }
+
 
 android {
     namespace = "dev.vikingsen.absclientapp.core.database"

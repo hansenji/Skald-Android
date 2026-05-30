@@ -12,8 +12,8 @@ import dev.vikingsen.absclientapp.feature.player.featurePlayerModule
 import dev.vikingsen.absclientapp.feature.androidauto.featureAndroidAutoModule
 import dev.vikingsen.absclientapp.feature.miniplayer.featureMiniPlayerModule
 import dev.vikingsen.absclientapp.MainViewModel
-import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
+import org.koin.plugin.module.dsl.viewModel
 
 val appModule = module {
     includes(
@@ -30,5 +30,6 @@ val appModule = module {
         featureMiniPlayerModule
     )
 
-    viewModel { MainViewModel(get()) }
+    viewModel<MainViewModel>()
 }
+

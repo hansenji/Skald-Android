@@ -46,7 +46,7 @@ class MiniPlayerViewModel(
 ) : ViewModel() {
 
     val uiState: StateFlow<MiniPlayerState?> = getMiniPlayerStateUseCase()
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+        .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = null)
 
     fun togglePlayPause() {
         if (playerManager.isPlaying.value) {

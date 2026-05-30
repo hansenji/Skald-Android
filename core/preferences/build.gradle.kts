@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.android.library)
+    alias(libs.plugins.koin.compiler)
 }
+
 
 android {
     namespace = "dev.vikingsen.absclientapp.core.preferences"

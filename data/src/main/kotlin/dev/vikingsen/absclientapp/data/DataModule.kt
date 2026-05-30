@@ -4,10 +4,12 @@ import dev.vikingsen.absclientapp.data.repository.AudiobookshelfRepositoryImpl
 import dev.vikingsen.absclientapp.data.repository.SettingsRepositoryImpl
 import dev.vikingsen.absclientapp.domain.repository.AudiobookshelfRepository
 import dev.vikingsen.absclientapp.domain.repository.SettingsRepository
-import org.koin.android.ext.koin.androidContext
+import org.koin.dsl.bind
 import org.koin.dsl.module
+import org.koin.plugin.module.dsl.single
 
 val dataModule = module {
-    single<SettingsRepository> { SettingsRepositoryImpl(get()) }
-    single<AudiobookshelfRepository> { AudiobookshelfRepositoryImpl(androidContext(), get(), get(), get()) }
+    single<SettingsRepositoryImpl>() bind SettingsRepository::class
+    single<AudiobookshelfRepositoryImpl>() bind AudiobookshelfRepository::class
 }
+

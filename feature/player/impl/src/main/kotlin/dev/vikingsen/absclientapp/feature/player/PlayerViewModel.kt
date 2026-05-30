@@ -102,7 +102,7 @@ class PlayerViewModel(
                 chapters = chapters
             )
         }
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+    }.stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = null)
 
     fun play() {
         playerManager.play()

@@ -8,10 +8,10 @@ import dev.vikingsen.absclientapp.domain.repository.SettingsRepository
 
 @OptIn(UnstableApi::class)
 class AudiobookForwardingPlayer(
-    player: Player,
+    exoPlayerProvider: ExoPlayerProvider,
     private val playerManager: PlayerManager,
     private val settingsRepository: SettingsRepository
-) : ForwardingPlayer(player) {
+) : ForwardingPlayer(exoPlayerProvider.exoPlayer) {
 
     private fun seekForwardByDuration() {
         val duration = settingsRepository.getSkipForwardDuration()

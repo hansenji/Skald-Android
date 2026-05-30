@@ -1,8 +1,9 @@
 package dev.vikingsen.absclientapp.feature.player
 
-import org.koin.androidx.viewmodel.dsl.viewModel
 import org.koin.dsl.module
+import org.koin.plugin.module.dsl.viewModel
 
 val featurePlayerModule = module {
-    viewModel { PlayerViewModel(get(), get()) }
+    viewModel<PlayerViewModel>()
 }
+

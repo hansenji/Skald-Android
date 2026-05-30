@@ -1,8 +1,9 @@
 package dev.vikingsen.absclientapp.core.database
 
-import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
+import org.koin.plugin.module.dsl.single
 
 val coreDatabaseModule = module {
-    single { AppDatabase.create(androidContext()) }
+    single<AppDatabaseProvider>()
 }
+

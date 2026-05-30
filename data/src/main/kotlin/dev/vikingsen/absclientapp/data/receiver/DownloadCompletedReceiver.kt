@@ -6,7 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
-import dev.vikingsen.absclientapp.core.database.AppDatabase
+import dev.vikingsen.absclientapp.core.database.AppDatabaseProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -15,7 +15,8 @@ import org.koin.core.component.inject
 import java.io.File
 
 class DownloadCompletedReceiver : BroadcastReceiver(), KoinComponent {
-    private val db: AppDatabase by inject()
+    private val dbProvider: AppDatabaseProvider by inject()
+    private val db get() = dbProvider.database
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == DownloadManager.ACTION_DOWNLOAD_COMPLETE) {

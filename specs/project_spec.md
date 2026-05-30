@@ -50,13 +50,14 @@ To ensure consistency, maintainability, and compatibility, the codebase must adh
     - `:core:database`: Room local cache configuration, tables, and entities DTO (`AppDatabase`, `LocalEntities`).
     - `:core:network`: Ktor API client calling and response deserialization DTOs (`AudiobookshelfRemoteDataSource`).
     - `:core:player`: Media3 ExoPlayer orchestration, `AudiobookPlayerService` background service, and `PlayerManager`.
-- **Language**: Developed using Kotlin.
+- **Language**: Developed using Kotlin, with experimental features enabled: explicit backing properties and guarded when clauses.
 - **UI Framework**: Built with Jetpack Compose using Material Design 3 guidelines. To maintain strict separation of concerns, repositories, entities, DTOs, network objects, and data sources must not be referenced or used directly within UI code composables. Composable screens and components should only consume UI-specific state models and communicate user actions via event callbacks or ViewModels.
+- **State Management & Coroutines**: Use standard, consistent parameters for converting reactive streams (`Flow`) to stateful streams (`StateFlow`). For ViewModels exposing UI state, prefer using `stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = ...)` to prevent resource waste during background transitions or screen rotation.
 - **Navigation**: Controlled globally using the **Androidx Navigation3** library (`androidx.navigation3.runtime` and `androidx.navigation3.ui`). Feature routing configuration follows the `api`/`impl` pattern of the `nowinandroid` project:
   - **Feature API**: Exposes navigation keys, destination routes, arguments, and public action interfaces.
   - **Feature Implementation**: Encapsulates internal screen composables, ViewModels, and UI fragments. Client modules interact with features exclusively through their public API, minimizing inter-module coupling.
 - **Networking**: All remote API communications are handled using Ktor Client with `kotlinx.serialization`.
-- **Dependency Injection**: Application services and ViewModels are wired and managed via Koin.
+- **Dependency Injection**: Application services and ViewModels are wired and managed via Koin using the Koin Compiler Plugin DSL NO annotations.
 - **Local Caching & Persistence**: Cached media files, libraries, progress, and download queues are persisted locally in a SQLite database via Room.
 - **Media Playback**: Audio playback and OS media controls integration must utilize Android Media3 (ExoPlayer and MediaSession).
 - **Image Loading**: Image loading, dynamic cover rendering, and caching are managed using the **Coil** library (`io.coil-kt:coil-compose`).

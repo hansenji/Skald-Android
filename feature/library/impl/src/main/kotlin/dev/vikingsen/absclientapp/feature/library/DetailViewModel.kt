@@ -60,7 +60,7 @@ class DetailViewModel(
     val bookAndProgress: StateFlow<Pair<Book?, PlaybackProgress?>?> = _bookId
         .filterNotNull()
         .flatMapLatest { id -> getBookWithProgressUseCase(id) }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+        .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = null)
 
     val bookDetail: StateFlow<BookDetailUiModel?> = bookAndProgress
         .map { pair ->
@@ -111,11 +111,11 @@ class DetailViewModel(
                 progressLeftText = progressLeftText
             )
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+        .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = null)
 
     val showMiniPlayer: StateFlow<Boolean> = getMiniPlayerStateUseCase()
         .map { it != null }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+        .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = false)
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -128,7 +128,7 @@ class DetailViewModel(
             val book = pair?.first
             book?.audioFiles?.any { it.downloadStatus == DownloadStatus.DOWNLOADING } ?: false
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
+        .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = false)
 
     val downloadProgress: StateFlow<Float> = _bookId
         .filterNotNull()
@@ -140,14 +140,14 @@ class DetailViewModel(
                 is DownloadStatusState.Error -> 0f
             }
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0f)
+        .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = 0f)
 
     val downloadingFileName: StateFlow<String?> = bookAndProgress
         .map { pair ->
             val book = pair?.first
             book?.audioFiles?.find { it.downloadStatus == DownloadStatus.DOWNLOADING }?.filename
         }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+        .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = null)
 
     private val _downloadError = MutableStateFlow<String?>(null)
     val downloadError: StateFlow<String?> = _downloadError.asStateFlow()
