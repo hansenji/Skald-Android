@@ -7,6 +7,10 @@ import dev.vikingsen.absclientapp.core.model.PlaybackProgress
 import dev.vikingsen.absclientapp.core.model.AudioFile
 import dev.vikingsen.absclientapp.core.model.DownloadStatusState
 import kotlinx.coroutines.flow.Flow
+import androidx.paging.PagingData
+import dev.vikingsen.absclientapp.core.model.BookWithProgress
+import dev.vikingsen.absclientapp.core.model.ReadStatusFilter
+import dev.vikingsen.absclientapp.core.model.SortOption
 
 interface AudiobookshelfRepository {
     suspend fun login(url: String, user: String, pass: String): Result<LoggedUser>
@@ -24,4 +28,12 @@ interface AudiobookshelfRepository {
     suspend fun syncStaticProgress(bookId: String, currentTime: Double, progress: Float, isFinished: Boolean): Result<Unit>
     suspend fun deleteLocalBookFiles(bookId: String): Result<Unit>
     suspend fun clearLocalData()
+    fun getBooksPaged(
+        libraryId: String,
+        query: String,
+        filter: ReadStatusFilter,
+        downloadedOnly: Boolean,
+        sortBy: SortOption
+    ): Flow<PagingData<BookWithProgress>>
+    suspend fun getCachedLibraries(): List<Library>
 }

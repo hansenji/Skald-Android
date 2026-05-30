@@ -18,6 +18,7 @@ android {
 
 dependencies {
     implementation(project(":core:model"))
+    implementation(libs.androidx.paging.common)
     
     // Coroutines and Core APIs
     implementation(libs.androidx.core.ktx)

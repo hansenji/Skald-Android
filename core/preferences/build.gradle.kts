@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.android.library)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.koin.compiler)
 }
 
@@ -17,6 +18,8 @@ android {
 }
 
 dependencies {
+    implementation(project(":core:model"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.koin.android)
+    implementation(libs.ktor.serialization.kotlinx.json)
 }

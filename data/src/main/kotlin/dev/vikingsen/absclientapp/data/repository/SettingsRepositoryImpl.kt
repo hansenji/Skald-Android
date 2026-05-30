@@ -2,6 +2,7 @@ package dev.vikingsen.absclientapp.data.repository
 
 import dev.vikingsen.absclientapp.core.preferences.PreferencesManager
 import dev.vikingsen.absclientapp.domain.repository.SettingsRepository
+import dev.vikingsen.absclientapp.core.model.Library
 
 class SettingsRepositoryImpl(
     private val preferencesManager: PreferencesManager
@@ -63,5 +64,29 @@ class SettingsRepositoryImpl(
 
     override fun savePlaybackSpeed(speed: Float) {
         preferencesManager.savePlaybackSpeed(speed)
+    }
+
+    override fun getLibrarySyncIntervalHours(): Int = preferencesManager.getLibrarySyncIntervalHours()
+
+    override fun saveLibrarySyncIntervalHours(hours: Int) {
+        preferencesManager.saveLibrarySyncIntervalHours(hours)
+    }
+
+    override fun getLibraryLastSyncTimestamp(): Long = preferencesManager.getLibraryLastSyncTimestamp()
+
+    override fun saveLibraryLastSyncTimestamp(timestamp: Long) {
+        preferencesManager.saveLibraryLastSyncTimestamp(timestamp)
+    }
+
+    override fun getLibraryETag(libraryId: String): String? = preferencesManager.getLibraryETag(libraryId)
+
+    override fun saveLibraryETag(libraryId: String, etag: String) {
+        preferencesManager.saveLibraryETag(libraryId, etag)
+    }
+
+    override fun getCachedLibraries(): List<Library> = preferencesManager.getLibraries()
+
+    override fun saveCachedLibraries(libraries: List<Library>) {
+        preferencesManager.saveLibraries(libraries)
     }
 }

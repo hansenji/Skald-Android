@@ -17,4 +17,5 @@ android {
 
 dependencies {
     // Models only require serialization annotations
+    implementation(libs.ktor.serialization.kotlinx.json)
 }

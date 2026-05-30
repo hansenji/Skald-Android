@@ -26,6 +26,7 @@ data class LocalChapter(
 @Entity(tableName = "books")
 data class BookEntity(
     @PrimaryKey val id: String,
+    val libraryId: String = "",
     val title: String,
     val author: String,
     val narrator: String,
@@ -34,7 +35,9 @@ data class BookEntity(
     val coverPath: String?,
     val isDownloaded: Boolean = false,
     val audioFiles: List<LocalAudioFile>,
-    val chapters: List<LocalChapter>
+    val chapters: List<LocalChapter>,
+    val etag: String? = null,
+    val lastDetailFetchTimestamp: Long = 0L
 )
 
 @Entity(tableName = "playback_progress")
@@ -45,3 +48,9 @@ data class PlaybackProgressEntity(
     val isFinished: Boolean,
     val lastUpdated: Long
 )
+
+data class BookWithProgressEntity(
+    @androidx.room.Embedded val book: BookEntity,
+    @androidx.room.Embedded(prefix = "progress_") val progress: PlaybackProgressEntity?
+)
+

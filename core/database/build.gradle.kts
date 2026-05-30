@@ -22,6 +22,7 @@ dependencies {
     implementation(project(":core:model"))
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
+    implementation(libs.room.paging)
     ksp(libs.room.compiler)
     implementation(libs.androidx.core.ktx)
     implementation(libs.koin.android)

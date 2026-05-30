@@ -4,6 +4,7 @@ import dev.vikingsen.absclientapp.core.database.BookEntity
 import dev.vikingsen.absclientapp.core.database.LocalAudioFile
 import dev.vikingsen.absclientapp.core.database.LocalChapter
 import dev.vikingsen.absclientapp.core.database.PlaybackProgressEntity
+import dev.vikingsen.absclientapp.core.database.BookWithProgressEntity
 import dev.vikingsen.absclientapp.core.network.LibraryResponse
 import dev.vikingsen.absclientapp.core.network.LoggedUserResponse
 import dev.vikingsen.absclientapp.core.model.AudioFile
@@ -13,6 +14,7 @@ import dev.vikingsen.absclientapp.core.model.DownloadStatus
 import dev.vikingsen.absclientapp.core.model.Library
 import dev.vikingsen.absclientapp.core.model.LoggedUser
 import dev.vikingsen.absclientapp.core.model.PlaybackProgress
+import dev.vikingsen.absclientapp.core.model.BookWithProgress
 
 fun LibraryResponse.toDomain(): Library = Library(
     id = id,
@@ -61,6 +63,7 @@ fun Chapter.toEntity(): LocalChapter = LocalChapter(
 
 fun BookEntity.toDomain(): Book = Book(
     id = id,
+    libraryId = libraryId,
     title = title,
     author = author,
     narrator = narrator,
@@ -69,11 +72,14 @@ fun BookEntity.toDomain(): Book = Book(
     coverPath = coverPath,
     isDownloaded = isDownloaded,
     audioFiles = audioFiles.map { it.toDomain() },
-    chapters = chapters.map { it.toDomain() }
+    chapters = chapters.map { it.toDomain() },
+    etag = etag,
+    lastDetailFetchTimestamp = lastDetailFetchTimestamp
 )
 
 fun Book.toEntity(): BookEntity = BookEntity(
     id = id,
+    libraryId = libraryId,
     title = title,
     author = author,
     narrator = narrator,
@@ -82,7 +88,9 @@ fun Book.toEntity(): BookEntity = BookEntity(
     coverPath = coverPath,
     isDownloaded = isDownloaded,
     audioFiles = audioFiles.map { it.toEntity() },
-    chapters = chapters.map { it.toEntity() }
+    chapters = chapters.map { it.toEntity() },
+    etag = etag,
+    lastDetailFetchTimestamp = lastDetailFetchTimestamp
 )
 
 fun PlaybackProgressEntity.toDomain(): PlaybackProgress = PlaybackProgress(
@@ -91,4 +99,9 @@ fun PlaybackProgressEntity.toDomain(): PlaybackProgress = PlaybackProgress(
     progress = progress,
     isFinished = isFinished,
     lastUpdated = lastUpdated
+)
+
+fun BookWithProgressEntity.toDomain(): BookWithProgress = BookWithProgress(
+    book = book.toDomain(),
+    progress = progress?.toDomain()
 )

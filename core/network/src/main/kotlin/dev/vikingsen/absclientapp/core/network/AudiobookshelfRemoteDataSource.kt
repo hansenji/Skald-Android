@@ -19,6 +19,7 @@ import io.ktor.client.statement.HttpStatement
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
 import io.ktor.http.encodedPath
+import io.ktor.client.statement.HttpResponse
 import io.ktor.http.takeFrom
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.utils.io.ByteReadChannel
@@ -39,8 +40,8 @@ import java.io.FileOutputStream
 interface AudiobookshelfRemoteDataSource {
     suspend fun login(url: String, user: String, pass: String): Pair<LoggedUserResponse, String>
     suspend fun fetchLibraries(): LibrariesResponse
-    suspend fun fetchLibraryItems(libraryId: String, limit: Int): LibraryItemsResponse
-    suspend fun fetchBookDetails(bookId: String): BookResponse
+    suspend fun fetchLibraryItems(libraryId: String, limit: Int, page: Int, etag: String? = null): NetworkResult<LibraryItemsResponse>
+    suspend fun fetchBookDetails(bookId: String, etag: String? = null): NetworkResult<BookResponse>
     suspend fun fetchProgressFromServer(bookId: String): MediaProgressResponse?
     suspend fun startPlaybackSession(bookId: String, deviceId: String, deviceName: String): PlaybackSessionResponse
     suspend fun syncPlaybackProgress(sessionId: String, timeListened: Double, currentTime: Double)
@@ -133,22 +134,53 @@ class AudiobookshelfRemoteDataSourceImpl(
         httpResponse.body()
     }
 
-    override suspend fun fetchLibraryItems(libraryId: String, limit: Int): LibraryItemsResponse = withContext(Dispatchers.IO) {
-        val httpResponse = client.get("api/libraries/$libraryId/items") {
-            url.parameters.append("limit", limit.toString())
+    override suspend fun fetchLibraryItems(
+        libraryId: String,
+        limit: Int,
+        page: Int,
+        etag: String?
+    ): NetworkResult<LibraryItemsResponse> = withContext(Dispatchers.IO) {
+        runCatching {
+            val response = client.get("api/libraries/$libraryId/items") {
+                url.parameters.append("limit", limit.toString())
+                url.parameters.append("page", page.toString())
+                if (!etag.isNullOrEmpty()) {
+                    headers["If-None-Match"] = etag
+                }
+            }
+            if (response.status.value == 304) {
+                NetworkResult.NotModified
+            } else if (response.status.value >= 400) {
+                NetworkResult.Error("Failed to sync library books: Status ${response.status.value}")
+            } else {
+                val data = response.body<LibraryItemsResponse>()
+                val responseEtag = response.headers["ETag"]
+                NetworkResult.Success(data, responseEtag)
+            }
+        }.getOrElse {
+            NetworkResult.Error(it.message ?: "Unknown error")
         }
-        if (httpResponse.status.value >= 400) {
-            throw Exception("Failed to sync library books: Status ${httpResponse.status.value}")
-        }
-        httpResponse.body()
     }
 
-    override suspend fun fetchBookDetails(bookId: String): BookResponse = withContext(Dispatchers.IO) {
-        val httpResponse = client.get("api/items/$bookId")
-        if (httpResponse.status.value >= 400) {
-            throw Exception("Failed to fetch book details: Status ${httpResponse.status.value}")
+    override suspend fun fetchBookDetails(bookId: String, etag: String?): NetworkResult<BookResponse> = withContext(Dispatchers.IO) {
+        runCatching {
+            val response = client.get("api/items/$bookId") {
+                if (!etag.isNullOrEmpty()) {
+                    headers["If-None-Match"] = etag
+                }
+            }
+            if (response.status.value == 304) {
+                NetworkResult.NotModified
+            } else if (response.status.value >= 400) {
+                NetworkResult.Error("Failed to fetch book details: Status ${response.status.value}")
+            } else {
+                val data = response.body<BookResponse>()
+                val responseEtag = response.headers["ETag"]
+                NetworkResult.Success(data, responseEtag)
+            }
+        }.getOrElse {
+            NetworkResult.Error(it.message ?: "Unknown error")
         }
-        httpResponse.body()
     }
 
     override suspend fun fetchProgressFromServer(bookId: String): MediaProgressResponse? = withContext(Dispatchers.IO) {

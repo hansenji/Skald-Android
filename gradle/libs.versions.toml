@@ -21,6 +21,8 @@ media3 = "1.5.1"
 room = "2.8.4"
 coil = "2.6.0"
 ksp = "2.3.8"
+paging = "3.3.2"
+
 
 
 [libraries]
@@ -72,6 +74,13 @@ room-compiler = { module = "androidx.room:room-compiler", version.ref = "room" }
 # Coil Image Loader
 coil-compose = { module = "io.coil-kt:coil-compose", version.ref = "coil" }
 androidx-compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
+
+# Paging 3
+androidx-paging-common = { module = "androidx.paging:paging-common", version.ref = "paging" }
+androidx-paging-runtime = { module = "androidx.paging:paging-runtime", version.ref = "paging" }
+androidx-paging-compose = { module = "androidx.paging:paging-compose", version.ref = "paging" }
+room-paging = { module = "androidx.room:room-paging", version.ref = "room" }
+
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "androidGradlePlugin" }

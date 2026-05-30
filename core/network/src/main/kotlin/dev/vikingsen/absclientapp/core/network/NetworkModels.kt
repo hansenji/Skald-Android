@@ -33,7 +33,8 @@ data class LibrariesResponse(
 
 @Serializable
 data class LibraryItemsResponse(
-    val results: List<LibraryItem>
+    val results: List<LibraryItem>,
+    val total: Int = 0
 )
 
 @Serializable

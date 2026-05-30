@@ -27,4 +27,6 @@ dependencies {
     implementation(libs.koin.android)
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
+    implementation(libs.room.paging)
+    implementation(libs.androidx.paging.common)
 }

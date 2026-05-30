@@ -5,6 +5,8 @@ import android.content.SharedPreferences
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 class PreferencesManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("abs_client_prefs", Context.MODE_PRIVATE)
@@ -77,4 +79,29 @@ class PreferencesManager(context: Context) {
     }
 
     fun isLoggedIn(): Boolean = !getToken().isNullOrEmpty() && !getServerUrl().isNullOrEmpty()
+
+    fun getLibrarySyncIntervalHours(): Int = prefs.getInt("library_sync_interval_hours", 24)
+    fun saveLibrarySyncIntervalHours(hours: Int) {
+        prefs.edit().putInt("library_sync_interval_hours", hours).apply()
+    }
+
+    fun getLibraryLastSyncTimestamp(): Long = prefs.getLong("library_last_sync_timestamp", 0L)
+    fun saveLibraryLastSyncTimestamp(timestamp: Long) {
+        prefs.edit().putLong("library_last_sync_timestamp", timestamp).apply()
+    }
+
+    fun getLibraryETag(libraryId: String): String? = prefs.getString("etag_library_$libraryId", null)
+    fun saveLibraryETag(libraryId: String, etag: String) {
+        prefs.edit().putString("etag_library_$libraryId", etag).apply()
+    }
+
+    fun saveLibraries(libraries: List<dev.vikingsen.absclientapp.core.model.Library>) {
+        val json = Json.encodeToString(libraries)
+        prefs.edit().putString("cached_libraries", json).apply()
+    }
+
+    fun getLibraries(): List<dev.vikingsen.absclientapp.core.model.Library> {
+        val json = prefs.getString("cached_libraries", null) ?: return emptyList()
+        return runCatching { Json.decodeFromString<List<dev.vikingsen.absclientapp.core.model.Library>>(json) }.getOrDefault(emptyList())
+    }
 }

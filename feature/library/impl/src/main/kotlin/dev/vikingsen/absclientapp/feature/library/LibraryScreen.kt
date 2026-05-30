@@ -5,12 +5,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.OfflinePin
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,6 +36,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Sort
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemContentType
+import androidx.paging.compose.itemKey
+import dev.vikingsen.absclientapp.core.model.ReadStatusFilter
+import dev.vikingsen.absclientapp.core.model.SortOption
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,41 +50,79 @@ fun LibraryScreen(
     onLogout: () -> Unit,
     viewModel: LibraryViewModel = koinViewModel()
 ) {
-    val books by viewModel.books.collectAsState()
+    val lazyBookCards = viewModel.books.collectAsLazyPagingItems()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val error by viewModel.error.collectAsState()
 
     val filterStatus by viewModel.filterStatus.collectAsState()
     val filterDownloadedOnly by viewModel.filterDownloadedOnly.collectAsState()
     val sortBy by viewModel.sortBy.collectAsState()
-    
-    var searchQuery by remember { mutableStateOf("") }
+    val selectedLibraryId by viewModel.selectedLibraryId.collectAsState()
+    val libraries by viewModel.libraries.collectAsState()
+    val syncIntervalHours by viewModel.syncIntervalHours.collectAsState()
+
+    val searchQuery by viewModel.searchQuery.collectAsState()
     var sortMenuExpanded by remember { mutableStateOf(false) }
     var statusMenuExpanded by remember { mutableStateOf(false) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
     
     val showMiniPlayer by viewModel.showMiniPlayer.collectAsState()
 
-    val filteredBooks = remember(books, searchQuery) {
-        if (searchQuery.isBlank()) {
-            books
-        } else {
-            books.filter { card ->
-                card.title.contains(searchQuery, ignoreCase = true) ||
-                card.author.contains(searchQuery, ignoreCase = true) ||
-                card.narrator.contains(searchQuery, ignoreCase = true)
-            }
-        }
+    if (showSettingsDialog) {
+        SettingsDialog(
+            currentInterval = syncIntervalHours,
+            onIntervalSelected = { hours ->
+                viewModel.setSyncIntervalHours(hours)
+            },
+            onDismiss = { showSettingsDialog = false }
+        )
     }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = "My Library",
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
+                    var libraryMenuExpanded by remember { mutableStateOf(false) }
+                    val selectedLib = libraries.find { it.id == selectedLibraryId }
+                    val titleText = selectedLib?.name ?: "Select Library"
+                    
+                    Box {
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { libraryMenuExpanded = true }
+                                .padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = titleText,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            Icon(
+                                Icons.Default.ArrowDropDown,
+                                contentDescription = "Switch Library",
+                                tint = MaterialTheme.colorScheme.onBackground
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = libraryMenuExpanded,
+                            onDismissRequest = { libraryMenuExpanded = false }
+                        ) {
+                            libraries.forEach { lib ->
+                                DropdownMenuItem(
+                                    text = { Text(lib.name) },
+                                    onClick = {
+                                        viewModel.setLibraryId(lib.id)
+                                        libraryMenuExpanded = false
+                                    },
+                                    trailingIcon = if (lib.id == selectedLibraryId) {
+                                        { Icon(Icons.Default.Check, contentDescription = null) }
+                                    } else null
+                                )
+                            }
+                        }
+                    }
                 },
                 actions = {
                     IconButton(onClick = { viewModel.refresh() }) {
@@ -84,6 +131,9 @@ fun LibraryScreen(
                         } else {
                             Icon(Icons.Default.Refresh, contentDescription = "Refresh")
                         }
+                    }
+                    IconButton(onClick = { showSettingsDialog = true }) {
+                        Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
                     IconButton(onClick = { viewModel.logout(onLogout) }) {
                         Icon(Icons.Default.ExitToApp, contentDescription = "Logout")
@@ -105,7 +155,7 @@ fun LibraryScreen(
             // Search Bar
             OutlinedTextField(
                 value = searchQuery,
-                onValueChange = { searchQuery = it },
+                onValueChange = { viewModel.searchQuery.value = it },
                 placeholder = { Text("Search by title, author, narrator...") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 singleLine = true,
@@ -175,7 +225,7 @@ fun LibraryScreen(
                             onDismissRequest = { statusMenuExpanded = false },
                             modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                         ) {
-                            ReadStatusFilter.values().forEach { filter ->
+                            ReadStatusFilter.entries.forEach { filter ->
                                 DropdownMenuItem(
                                     text = {
                                         Text(
@@ -334,13 +384,42 @@ fun LibraryScreen(
                 )
             }
 
-            if (filteredBooks.isEmpty()) {
+            val refreshLoadState = lazyBookCards.loadState.refresh
+            
+            if (selectedLibraryId.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = if (books.isEmpty()) "No books synced. Pull to refresh!" else "No books match your filters.",
+                        text = "No library selected. Please select a library.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            } else if (refreshLoadState is LoadState.Loading && lazyBookCards.itemCount == 0) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else if (refreshLoadState is LoadState.Error && lazyBookCards.itemCount == 0) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Error loading books: ${(refreshLoadState as LoadState.Error).error.message}",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
+            } else if (lazyBookCards.itemCount == 0) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No books found.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -352,11 +431,18 @@ fun LibraryScreen(
                     contentPadding = PaddingValues(bottom = if (showMiniPlayer) 80.dp else 16.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(filteredBooks, key = { it.id }) { bookCard ->
-                        BookCard(
-                            book = bookCard,
-                            onClick = { onBookClick(bookCard.id) }
-                        )
+                    items(
+                        count = lazyBookCards.itemCount,
+                        key = lazyBookCards.itemKey { it.id },
+                        contentType = lazyBookCards.itemContentType { "BookCard" }
+                    ) { index ->
+                        val bookCard = lazyBookCards[index]
+                        if (bookCard != null) {
+                            BookCard(
+                                book = bookCard,
+                                onClick = { onBookClick(bookCard.id) }
+                            )
+                        }
                     }
                 }
             }
@@ -382,7 +468,7 @@ fun BookCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(0.75f)
+                    .aspectRatio(1f) // 1:1 square aspect ratio
                     .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
             ) {
                 if (book.authorizationHeader == null) {
@@ -406,7 +492,6 @@ fun BookCard(
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize(),
                         error = {
-                            // Fallback gradient cover if image load fails
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -431,41 +516,48 @@ fun BookCard(
                     )
                 }
                 
-                // Read badge (top-start / top-left)
-                if (book.progress?.isFinished == true || (book.progress != null && book.progress.progress >= 0.99f)) {
+                // Read badge (top-start / top-left) - icon-only, no text label
+                val progress = book.progress
+                val isFinished = progress?.isFinished == true || (progress != null && progress.progress >= 0.99f)
+                if (isFinished) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopStart)
                             .padding(8.dp)
-                            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(4.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                            .background(Color(0x99000000), CircleShape)
+                            .padding(2.dp)
                     ) {
-                        Text(
-                            text = "Read",
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold
+                        Icon(
+                            imageVector = Icons.Default.CheckCircle,
+                            contentDescription = "Read Completed",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
 
-                // Downloaded badge (top-end / top-right)
+                // Downloaded badge (top-end / top-right) - icon-only, no text label
                 if (book.isDownloaded) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
                             .padding(8.dp)
-                            .background(Color(0x99000000), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                            .background(Color(0x99000000), CircleShape)
+                            .padding(2.dp)
                     ) {
-                        Text("Offline", color = Color.Green, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                        Icon(
+                            imageVector = Icons.Default.OfflinePin,
+                            contentDescription = "Downloaded Offline",
+                            tint = Color.Green,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
 
-                // Progress Bar at the bottom of the cover (bottom-center)
-                if (book.progress != null && book.progress.progress > 0f && !book.progress.isFinished) {
+                // Progress Bar at the bottom of the cover
+                if (progress != null && progress.progress > 0f && !isFinished) {
                     LinearProgressIndicator(
-                        progress = { book.progress.progress },
+                        progress = { progress.progress },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(4.dp)
@@ -500,8 +592,52 @@ fun BookCard(
     }
 }
 
-// Helper function for reactive state of simple string
 @Composable
-fun mutableStateFlowOf(initialValue: String): MutableState<String> {
-    return remember { mutableStateOf(initialValue) }
+fun SettingsDialog(
+    currentInterval: Int,
+    onIntervalSelected: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Settings") },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text("Automatic Sync Interval", fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                val options = listOf(
+                    0 to "Disabled",
+                    1 to "1 Hour",
+                    6 to "6 Hours",
+                    12 to "12 Hours",
+                    24 to "24 Hours (Default)",
+                    48 to "48 Hours",
+                    72 to "72 Hours"
+                )
+                
+                options.forEach { (hours, label) ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onIntervalSelected(hours) }
+                            .padding(vertical = 12.dp, horizontal = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = currentInterval == hours,
+                            onClick = { onIntervalSelected(hours) }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = label, fontSize = 14.sp)
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Done")
+            }
+        }
+    )
 }

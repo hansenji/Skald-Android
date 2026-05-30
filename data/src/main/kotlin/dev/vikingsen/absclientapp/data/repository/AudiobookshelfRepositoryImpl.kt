@@ -27,6 +27,18 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.io.File
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.map
+import androidx.sqlite.db.SimpleSQLiteQuery
+import dev.vikingsen.absclientapp.core.model.BookWithProgress
+import dev.vikingsen.absclientapp.core.model.ReadStatusFilter
+import dev.vikingsen.absclientapp.core.model.SortOption
+import dev.vikingsen.absclientapp.core.network.LibraryItemsResponse
+import dev.vikingsen.absclientapp.core.network.LibraryItem
+import dev.vikingsen.absclientapp.core.network.BookResponse
+import dev.vikingsen.absclientapp.core.network.NetworkResult
 
 class AudiobookshelfRepositoryImpl(
     private val context: Context,
@@ -49,30 +61,84 @@ class AudiobookshelfRepositoryImpl(
     override suspend fun fetchLibraries(): Result<List<Library>> = withContext(Dispatchers.IO) {
         runCatching {
             val response = remoteDataSource.fetchLibraries()
-            response.libraries.map { it.toDomain() }
+            val domainLibs = response.libraries.map { it.toDomain() }
+            preferencesManager.saveLibraries(domainLibs)
+            domainLibs
         }
     }
 
     override suspend fun syncLibraryBooks(libraryId: String): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
-            val response = remoteDataSource.fetchLibraryItems(libraryId, 100)
-            val books = response.results.map { item ->
+            val storedEtag = preferencesManager.getLibraryETag(libraryId)
+            val limit = 100
+            var currentPage = 0
+            val allItems = mutableListOf<LibraryItem>()
+            var total = 0
+            
+            // Fetch first page with ETag
+            val firstResult = remoteDataSource.fetchLibraryItems(libraryId, limit, currentPage, storedEtag)
+            
+            when (firstResult) {
+                is NetworkResult.NotModified -> {
+                    // Not modified, skip sync!
+                    return@runCatching
+                }
+                is NetworkResult.Error -> {
+                    throw Exception(firstResult.message)
+                }
+                is NetworkResult.Success -> {
+                    val newEtag = firstResult.etag
+                    if (!newEtag.isNullOrEmpty()) {
+                        preferencesManager.saveLibraryETag(libraryId, newEtag)
+                    }
+                    val firstPageData = firstResult.data
+                    allItems.addAll(firstPageData.results)
+                    total = firstPageData.total
+                }
+            }
+            
+            // Fetch subsequent pages
+            var fetched = allItems.size
+            while (fetched < total) {
+                currentPage++
+                val pageResult = remoteDataSource.fetchLibraryItems(libraryId, limit, currentPage, null)
+                when (pageResult) {
+                    is NetworkResult.Success -> {
+                        val pageData = pageResult.data
+                        if (pageData.results.isEmpty()) break
+                        allItems.addAll(pageData.results)
+                        fetched += pageData.results.size
+                    }
+                    is NetworkResult.Error -> {
+                        throw Exception("Failed to sync library books page $currentPage: ${pageResult.message}")
+                    }
+                    is NetworkResult.NotModified -> {
+                        break
+                    }
+                }
+            }
+            
+            // Map and upsert
+            val books = allItems.map { item ->
                 val existing = bookDao.getBookById(item.id)
                 BookEntity(
                     id = item.id,
+                    libraryId = libraryId,
                     title = item.media.metadata.title ?: "Unknown Title",
                     author = item.media.metadata.authorName ?: "Unknown Author",
                     narrator = item.media.metadata.narratorName ?: "Unknown Narrator",
-                    description = "",
-                    duration = 0.0,
+                    description = existing?.description ?: "",
+                    duration = existing?.duration ?: 0.0,
                     coverPath = existing?.coverPath,
                     isDownloaded = existing?.isDownloaded ?: false,
                     audioFiles = existing?.audioFiles ?: emptyList(),
-                    chapters = existing?.chapters ?: emptyList()
+                    chapters = existing?.chapters ?: emptyList(),
+                    etag = existing?.etag,
+                    lastDetailFetchTimestamp = existing?.lastDetailFetchTimestamp ?: 0L
                 )
             }
             bookDao.insertAll(books)
-            Unit
+            preferencesManager.saveLibraryLastSyncTimestamp(System.currentTimeMillis())
         }
     }
 
@@ -92,45 +158,73 @@ class AudiobookshelfRepositoryImpl(
 
     override suspend fun fetchBookDetails(bookId: String): Result<Book> = withContext(Dispatchers.IO) {
         runCatching {
-            val response = remoteDataSource.fetchBookDetails(bookId)
             val existing = bookDao.getBookById(bookId)
-
-            val bookEntity = BookEntity(
-                id = response.id,
-                title = response.media.metadata.title,
-                author = response.media.metadata.authorName ?: "Unknown Author",
-                narrator = response.media.metadata.narratorName ?: "Unknown Narrator",
-                description = response.media.metadata.description ?: "",
-                duration = response.media.audioFiles?.sumOf { it.duration ?: 0.0 } ?: 0.0,
-                coverPath = existing?.coverPath,
-                isDownloaded = existing?.isDownloaded ?: false,
-                audioFiles = response.media.audioFiles?.map { file ->
-                    val existingFile = existing?.audioFiles?.find { it.ino == file.ino }
-                    LocalAudioFile(
-                        index = file.index,
-                        ino = file.ino,
-                        duration = file.duration ?: 0.0,
-                        mimeType = file.mimeType,
-                        filename = file.metadata?.filename ?: "file_${file.index}",
-                        size = file.metadata?.size ?: 0L,
-                        localPath = existingFile?.localPath,
-                        downloadStatus = existingFile?.downloadStatus ?: "NOT_DOWNLOADED"
+            val now = System.currentTimeMillis()
+            
+            // Check time-based refresh threshold (24 hours)
+            val threshold = 24L * 60L * 60L * 1000L
+            val needsRefresh = existing == null || (now - existing.lastDetailFetchTimestamp > threshold)
+            
+            if (!needsRefresh) {
+                return@runCatching existing.toDomain()
+            }
+            
+            val storedEtag = existing?.etag
+            val result = remoteDataSource.fetchBookDetails(bookId, storedEtag)
+            
+            val bookEntity = when (result) {
+                is NetworkResult.NotModified -> {
+                    if (existing == null) throw Exception("Cached book detail missing on 304 response")
+                    existing.copy(lastDetailFetchTimestamp = now)
+                }
+                is NetworkResult.Error -> {
+                    throw Exception(result.message)
+                }
+                is NetworkResult.Success -> {
+                    val detailResponse = result.data
+                    val newEtag = result.etag
+                    
+                    BookEntity(
+                        id = detailResponse.id,
+                        libraryId = existing?.libraryId ?: preferencesManager.getLibraryId() ?: "",
+                        title = detailResponse.media.metadata.title,
+                        author = detailResponse.media.metadata.authorName ?: "Unknown Author",
+                        narrator = detailResponse.media.metadata.narratorName ?: "Unknown Narrator",
+                        description = detailResponse.media.metadata.description ?: "",
+                        duration = detailResponse.media.audioFiles?.sumOf { it.duration ?: 0.0 } ?: 0.0,
+                        coverPath = existing?.coverPath,
+                        isDownloaded = existing?.isDownloaded ?: false,
+                        audioFiles = detailResponse.media.audioFiles?.map { file ->
+                            val existingFile = existing?.audioFiles?.find { it.ino == file.ino }
+                            LocalAudioFile(
+                                index = file.index,
+                                ino = file.ino,
+                                duration = file.duration ?: 0.0,
+                                mimeType = file.mimeType,
+                                filename = file.metadata?.filename ?: "file_${file.index}",
+                                size = file.metadata?.size ?: 0L,
+                                localPath = existingFile?.localPath,
+                                downloadStatus = existingFile?.downloadStatus ?: "NOT_DOWNLOADED"
+                            )
+                        } ?: emptyList(),
+                        chapters = detailResponse.media.chapters?.map { chapter ->
+                            LocalChapter(
+                                start = chapter.start,
+                                end = chapter.end,
+                                title = chapter.title
+                            )
+                        } ?: emptyList(),
+                        etag = newEtag,
+                        lastDetailFetchTimestamp = now
                     )
-                } ?: emptyList(),
-                chapters = response.media.chapters?.map { chapter ->
-                    LocalChapter(
-                        start = chapter.start,
-                        end = chapter.end,
-                        title = chapter.title
-                    )
-                } ?: emptyList()
-            )
-
+                }
+            }
+            
             bookDao.insertBook(bookEntity)
-
+            
             // Sync progress from server if exists
             fetchProgressFromServer(bookId)
-
+            
             bookEntity.toDomain()
         }.recoverCatching { exception ->
             val local = bookDao.getBookById(bookId)
@@ -363,5 +457,87 @@ class AudiobookshelfRepositoryImpl(
 
     override suspend fun clearLocalData() = withContext(Dispatchers.IO) {
         db.clearAllTables()
+    }
+
+    override fun getBooksPaged(
+        libraryId: String,
+        query: String,
+        filter: ReadStatusFilter,
+        downloadedOnly: Boolean,
+        sortBy: SortOption
+    ): Flow<PagingData<BookWithProgress>> {
+        val sqliteQuery = buildLibraryQuery(libraryId, query, filter, downloadedOnly, sortBy)
+        return Pager(
+            config = PagingConfig(
+                pageSize = 20,
+                enablePlaceholders = false
+            ),
+            pagingSourceFactory = { bookDao.getBooksPaged(sqliteQuery) }
+        ).flow.map { pagingData ->
+            pagingData.map { entity -> entity.toDomain() }
+        }
+    }
+
+    override suspend fun getCachedLibraries(): List<Library> = withContext(Dispatchers.IO) {
+        preferencesManager.getLibraries()
+    }
+
+    private fun buildLibraryQuery(
+        libraryId: String,
+        searchQuery: String,
+        filterStatus: ReadStatusFilter,
+        downloadedOnly: Boolean,
+        sortBy: SortOption
+    ): SimpleSQLiteQuery {
+        val sql = java.lang.StringBuilder()
+        val bindArgs = ArrayList<Any>()
+        
+        sql.append("SELECT b.*, " +
+                   "p.bookId AS progress_bookId, p.currentTime AS progress_currentTime, " +
+                   "p.progress AS progress_progress, p.isFinished AS progress_isFinished, " +
+                   "p.lastUpdated AS progress_lastUpdated " +
+                   "FROM books b LEFT JOIN playback_progress p ON b.id = p.bookId " +
+                   "WHERE b.libraryId = ?")
+        bindArgs.add(libraryId)
+        
+        if (searchQuery.isNotEmpty()) {
+            sql.append(" AND (b.title LIKE ? OR b.author LIKE ? OR b.narrator LIKE ?)")
+            val wildcardQuery = "%$searchQuery%"
+            bindArgs.add(wildcardQuery)
+            bindArgs.add(wildcardQuery)
+            bindArgs.add(wildcardQuery)
+        }
+        
+        if (downloadedOnly) {
+            sql.append(" AND b.isDownloaded = 1")
+        }
+        
+        when (filterStatus) {
+            ReadStatusFilter.ALL -> {}
+            ReadStatusFilter.UNREAD -> {
+                sql.append(" AND (p.progress IS NULL OR (p.progress = 0 AND p.isFinished = 0))")
+            }
+            ReadStatusFilter.IN_PROGRESS -> {
+                sql.append(" AND (p.progress IS NOT NULL AND p.progress > 0 AND p.isFinished = 0)")
+            }
+            ReadStatusFilter.READ -> {
+                sql.append(" AND (p.isFinished = 1 OR p.progress >= 0.99)")
+            }
+        }
+        
+        sql.append(" ORDER BY ")
+        when (sortBy) {
+            SortOption.TITLE_ASC -> sql.append("b.title COLLATE NOCASE ASC")
+            SortOption.TITLE_DESC -> sql.append("b.title COLLATE NOCASE DESC")
+            SortOption.AUTHOR_ASC -> sql.append("b.author COLLATE NOCASE ASC")
+            SortOption.AUTHOR_DESC -> sql.append("b.author COLLATE NOCASE DESC")
+            SortOption.DURATION_ASC -> sql.append("b.duration ASC")
+            SortOption.DURATION_DESC -> sql.append("b.duration DESC")
+            SortOption.LAST_PLAYED -> {
+                sql.append("CASE WHEN p.lastUpdated IS NULL THEN 1 ELSE 0 END, p.lastUpdated DESC, b.title COLLATE NOCASE ASC")
+            }
+        }
+        
+        return SimpleSQLiteQuery(sql.toString(), bindArgs.toArray())
     }
 }

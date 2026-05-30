@@ -1,5 +1,7 @@
 package dev.vikingsen.absclientapp.domain.repository
 
+import dev.vikingsen.absclientapp.core.model.Library
+
 interface SettingsRepository {
     fun getServerUrl(): String?
     fun getUsername(): String?
@@ -21,4 +23,13 @@ interface SettingsRepository {
     fun saveSkipBackwardDuration(duration: Int)
     fun getPlaybackSpeed(): Float
     fun savePlaybackSpeed(speed: Float)
+
+    fun getLibrarySyncIntervalHours(): Int
+    fun saveLibrarySyncIntervalHours(hours: Int)
+    fun getLibraryLastSyncTimestamp(): Long
+    fun saveLibraryLastSyncTimestamp(timestamp: Long)
+    fun getLibraryETag(libraryId: String): String?
+    fun saveLibraryETag(libraryId: String, etag: String)
+    fun getCachedLibraries(): List<Library>
+    fun saveCachedLibraries(libraries: List<Library>)
 }

@@ -11,6 +11,8 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -351,20 +353,39 @@ fun DetailContent(
 
         // Chapters List
         if (book.chapters.isNotEmpty()) {
-            Text(
-                text = "Chapters",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            book.chapters.forEachIndexed { index, chapter ->
-                ChapterItem(
-                    chapter = chapter,
-                    index = index,
-                    onClick = { onPlayClick(chapter.start) }
+            var chaptersExpanded by remember { mutableStateOf(false) }
+            
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { chaptersExpanded = !chaptersExpanded }
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Chapters (${book.chapters.size})",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
                 )
-                Divider(color = Color(0x11FFFFFF))
+                Icon(
+                    imageVector = if (chaptersExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = if (chaptersExpanded) "Collapse Chapters" else "Expand Chapters",
+                    tint = MaterialTheme.colorScheme.onBackground
+                )
+            }
+            
+            if (chaptersExpanded) {
+                Spacer(modifier = Modifier.height(8.dp))
+                book.chapters.forEachIndexed { index, chapter ->
+                    ChapterItem(
+                        chapter = chapter,
+                        index = index,
+                        onClick = { onPlayClick(chapter.start) }
+                    )
+                    Divider(color = Color(0x11FFFFFF))
+                }
             }
         }
     }

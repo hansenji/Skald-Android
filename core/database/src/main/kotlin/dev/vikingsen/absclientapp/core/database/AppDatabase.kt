@@ -10,6 +10,9 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
+import androidx.room.RawQuery
+import androidx.sqlite.db.SupportSQLiteQuery
+import androidx.paging.PagingSource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -55,6 +58,9 @@ interface BookDao {
 
     @Query("DELETE FROM books WHERE id = :id")
     suspend fun deleteBook(id: String)
+
+    @RawQuery(observedEntities = [BookEntity::class, PlaybackProgressEntity::class])
+    fun getBooksPaged(query: SupportSQLiteQuery): PagingSource<Int, BookWithProgressEntity>
 }
 
 @Dao
@@ -72,7 +78,7 @@ interface PlaybackProgressDao {
     fun getAllProgressFlow(): Flow<List<PlaybackProgressEntity>>
 }
 
-@Database(entities = [BookEntity::class, PlaybackProgressEntity::class], version = 1, exportSchema = false)
+@Database(entities = [BookEntity::class, PlaybackProgressEntity::class], version = 2, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun bookDao(): BookDao
@@ -86,7 +92,8 @@ abstract class AppDatabase : RoomDatabase() {
                 context.applicationContext,
                 AppDatabase::class.java,
                 DB_NAME
-            ).build()
+            ).fallbackToDestructiveMigration()
+                .build()
         }
     }
 }

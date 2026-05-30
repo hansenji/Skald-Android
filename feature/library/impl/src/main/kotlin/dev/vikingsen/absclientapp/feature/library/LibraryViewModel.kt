@@ -2,38 +2,29 @@ package dev.vikingsen.absclientapp.feature.library
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import dev.vikingsen.absclientapp.core.model.Book
-import dev.vikingsen.absclientapp.core.model.PlaybackProgress
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
+import androidx.paging.map
+import dev.vikingsen.absclientapp.core.model.Library
+import dev.vikingsen.absclientapp.core.model.ReadStatusFilter
+import dev.vikingsen.absclientapp.core.model.SortOption
 import dev.vikingsen.absclientapp.domain.repository.SettingsRepository
+import dev.vikingsen.absclientapp.domain.usecase.FetchLibrariesUseCase
 import dev.vikingsen.absclientapp.domain.usecase.GetBooksUseCase
-import dev.vikingsen.absclientapp.domain.usecase.GetPlaybackProgressUseCase
 import dev.vikingsen.absclientapp.domain.usecase.LogoutUseCase
 import dev.vikingsen.absclientapp.domain.usecase.SyncLibraryBooksUseCase
 import dev.vikingsen.absclientapp.domain.usecase.GetMiniPlayerStateUseCase
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-
-enum class ReadStatusFilter {
-    ALL,
-    UNREAD,
-    IN_PROGRESS,
-    READ
-}
-
-enum class SortOption {
-    TITLE_ASC,
-    TITLE_DESC,
-    AUTHOR_ASC,
-    AUTHOR_DESC,
-    DURATION_ASC,
-    DURATION_DESC,
-    LAST_PLAYED
-}
 
 data class PlaybackProgressUiModel(
     val progress: Float,
@@ -54,10 +45,19 @@ data class BookCardUiModel(
     val progress: PlaybackProgressUiModel?
 )
 
+private data class CombinedParams(
+    val libraryId: String,
+    val query: String,
+    val status: ReadStatusFilter,
+    val downloadedOnly: Boolean,
+    val sort: SortOption
+)
+
+@OptIn(ExperimentalCoroutinesApi::class)
 class LibraryViewModel(
     private val getBooksUseCase: GetBooksUseCase,
-    private val getPlaybackProgressUseCase: GetPlaybackProgressUseCase,
     private val syncLibraryBooksUseCase: SyncLibraryBooksUseCase,
+    private val fetchLibrariesUseCase: FetchLibrariesUseCase,
     private val logoutUseCase: LogoutUseCase,
     private val settingsRepository: SettingsRepository,
     private val getMiniPlayerStateUseCase: GetMiniPlayerStateUseCase
@@ -77,96 +77,82 @@ class LibraryViewModel(
 
     private val initialDownloadedOnly = settingsRepository.getDownloadedOnlyFilter()
 
-    val filterStatus: StateFlow<ReadStatusFilter>
-        field = MutableStateFlow(initialFilterStatus)
+    val selectedLibraryId = MutableStateFlow(settingsRepository.getLibraryId() ?: "")
+    val searchQuery = MutableStateFlow("")
+    val filterStatus = MutableStateFlow(initialFilterStatus)
+    val filterDownloadedOnly = MutableStateFlow(initialDownloadedOnly)
+    val sortBy = MutableStateFlow(initialSortOption)
 
-    val filterDownloadedOnly: StateFlow<Boolean>
-        field = MutableStateFlow(initialDownloadedOnly)
+    val libraries = MutableStateFlow<List<Library>>(settingsRepository.getCachedLibraries())
+    val syncIntervalHours = MutableStateFlow(settingsRepository.getLibrarySyncIntervalHours())
 
-    val sortBy: StateFlow<SortOption>
-        field = MutableStateFlow(initialSortOption)
-
-    private val _books = getBooksUseCase()
-    private val _progress = getPlaybackProgressUseCase()
-
-    val books: StateFlow<List<BookCardUiModel>> = combine(
-        _books,
-        _progress,
+    val books: Flow<PagingData<BookCardUiModel>> = combine(
+        selectedLibraryId,
+        searchQuery,
         filterStatus,
         filterDownloadedOnly,
         sortBy
-    ) { booksList, progressList, status, downloadedOnly, sort ->
-        val progressMap = progressList.associateBy { it.bookId }
-        val serverUrl = settingsRepository.getServerUrl() ?: ""
-        val token = settingsRepository.getToken() ?: ""
-        
-        booksList
-            .map { book ->
-                val progress = progressMap[book.id]
-                val coverUrl = if (!book.coverPath.isNullOrEmpty()) book.coverPath!!
-                               else "${serverUrl.trimEnd('/')}/api/items/${book.id}/cover"
-                val authHeader = if (!book.coverPath.isNullOrEmpty()) null
-                                 else "Bearer $token"
-                BookCardUiModel(
-                    id = book.id,
-                    title = book.title,
-                    author = book.author,
-                    narrator = book.narrator,
-                    coverUrl = coverUrl,
-                    authorizationHeader = authHeader,
-                    isDownloaded = book.isDownloaded,
-                    duration = book.duration,
-                    progress = progress?.let {
-                        PlaybackProgressUiModel(
-                            progress = it.progress,
-                            isFinished = it.isFinished,
-                            currentTime = it.currentTime,
-                            lastUpdated = it.lastUpdated
-                        )
-                    }
-                )
-            }
-            .filter { card ->
-                // Filter by Downloaded
-                if (downloadedOnly && !card.isDownloaded) return@filter false
-                
-                // Filter by Read Status
-                val progress = card.progress
-                when (status) {
-                    ReadStatusFilter.ALL -> true
-                    ReadStatusFilter.UNREAD -> progress == null || (progress.progress == 0f && !progress.isFinished)
-                    ReadStatusFilter.IN_PROGRESS -> progress != null && progress.progress > 0f && !progress.isFinished
-                    ReadStatusFilter.READ -> progress?.isFinished == true || (progress != null && progress.progress >= 0.99f)
-                }
-            }
-            .sortedWith { a, b ->
-                when (sort) {
-                    SortOption.TITLE_ASC -> a.title.compareTo(b.title, ignoreCase = true)
-                    SortOption.TITLE_DESC -> b.title.compareTo(a.title, ignoreCase = true)
-                    SortOption.AUTHOR_ASC -> a.author.compareTo(b.author, ignoreCase = true)
-                    SortOption.AUTHOR_DESC -> b.author.compareTo(a.author, ignoreCase = true)
-                    SortOption.DURATION_ASC -> a.duration.compareTo(b.duration)
-                    SortOption.DURATION_DESC -> b.duration.compareTo(a.duration)
-                    SortOption.LAST_PLAYED -> {
-                        val timeA = a.progress?.lastUpdated ?: 0L
-                        val timeB = b.progress?.lastUpdated ?: 0L
-                        if (timeA == 0L && timeB == 0L) {
-                            a.title.compareTo(b.title, ignoreCase = true)
-                        } else {
-                            timeB.compareTo(timeA)
+    ) { libraryId, query, status, downloadedOnly, sort ->
+        CombinedParams(libraryId, query, status, downloadedOnly, sort)
+    }.flatMapLatest { params ->
+        if (params.libraryId.isEmpty()) {
+            flowOf(PagingData.empty())
+        } else {
+            getBooksUseCase(
+                libraryId = params.libraryId,
+                query = params.query,
+                filter = params.status,
+                downloadedOnly = params.downloadedOnly,
+                sortBy = params.sort
+            ).map { pagingData ->
+                pagingData.map { bookWithProgress ->
+                    val book = bookWithProgress.book
+                    val progress = bookWithProgress.progress
+                    val serverUrl = settingsRepository.getServerUrl() ?: ""
+                    val token = settingsRepository.getToken() ?: ""
+                    
+                    val coverUrl = if (!book.coverPath.isNullOrEmpty()) book.coverPath!!
+                                   else "${serverUrl.trimEnd('/')}/api/items/${book.id}/cover"
+                    val authHeader = if (!book.coverPath.isNullOrEmpty()) null
+                                     else "Bearer $token"
+                    
+                    BookCardUiModel(
+                        id = book.id,
+                        title = book.title,
+                        author = book.author,
+                        narrator = book.narrator,
+                        coverUrl = coverUrl,
+                        authorizationHeader = authHeader,
+                        isDownloaded = book.isDownloaded,
+                        duration = book.duration,
+                        progress = progress?.let {
+                            PlaybackProgressUiModel(
+                                progress = it.progress,
+                                isFinished = it.isFinished,
+                                currentTime = it.currentTime,
+                                lastUpdated = it.lastUpdated
+                            )
                         }
-                    }
+                    )
                 }
-            }
-    }.stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = emptyList())
+            }.cachedIn(viewModelScope)
+        }
+    }
 
-    val isRefreshing: StateFlow<Boolean>
-        field = MutableStateFlow(false)
-
-    val error: StateFlow<String?>
-        field = MutableStateFlow<String?>(null)
+    val isRefreshing = MutableStateFlow(false)
+    val error = MutableStateFlow<String?>(null)
 
     init {
+        fetchLibrariesList()
+        checkAndPeriodicSync()
+    }
+
+    fun setLibraryId(libraryId: String) {
+        if (selectedLibraryId.value == libraryId) return
+        selectedLibraryId.value = libraryId
+        settingsRepository.saveLibraryId(libraryId)
+        
+        // Trigger full book list sync for newly selected library
         refresh()
     }
 
@@ -185,9 +171,14 @@ class LibraryViewModel(
         settingsRepository.saveSortOption(sort.name)
     }
 
+    fun setSyncIntervalHours(hours: Int) {
+        syncIntervalHours.value = hours
+        settingsRepository.saveLibrarySyncIntervalHours(hours)
+    }
+
     fun refresh() {
-        val libraryId = settingsRepository.getLibraryId()
-        if (libraryId.isNullOrEmpty()) {
+        val libraryId = selectedLibraryId.value
+        if (libraryId.isEmpty()) {
             error.value = "No library selected"
             return
         }
@@ -195,11 +186,60 @@ class LibraryViewModel(
         isRefreshing.value = true
         error.value = null
         viewModelScope.launch {
+            // Also refresh library list
+            val libsResult = fetchLibrariesUseCase()
+            if (libsResult.isSuccess) {
+                libraries.value = libsResult.getOrThrow()
+            }
+            
+            // Sync books
             val result = syncLibraryBooksUseCase(libraryId)
             if (result.isFailure) {
                 error.value = result.exceptionOrNull()?.message ?: "Failed to sync library"
             }
             isRefreshing.value = false
+        }
+    }
+
+    private fun fetchLibrariesList() {
+        viewModelScope.launch {
+            val result = fetchLibrariesUseCase()
+            if (result.isSuccess) {
+                val libs = result.getOrThrow()
+                libraries.value = libs
+                
+                // Auto-selection on first load if none selected
+                if (selectedLibraryId.value.isEmpty()) {
+                    val audiobookLib = libs.find { it.type == "audiobook" } ?: libs.firstOrNull()
+                    if (audiobookLib != null) {
+                        setLibraryId(audiobookLib.id)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun checkAndPeriodicSync() {
+        val libraryId = selectedLibraryId.value
+        if (libraryId.isEmpty()) return
+        
+        val lastSync = settingsRepository.getLibraryLastSyncTimestamp()
+        val intervalHours = settingsRepository.getLibrarySyncIntervalHours()
+        
+        if (intervalHours > 0) {
+            val intervalMs = intervalHours.toLong() * 60L * 60L * 1000L
+            val elapsed = System.currentTimeMillis() - lastSync
+            if (elapsed > intervalMs) {
+                viewModelScope.launch {
+                    isRefreshing.value = true
+                    error.value = null
+                    val result = syncLibraryBooksUseCase(libraryId)
+                    if (result.isFailure) {
+                        error.value = result.exceptionOrNull()?.message ?: "Failed to sync library"
+                    }
+                    isRefreshing.value = false
+                }
+            }
         }
     }
 
