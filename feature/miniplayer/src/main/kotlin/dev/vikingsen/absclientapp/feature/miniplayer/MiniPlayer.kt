@@ -27,20 +27,46 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
-import dev.vikingsen.absclientapp.core.model.Book
+import dev.vikingsen.absclientapp.core.model.MiniPlayerState
 import dev.vikingsen.absclientapp.core.player.PlayerManager
-import dev.vikingsen.absclientapp.domain.repository.SettingsRepository
-import org.koin.compose.koinInject
+import dev.vikingsen.absclientapp.domain.usecase.GetMiniPlayerStateUseCase
+import org.koin.androidx.compose.koinViewModel
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+
+class MiniPlayerViewModel(
+    private val playerManager: PlayerManager,
+    private val getMiniPlayerStateUseCase: GetMiniPlayerStateUseCase
+) : ViewModel() {
+
+    val uiState: StateFlow<MiniPlayerState?> = getMiniPlayerStateUseCase()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    fun togglePlayPause() {
+        if (playerManager.isPlaying.value) {
+            playerManager.pause()
+        } else {
+            playerManager.play()
+        }
+    }
+
+    fun dismiss() {
+        playerManager.stop()
+    }
+}
 
 @Composable
 fun MiniPlayerLayout(
-    playerManager: PlayerManager,
     showMiniPlayer: Boolean,
     onMiniPlayerClick: () -> Unit,
     modifier: Modifier = Modifier,
+    viewModel: MiniPlayerViewModel = koinViewModel(),
     content: @Composable () -> Unit
 ) {
     Box(modifier = modifier) {
@@ -48,26 +74,15 @@ fun MiniPlayerLayout(
         content()
 
         if (showMiniPlayer) {
-            val currentBook by playerManager.currentBook.collectAsState()
-            val isPlaying by playerManager.isPlaying.collectAsState()
-            val currentPosition by playerManager.currentPosition.collectAsState()
-            val duration by playerManager.duration.collectAsState()
+            val uiState by viewModel.uiState.collectAsState()
 
-            currentBook?.let { book ->
+            uiState?.let { state ->
                 MiniPlayerView(
-                    book = book,
-                    isPlaying = isPlaying,
-                    currentPosition = currentPosition,
-                    duration = duration,
-                    onPlayPauseToggle = {
-                        if (isPlaying) playerManager.pause() else playerManager.play()
-                    },
-                    onDismiss = {
-                        playerManager.stop()
-                    },
+                    state = state,
+                    onPlayPauseToggle = { viewModel.togglePlayPause() },
+                    onDismiss = { viewModel.dismiss() },
                     onClick = onMiniPlayerClick,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
+                    modifier = Modifier.align(Alignment.BottomCenter)
                 )
             }
         }
@@ -76,10 +91,7 @@ fun MiniPlayerLayout(
 
 @Composable
 fun MiniPlayerView(
-    book: Book,
-    isPlaying: Boolean,
-    currentPosition: Double,
-    duration: Double,
+    state: MiniPlayerState,
     onPlayPauseToggle: () -> Unit,
     onDismiss: () -> Unit,
     onClick: () -> Unit,
@@ -87,12 +99,6 @@ fun MiniPlayerView(
 ) {
     val configuration = LocalConfiguration.current
     val isCompact = configuration.screenWidthDp < 600
-
-    val settingsRepository: SettingsRepository = koinInject()
-    val serverUrl = remember { settingsRepository.getServerUrl() ?: "" }
-    val token = remember { settingsRepository.getToken() ?: "" }
-
-    val progress = if (duration > 0.0) (currentPosition / duration).toFloat() else 0f
 
     val containerShape = if (isCompact) RoundedCornerShape(0.dp) else RoundedCornerShape(24.dp)
     val containerModifier = if (isCompact) {
@@ -125,7 +131,7 @@ fun MiniPlayerView(
         Column {
             // Read-only progress track
             LinearProgressIndicator(
-                progress = { progress },
+                progress = { state.progress },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(2.dp),
@@ -152,25 +158,25 @@ fun MiniPlayerView(
                             .clip(RoundedCornerShape(8.dp))
                             .background(Color.DarkGray)
                     ) {
-                        if (!book.coverPath.isNullOrEmpty()) {
+                        val authHeader = state.authorizationHeader
+                        if (authHeader == null) {
                             AsyncImage(
                                 model = ImageRequest.Builder(LocalContext.current)
-                                    .data(book.coverPath)
+                                    .data(state.coverUrl)
                                     .crossfade(true)
                                     .build(),
-                                contentDescription = book.title,
+                                contentDescription = state.title,
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()
                             )
                         } else {
-                            val coverUrl = "${serverUrl.trimEnd('/')}/api/items/${book.id}/cover"
                             SubcomposeAsyncImage(
                                 model = ImageRequest.Builder(LocalContext.current)
-                                    .data(coverUrl)
-                                    .setHeader("Authorization", "Bearer $token")
+                                    .data(state.coverUrl)
+                                    .setHeader("Authorization", authHeader)
                                     .crossfade(true)
                                     .build(),
-                                contentDescription = book.title,
+                                contentDescription = state.title,
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize(),
                                 error = {
@@ -205,7 +211,7 @@ fun MiniPlayerView(
                         verticalArrangement = Arrangement.Center
                     ) {
                         Text(
-                            text = book.title,
+                            text = state.title,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
                             maxLines = 1,
@@ -214,7 +220,7 @@ fun MiniPlayerView(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = book.author,
+                            text = state.author,
                             fontSize = 12.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -230,8 +236,8 @@ fun MiniPlayerView(
                 ) {
                     IconButton(onClick = onPlayPauseToggle) {
                         Icon(
-                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (isPlaying) "Pause" else "Play",
+                            imageVector = if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (state.isPlaying) "Pause" else "Play",
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(28.dp)
                         )

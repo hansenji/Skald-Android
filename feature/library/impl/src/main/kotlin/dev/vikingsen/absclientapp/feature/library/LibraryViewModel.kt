@@ -9,11 +9,13 @@ import dev.vikingsen.absclientapp.domain.usecase.GetBooksUseCase
 import dev.vikingsen.absclientapp.domain.usecase.GetPlaybackProgressUseCase
 import dev.vikingsen.absclientapp.domain.usecase.LogoutUseCase
 import dev.vikingsen.absclientapp.domain.usecase.SyncLibraryBooksUseCase
+import dev.vikingsen.absclientapp.domain.usecase.GetMiniPlayerStateUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -34,9 +36,23 @@ enum class SortOption {
     LAST_PLAYED
 }
 
-data class BookWithProgress(
-    val book: Book,
-    val progress: PlaybackProgress?
+data class PlaybackProgressUiModel(
+    val progress: Float,
+    val isFinished: Boolean,
+    val currentTime: Double,
+    val lastUpdated: Long
+)
+
+data class BookCardUiModel(
+    val id: String,
+    val title: String,
+    val author: String,
+    val narrator: String,
+    val coverUrl: String,
+    val authorizationHeader: String?,
+    val isDownloaded: Boolean,
+    val duration: Double,
+    val progress: PlaybackProgressUiModel?
 )
 
 class LibraryViewModel(
@@ -44,8 +60,13 @@ class LibraryViewModel(
     private val getPlaybackProgressUseCase: GetPlaybackProgressUseCase,
     private val syncLibraryBooksUseCase: SyncLibraryBooksUseCase,
     private val logoutUseCase: LogoutUseCase,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val getMiniPlayerStateUseCase: GetMiniPlayerStateUseCase
 ) : ViewModel() {
+
+    val showMiniPlayer: StateFlow<Boolean> = getMiniPlayerStateUseCase()
+        .map { it != null }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val initialFilterStatus = settingsRepository.getReadStatusFilter()?.let {
         runCatching { ReadStatusFilter.valueOf(it) }.getOrNull()
@@ -69,7 +90,7 @@ class LibraryViewModel(
     private val _books = getBooksUseCase()
     private val _progress = getPlaybackProgressUseCase()
 
-    val books: StateFlow<List<BookWithProgress>> = combine(
+    val books: StateFlow<List<BookCardUiModel>> = combine(
         _books,
         _progress,
         _filterStatus,
@@ -77,15 +98,41 @@ class LibraryViewModel(
         _sortBy
     ) { booksList, progressList, status, downloadedOnly, sort ->
         val progressMap = progressList.associateBy { it.bookId }
+        val serverUrl = settingsRepository.getServerUrl() ?: ""
+        val token = settingsRepository.getToken() ?: ""
         
         booksList
-            .map { BookWithProgress(it, progressMap[it.id]) }
-            .filter { bwp ->
+            .map { book ->
+                val progress = progressMap[book.id]
+                val coverUrl = if (!book.coverPath.isNullOrEmpty()) book.coverPath!!
+                               else "${serverUrl.trimEnd('/')}/api/items/${book.id}/cover"
+                val authHeader = if (!book.coverPath.isNullOrEmpty()) null
+                                 else "Bearer $token"
+                BookCardUiModel(
+                    id = book.id,
+                    title = book.title,
+                    author = book.author,
+                    narrator = book.narrator,
+                    coverUrl = coverUrl,
+                    authorizationHeader = authHeader,
+                    isDownloaded = book.isDownloaded,
+                    duration = book.duration,
+                    progress = progress?.let {
+                        PlaybackProgressUiModel(
+                            progress = it.progress,
+                            isFinished = it.isFinished,
+                            currentTime = it.currentTime,
+                            lastUpdated = it.lastUpdated
+                        )
+                    }
+                )
+            }
+            .filter { card ->
                 // Filter by Downloaded
-                if (downloadedOnly && !bwp.book.isDownloaded) return@filter false
+                if (downloadedOnly && !card.isDownloaded) return@filter false
                 
                 // Filter by Read Status
-                val progress = bwp.progress
+                val progress = card.progress
                 when (status) {
                     ReadStatusFilter.ALL -> true
                     ReadStatusFilter.UNREAD -> progress == null || (progress.progress == 0f && !progress.isFinished)
@@ -95,17 +142,17 @@ class LibraryViewModel(
             }
             .sortedWith { a, b ->
                 when (sort) {
-                    SortOption.TITLE_ASC -> a.book.title.compareTo(b.book.title, ignoreCase = true)
-                    SortOption.TITLE_DESC -> b.book.title.compareTo(a.book.title, ignoreCase = true)
-                    SortOption.AUTHOR_ASC -> a.book.author.compareTo(b.book.author, ignoreCase = true)
-                    SortOption.AUTHOR_DESC -> b.book.author.compareTo(a.book.author, ignoreCase = true)
-                    SortOption.DURATION_ASC -> a.book.duration.compareTo(b.book.duration)
-                    SortOption.DURATION_DESC -> b.book.duration.compareTo(a.book.duration)
+                    SortOption.TITLE_ASC -> a.title.compareTo(b.title, ignoreCase = true)
+                    SortOption.TITLE_DESC -> b.title.compareTo(a.title, ignoreCase = true)
+                    SortOption.AUTHOR_ASC -> a.author.compareTo(b.author, ignoreCase = true)
+                    SortOption.AUTHOR_DESC -> b.author.compareTo(a.author, ignoreCase = true)
+                    SortOption.DURATION_ASC -> a.duration.compareTo(b.duration)
+                    SortOption.DURATION_DESC -> b.duration.compareTo(a.duration)
                     SortOption.LAST_PLAYED -> {
                         val timeA = a.progress?.lastUpdated ?: 0L
                         val timeB = b.progress?.lastUpdated ?: 0L
                         if (timeA == 0L && timeB == 0L) {
-                            a.book.title.compareTo(b.book.title, ignoreCase = true)
+                            a.title.compareTo(b.title, ignoreCase = true)
                         } else {
                             timeB.compareTo(timeA)
                         }

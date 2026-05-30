@@ -27,10 +27,6 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
-import dev.vikingsen.absclientapp.core.model.Book
-import dev.vikingsen.absclientapp.core.model.PlaybackProgress
-import dev.vikingsen.absclientapp.domain.repository.SettingsRepository
-import org.koin.androidx.compose.get
 import org.koin.androidx.compose.koinViewModel
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -57,21 +53,16 @@ fun LibraryScreen(
     var sortMenuExpanded by remember { mutableStateOf(false) }
     var statusMenuExpanded by remember { mutableStateOf(false) }
     
-    val settingsRepository: SettingsRepository = get()
-    val serverUrl = remember { settingsRepository.getServerUrl() ?: "" }
-    val token = remember { settingsRepository.getToken() ?: "" }
-    val playerManager: dev.vikingsen.absclientapp.core.player.PlayerManager = get()
-    val currentBook by playerManager.currentBook.collectAsState()
-    val showMiniPlayer = currentBook != null
+    val showMiniPlayer by viewModel.showMiniPlayer.collectAsState()
 
     val filteredBooks = remember(books, searchQuery) {
         if (searchQuery.isBlank()) {
             books
         } else {
-            books.filter { bwp ->
-                bwp.book.title.contains(searchQuery, ignoreCase = true) ||
-                bwp.book.author.contains(searchQuery, ignoreCase = true) ||
-                bwp.book.narrator.contains(searchQuery, ignoreCase = true)
+            books.filter { card ->
+                card.title.contains(searchQuery, ignoreCase = true) ||
+                card.author.contains(searchQuery, ignoreCase = true) ||
+                card.narrator.contains(searchQuery, ignoreCase = true)
             }
         }
     }
@@ -361,13 +352,10 @@ fun LibraryScreen(
                     contentPadding = PaddingValues(bottom = if (showMiniPlayer) 80.dp else 16.dp),
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    items(filteredBooks, key = { it.book.id }) { bookWithProgress ->
+                    items(filteredBooks, key = { it.id }) { bookCard ->
                         BookCard(
-                            book = bookWithProgress.book,
-                            progress = bookWithProgress.progress,
-                            serverUrl = serverUrl,
-                            token = token,
-                            onClick = { onBookClick(bookWithProgress.book.id) }
+                            book = bookCard,
+                            onClick = { onBookClick(bookCard.id) }
                         )
                     }
                 }
@@ -378,10 +366,7 @@ fun LibraryScreen(
 
 @Composable
 fun BookCard(
-    book: Book,
-    progress: PlaybackProgress?,
-    serverUrl: String,
-    token: String,
+    book: BookCardUiModel,
     onClick: () -> Unit
 ) {
     Card(
@@ -400,10 +385,10 @@ fun BookCard(
                     .aspectRatio(0.75f)
                     .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
             ) {
-                if (!book.coverPath.isNullOrEmpty()) {
+                if (book.authorizationHeader == null) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
-                            .data(book.coverPath)
+                            .data(book.coverUrl)
                             .crossfade(true)
                             .build(),
                         contentDescription = book.title,
@@ -411,11 +396,10 @@ fun BookCard(
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
-                    val coverUrl = "${serverUrl.trimEnd('/')}/api/items/${book.id}/cover"
                     SubcomposeAsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
-                            .data(coverUrl)
-                            .setHeader("Authorization", "Bearer $token")
+                            .data(book.coverUrl)
+                            .setHeader("Authorization", book.authorizationHeader)
                             .crossfade(true)
                             .build(),
                         contentDescription = book.title,
@@ -448,7 +432,7 @@ fun BookCard(
                 }
                 
                 // Read badge (top-start / top-left)
-                if (progress?.isFinished == true || (progress != null && progress.progress >= 0.99f)) {
+                if (book.progress?.isFinished == true || (book.progress != null && book.progress.progress >= 0.99f)) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.TopStart)
@@ -479,9 +463,9 @@ fun BookCard(
                 }
 
                 // Progress Bar at the bottom of the cover (bottom-center)
-                if (progress != null && progress.progress > 0f && !progress.isFinished) {
+                if (book.progress != null && book.progress.progress > 0f && !book.progress.isFinished) {
                     LinearProgressIndicator(
-                        progress = { progress.progress },
+                        progress = { book.progress.progress },
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(4.dp)

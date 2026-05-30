@@ -9,8 +9,6 @@ import androidx.compose.ui.Modifier
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
-import dev.vikingsen.absclientapp.core.preferences.PreferencesManager
-import dev.vikingsen.absclientapp.core.player.PlayerManager
 import dev.vikingsen.absclientapp.feature.login.LoginScreen
 import dev.vikingsen.absclientapp.feature.login.api.Login
 import dev.vikingsen.absclientapp.feature.library.LibraryScreen
@@ -20,24 +18,24 @@ import dev.vikingsen.absclientapp.feature.library.api.Detail
 import dev.vikingsen.absclientapp.feature.player.PlayerScreen
 import dev.vikingsen.absclientapp.feature.player.api.Player
 import dev.vikingsen.absclientapp.feature.miniplayer.MiniPlayerLayout
-import org.koin.compose.koinInject
+import dev.vikingsen.absclientapp.feature.miniplayer.MiniPlayerViewModel
+import org.koin.androidx.compose.koinViewModel
 
 @Composable
 fun MainNavigation() {
-    val preferencesManager: PreferencesManager = koinInject()
-    val playerManager: PlayerManager = koinInject()
+    val mainViewModel: MainViewModel = koinViewModel()
+    val miniPlayerViewModel: MiniPlayerViewModel = koinViewModel()
 
     val startDestination = remember {
-        if (preferencesManager.isLoggedIn()) Library else Login
+        mainViewModel.startDestination
     }
 
     val backStack = rememberNavBackStack(startDestination)
-    val currentBook by playerManager.currentBook.collectAsState()
+    val miniPlayerState by miniPlayerViewModel.uiState.collectAsState()
     val currentKey = backStack.lastOrNull()
-    val showMiniPlayer = currentBook != null && currentKey != Login && currentKey != Player
+    val showMiniPlayer = miniPlayerState != null && currentKey != Login && currentKey != Player
 
     MiniPlayerLayout(
-        playerManager = playerManager,
         showMiniPlayer = showMiniPlayer,
         onMiniPlayerClick = {
             backStack.add(Player)
@@ -73,8 +71,7 @@ fun MainNavigation() {
                         onBackClick = {
                             backStack.removeLastOrNull()
                         },
-                        onPlayClick = { book, startPos ->
-                            playerManager.playBook(book, startPos)
+                        onPlayClick = {
                             backStack.add(Player)
                         }
                     )

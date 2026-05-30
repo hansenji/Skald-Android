@@ -28,12 +28,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
-import dev.vikingsen.absclientapp.domain.repository.SettingsRepository
-import dev.vikingsen.absclientapp.core.model.formatDuration
-import dev.vikingsen.absclientapp.core.model.formatPosition
-import org.koin.androidx.compose.get
 import org.koin.androidx.compose.koinViewModel
-import java.io.File
 import androidx.compose.ui.graphics.vector.ImageVector
 import dev.vikingsen.absclientapp.feature.player.icons.*
 
@@ -43,23 +38,13 @@ fun PlayerScreen(
     onBackClick: () -> Unit,
     viewModel: PlayerViewModel = koinViewModel()
 ) {
-    val book by viewModel.currentBook.collectAsState()
-    val isPlaying by viewModel.isPlaying.collectAsState()
-    val currentPosition by viewModel.currentPosition.collectAsState()
-    val duration by viewModel.duration.collectAsState()
-    val currentChapter by viewModel.currentChapter.collectAsState()
-    val playbackSpeed by viewModel.playbackSpeed.collectAsState()
-    val sleepTimerRemaining by viewModel.sleepTimerRemaining.collectAsState()
-
-    val settingsRepository: SettingsRepository = get()
-    val serverUrl = remember { settingsRepository.getServerUrl() ?: "" }
-    val token = remember { settingsRepository.getToken() ?: "" }
+    val uiState by viewModel.uiState.collectAsState()
 
     var showChaptersSheet by remember { mutableStateOf(false) }
     var showSpeedDialog by remember { mutableStateOf(false) }
     var showTimerDialog by remember { mutableStateOf(false) }
 
-    if (book == null) {
+    if (uiState == null) {
         Box(
             modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
             contentAlignment = Alignment.Center
@@ -69,7 +54,7 @@ fun PlayerScreen(
         return
     }
 
-    val activeBook = book!!
+    val state = uiState!!
 
     Scaffold(
         topBar = {
@@ -104,27 +89,19 @@ fun PlayerScreen(
                     .blur(50.dp)
                     .background(Color.Black.copy(alpha = 0.5f))
             ) {
-                if (!activeBook.coverPath.isNullOrEmpty()) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(activeBook.coverPath)
-                            .build(),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    val coverUrl = "${serverUrl.trimEnd('/')}/api/items/${activeBook.id}/cover"
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(coverUrl)
-                            .setHeader("Authorization", "Bearer $token")
-                            .build(),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
-                    )
-                }
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(state.coverUrl)
+                        .apply {
+                            if (state.authorizationHeader != null) {
+                                setHeader("Authorization", state.authorizationHeader)
+                            }
+                        }
+                        .build(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
             }
 
             // Dark semi-transparent overlay to ensure readability
@@ -158,25 +135,24 @@ fun PlayerScreen(
                         shape = RoundedCornerShape(24.dp),
                         elevation = CardDefaults.cardElevation(defaultElevation = 16.dp)
                     ) {
-                        if (!activeBook.coverPath.isNullOrEmpty()) {
+                        if (state.authorizationHeader == null) {
                             AsyncImage(
                                 model = ImageRequest.Builder(LocalContext.current)
-                                    .data(activeBook.coverPath)
+                                    .data(state.coverUrl)
                                     .crossfade(true)
                                     .build(),
-                                contentDescription = activeBook.title,
+                                contentDescription = state.title,
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()
                             )
                         } else {
-                            val coverUrl = "${serverUrl.trimEnd('/')}/api/items/${activeBook.id}/cover"
                             SubcomposeAsyncImage(
                                 model = ImageRequest.Builder(LocalContext.current)
-                                    .data(coverUrl)
-                                    .setHeader("Authorization", "Bearer $token")
+                                    .data(state.coverUrl)
+                                    .setHeader("Authorization", state.authorizationHeader)
                                     .crossfade(true)
                                     .build(),
-                                contentDescription = activeBook.title,
+                                contentDescription = state.title,
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize(),
                                 error = {
@@ -194,7 +170,7 @@ fun PlayerScreen(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Text(
-                                            text = activeBook.title.take(1).uppercase(),
+                                            text = state.title.take(1).uppercase(),
                                             color = Color.White,
                                             fontSize = 64.sp,
                                             fontWeight = FontWeight.Bold
@@ -212,7 +188,7 @@ fun PlayerScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = activeBook.title,
+                        text = state.title,
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
                         color = Color.White,
@@ -223,14 +199,14 @@ fun PlayerScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = activeBook.author,
+                        text = state.author,
                         fontSize = 16.sp,
                         color = MaterialTheme.colorScheme.primary,
                         textAlign = TextAlign.Center
                     )
                     
                     // Current Chapter name
-                    if (currentChapter != null) {
+                    if (state.currentChapterTitle != null) {
                         Spacer(modifier = Modifier.height(16.dp))
                         Box(
                             modifier = Modifier
@@ -239,7 +215,7 @@ fun PlayerScreen(
                                 .padding(horizontal = 16.dp, vertical = 6.dp)
                         ) {
                             Text(
-                                text = currentChapter!!.title,
+                                text = state.currentChapterTitle,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White,
@@ -257,9 +233,9 @@ fun PlayerScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Slider(
-                        value = currentPosition.toFloat(),
+                        value = state.currentPosition.toFloat(),
                         onValueChange = { viewModel.seekTo(it.toDouble()) },
-                        valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
+                        valueRange = 0f..state.duration.toFloat().coerceAtLeast(1f),
                         colors = SliderDefaults.colors(
                             thumbColor = MaterialTheme.colorScheme.primary,
                             activeTrackColor = MaterialTheme.colorScheme.primary,
@@ -272,12 +248,12 @@ fun PlayerScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = formatPosition(currentPosition),
+                            text = state.currentPositionText,
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
                         Text(
-                            text = "-" + formatPosition((duration - currentPosition).coerceAtLeast(0.0)),
+                            text = state.timeRemainingText,
                             fontSize = 12.sp,
                             color = Color.Gray
                         )
@@ -306,15 +282,15 @@ fun PlayerScreen(
                     // Play/Pause
                     IconButton(
                         onClick = {
-                            if (isPlaying) viewModel.pause() else viewModel.play()
+                            if (state.isPlaying) viewModel.pause() else viewModel.play()
                         },
                         modifier = Modifier
                             .size(72.dp)
                             .background(MaterialTheme.colorScheme.primary, CircleShape)
                     ) {
                         Icon(
-                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (isPlaying) "Pause" else "Play",
+                            imageVector = if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = if (state.isPlaying) "Pause" else "Play",
                             tint = MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.size(40.dp)
                         )
@@ -341,9 +317,9 @@ fun PlayerScreen(
                 ) {
                     // Speed Control
                     TextButton(onClick = { showSpeedDialog = true }) {
-                        Icon(getSpeedIcon(playbackSpeed), contentDescription = null, tint = Color.Gray)
+                        Icon(getSpeedIcon(state.playbackSpeed), contentDescription = null, tint = Color.Gray)
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("${playbackSpeed}x", color = Color.White)
+                        Text("${state.playbackSpeed}x", color = Color.White)
                     }
 
                     // Sleep Timer
@@ -351,11 +327,8 @@ fun PlayerScreen(
                         Icon(Icons.Default.Snooze, contentDescription = null, tint = Color.Gray)
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = if (sleepTimerRemaining > 0) {
-                                val rem = sleepTimerRemaining / 1000
-                                "${rem / 60}:${(rem % 60).toString().padStart(2, '0')}"
-                            } else "Timer",
-                            color = if (sleepTimerRemaining > 0) MaterialTheme.colorScheme.primary else Color.White
+                            text = state.sleepTimerText,
+                            color = if (state.sleepTimerRemaining > 0) MaterialTheme.colorScheme.primary else Color.White
                         )
                     }
                 }
@@ -381,7 +354,7 @@ fun PlayerScreen(
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
 
-                    Divider(color = Color(0x33FFFFFF))
+                    HorizontalDivider(color = Color(0x33FFFFFF))
 
                     Column(
                         modifier = Modifier
@@ -389,8 +362,8 @@ fun PlayerScreen(
                             .heightIn(max = 400.dp)
                             .verticalScroll(rememberScrollState())
                     ) {
-                        activeBook.chapters.forEachIndexed { index, chapter ->
-                            val isCurrent = currentChapter?.start == chapter.start
+                        state.chapters.forEachIndexed { index, chapter ->
+                            val isCurrent = state.currentPosition >= chapter.start && state.currentPosition < chapter.end
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -402,7 +375,7 @@ fun PlayerScreen(
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(
-                                    text = chapter.title.ifEmpty { "Chapter ${index + 1}" },
+                                    text = chapter.title,
                                     fontWeight = if (isCurrent) FontWeight.Bold else FontWeight.Normal,
                                     color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
@@ -410,12 +383,12 @@ fun PlayerScreen(
                                     modifier = Modifier.weight(1f)
                                 )
                                 Text(
-                                    text = formatPosition(chapter.start),
+                                    text = chapter.startText,
                                     color = if (isCurrent) MaterialTheme.colorScheme.primary else Color.Gray,
                                     fontSize = 13.sp
                                 )
                             }
-                            Divider(color = Color(0x11FFFFFF))
+                            HorizontalDivider(color = Color(0x11FFFFFF))
                         }
                     }
                 }
@@ -442,10 +415,10 @@ fun PlayerScreen(
                             ) {
                                 Text(
                                     text = "${speed}x",
-                                    fontWeight = if (playbackSpeed == speed) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (playbackSpeed == speed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                    fontWeight = if (state.playbackSpeed == speed) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (state.playbackSpeed == speed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                                 )
-                                if (playbackSpeed == speed) {
+                                if (state.playbackSpeed == speed) {
                                     Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                 }
                             }

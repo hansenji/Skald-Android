@@ -11,6 +11,7 @@ import dev.vikingsen.absclientapp.core.model.Book
 import dev.vikingsen.absclientapp.core.model.AudioFile
 import dev.vikingsen.absclientapp.core.model.Chapter
 import dev.vikingsen.absclientapp.domain.repository.SettingsRepository
+import dev.vikingsen.absclientapp.domain.repository.PlaybackStateProvider
 import dev.vikingsen.absclientapp.domain.usecase.SaveProgressUseCase
 import dev.vikingsen.absclientapp.domain.usecase.StartPlaybackSessionUseCase
 import kotlinx.coroutines.*
@@ -30,23 +31,23 @@ class PlayerManager(
     private val settingsRepository: SettingsRepository,
     private val saveProgressUseCase: SaveProgressUseCase,
     private val startPlaybackSessionUseCase: StartPlaybackSessionUseCase
-) {
+) : PlaybackStateProvider {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var positionUpdateJob: Job? = null
     private var sleepTimerJob: Job? = null
     private var mediaController: MediaController? = null
     
     private val _currentBook = MutableStateFlow<Book?>(null)
-    val currentBook: StateFlow<Book?> = _currentBook.asStateFlow()
+    override val currentBook: StateFlow<Book?> = _currentBook.asStateFlow()
 
     private val _isPlaying = MutableStateFlow(false)
-    val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
+    override val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
 
     private val _currentPosition = MutableStateFlow(0.0)
-    val currentPosition: StateFlow<Double> = _currentPosition.asStateFlow()
+    override val currentPosition: StateFlow<Double> = _currentPosition.asStateFlow()
 
     private val _duration = MutableStateFlow(0.0)
-    val duration: StateFlow<Double> = _duration.asStateFlow()
+    override val duration: StateFlow<Double> = _duration.asStateFlow()
 
     private val _currentChapter = MutableStateFlow<Chapter?>(null)
     val currentChapter: StateFlow<Chapter?> = _currentChapter.asStateFlow()

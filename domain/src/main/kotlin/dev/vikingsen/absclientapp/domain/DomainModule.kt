@@ -16,4 +16,5 @@ val domainModule = module {
     single { SaveProgressUseCase(get()) }
     single { StartPlaybackSessionUseCase(get()) }
     single { LogoutUseCase(get(), get()) }
+    single { GetMiniPlayerStateUseCase(get(), get()) }
 }

@@ -11,6 +11,7 @@ import androidx.media3.exoplayer.SeekParameters
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import dev.vikingsen.absclientapp.core.preferences.PreferencesManager
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
+import dev.vikingsen.absclientapp.domain.repository.PlaybackStateProvider
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 
@@ -51,6 +52,7 @@ val corePlayerModule = module {
     }
 
     single { PlayerManager(androidContext(), get(), get(), get(), get()) }
+    single<PlaybackStateProvider> { get<PlayerManager>() }
     
     single<Player> {
         AudiobookForwardingPlayer(

@@ -9,7 +9,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Download
-import androidx.compose.material.icons.filled.DownloadDone
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
@@ -29,29 +28,21 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
-import dev.vikingsen.absclientapp.core.model.Book
-import dev.vikingsen.absclientapp.core.model.Chapter
-import dev.vikingsen.absclientapp.core.model.PlaybackProgress
-import dev.vikingsen.absclientapp.core.model.formatDuration
-import dev.vikingsen.absclientapp.core.model.formatPosition
-import dev.vikingsen.absclientapp.domain.repository.SettingsRepository
-import org.koin.androidx.compose.get
 import org.koin.androidx.compose.koinViewModel
-import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailScreen(
     bookId: String,
     onBackClick: () -> Unit,
-    onPlayClick: (Book, Double) -> Unit,
+    onPlayClick: () -> Unit,
     viewModel: DetailViewModel = koinViewModel()
 ) {
     LaunchedEffect(bookId) {
         viewModel.setBookId(bookId)
     }
 
-    val bookAndProgress by viewModel.bookAndProgress.collectAsState()
+    val bookDetail by viewModel.bookDetail.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val error by viewModel.error.collectAsState()
     
@@ -59,10 +50,7 @@ fun DetailScreen(
     val downloadProgress by viewModel.downloadProgress.collectAsState()
     val downloadingFileName by viewModel.downloadingFileName.collectAsState()
     val downloadError by viewModel.downloadError.collectAsState()
-
-    val settingsRepository: SettingsRepository = get()
-    val serverUrl = remember { settingsRepository.getServerUrl() ?: "" }
-    val token = remember { settingsRepository.getToken() ?: "" }
+    val showMiniPlayer by viewModel.showMiniPlayer.collectAsState()
 
     Scaffold(
         topBar = {
@@ -80,31 +68,30 @@ fun DetailScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
-        if (isLoading && bookAndProgress == null) {
+        if (isLoading && bookDetail == null) {
             Box(
                 modifier = Modifier.fillMaxSize().padding(paddingValues),
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator()
             }
-        } else if (bookAndProgress != null) {
-            val (book, progress) = bookAndProgress!!
-            if (book != null) {
-                DetailContent(
-                    book = book,
-                    progress = progress,
-                    serverUrl = serverUrl,
-                    token = token,
-                    isDownloading = isDownloading,
-                    downloadProgress = downloadProgress,
-                    downloadingFileName = downloadingFileName,
-                    downloadError = downloadError,
-                    onDownloadClick = { viewModel.downloadBook() },
-                    onRemoveDownloadClick = { viewModel.deleteDownloadedBook() },
-                    onPlayClick = { startPos -> onPlayClick(book, startPos) },
-                    modifier = Modifier.padding(paddingValues)
-                )
-            }
+        } else if (bookDetail != null) {
+            val book = bookDetail!!
+            DetailContent(
+                book = book,
+                showMiniPlayer = showMiniPlayer,
+                isDownloading = isDownloading,
+                downloadProgress = downloadProgress,
+                downloadingFileName = downloadingFileName,
+                downloadError = downloadError,
+                onDownloadClick = { viewModel.downloadBook() },
+                onRemoveDownloadClick = { viewModel.deleteDownloadedBook() },
+                onPlayClick = { startPos -> 
+                    viewModel.playBook(startPos)
+                    onPlayClick()
+                },
+                modifier = Modifier.padding(paddingValues)
+            )
         } else if (error != null) {
             Box(
                 modifier = Modifier.fillMaxSize().padding(paddingValues),
@@ -118,10 +105,8 @@ fun DetailScreen(
 
 @Composable
 fun DetailContent(
-    book: Book,
-    progress: PlaybackProgress?,
-    serverUrl: String,
-    token: String,
+    book: BookDetailUiModel,
+    showMiniPlayer: Boolean,
     isDownloading: Boolean,
     downloadProgress: Float,
     downloadingFileName: String?,
@@ -132,9 +117,6 @@ fun DetailContent(
     modifier: Modifier = Modifier
 ) {
     val scrollState = rememberScrollState()
-    val playerManager: dev.vikingsen.absclientapp.core.player.PlayerManager = get()
-    val currentBook by playerManager.currentBook.collectAsState()
-    val showMiniPlayer = currentBook != null
     val bottomPadding = if (showMiniPlayer) 80.dp else 16.dp
 
     Column(
@@ -155,10 +137,10 @@ fun DetailContent(
                     .clip(RoundedCornerShape(12.dp))
                     .background(Color.DarkGray)
             ) {
-                if (!book.coverPath.isNullOrEmpty()) {
+                if (book.authorizationHeader == null) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
-                            .data(book.coverPath)
+                            .data(book.coverUrl)
                             .crossfade(true)
                             .build(),
                         contentDescription = book.title,
@@ -166,11 +148,10 @@ fun DetailContent(
                         modifier = Modifier.fillMaxSize()
                     )
                 } else {
-                    val coverUrl = "${serverUrl.trimEnd('/')}/api/items/${book.id}/cover"
                     SubcomposeAsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
-                            .data(coverUrl)
-                            .setHeader("Authorization", "Bearer $token")
+                            .data(book.coverUrl)
+                            .setHeader("Authorization", book.authorizationHeader)
                             .crossfade(true)
                             .build(),
                         contentDescription = book.title,
@@ -230,16 +211,16 @@ fun DetailContent(
                 
                 // Duration Info
                 Text(
-                    text = "Duration: ${formatDuration(book.duration)}",
+                    text = "Duration: ${book.durationText}",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 // Playback Progress
-                if (progress != null) {
+                if (book.progress != null) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Progress: ${(progress.progress * 100).toInt()}% (${formatDuration(book.duration - progress.currentTime)} left)",
+                        text = "Progress: ${(book.progress.progress * 100).toInt()}% (${book.progressLeftText ?: ""} left)",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -257,7 +238,7 @@ fun DetailContent(
         ) {
             // Play Button
             Button(
-                onClick = { onPlayClick(progress?.currentTime ?: 0.0) },
+                onClick = { onPlayClick(book.progress?.currentTime ?: 0.0) },
                 modifier = Modifier.weight(1f).height(48.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
@@ -267,7 +248,7 @@ fun DetailContent(
                 Icon(Icons.Default.PlayArrow, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = if (progress != null && progress.currentTime > 0) "Resume" else "Listen",
+                    text = if (book.progress != null && book.progress.currentTime > 0) "Resume" else "Listen",
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onPrimary
                 )
@@ -391,7 +372,7 @@ fun DetailContent(
 
 @Composable
 fun ChapterItem(
-    chapter: Chapter,
+    chapter: ChapterUiModel,
     index: Int,
     onClick: () -> Unit
 ) {
@@ -407,24 +388,22 @@ fun ChapterItem(
             modifier = Modifier.weight(1f)
         ) {
             Text(
-                text = chapter.title.ifEmpty { "Chapter ${index + 1}" },
+                text = chapter.title,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(2.dp))
             Text(
-                text = "Start: ${formatPosition(chapter.start)}",
+                text = "Start: ${chapter.startText}",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         Text(
-            text = formatDuration(chapter.end - chapter.start),
+            text = chapter.durationText,
             fontSize = 13.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
-
-// Imported from core:model

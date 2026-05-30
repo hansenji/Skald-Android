@@ -6,14 +6,43 @@ import dev.vikingsen.absclientapp.core.model.Book
 import dev.vikingsen.absclientapp.core.model.PlaybackProgress
 import dev.vikingsen.absclientapp.core.model.DownloadStatus
 import dev.vikingsen.absclientapp.core.model.DownloadStatusState
+import dev.vikingsen.absclientapp.core.model.formatDuration
+import dev.vikingsen.absclientapp.core.model.formatPosition
+import dev.vikingsen.absclientapp.core.player.PlayerManager
 import dev.vikingsen.absclientapp.domain.repository.AudiobookshelfRepository
+import dev.vikingsen.absclientapp.domain.repository.SettingsRepository
 import dev.vikingsen.absclientapp.domain.usecase.GetBookWithProgressUseCase
 import dev.vikingsen.absclientapp.domain.usecase.FetchBookDetailsUseCase
 import dev.vikingsen.absclientapp.domain.usecase.DownloadAudioFileUseCase
 import dev.vikingsen.absclientapp.domain.usecase.DeleteLocalBookFilesUseCase
+import dev.vikingsen.absclientapp.domain.usecase.GetMiniPlayerStateUseCase
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+
+data class ChapterUiModel(
+    val title: String,
+    val start: Double,
+    val end: Double,
+    val startText: String,
+    val durationText: String
+)
+
+data class BookDetailUiModel(
+    val id: String,
+    val title: String,
+    val author: String,
+    val narrator: String,
+    val duration: Double,
+    val durationText: String,
+    val coverUrl: String,
+    val authorizationHeader: String?,
+    val isDownloaded: Boolean,
+    val description: String,
+    val chapters: List<ChapterUiModel>,
+    val progress: PlaybackProgressUiModel?,
+    val progressLeftText: String?
+)
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DetailViewModel(
@@ -21,7 +50,10 @@ class DetailViewModel(
     private val fetchBookDetailsUseCase: FetchBookDetailsUseCase,
     private val downloadAudioFileUseCase: DownloadAudioFileUseCase,
     private val deleteLocalBookFilesUseCase: DeleteLocalBookFilesUseCase,
-    private val repository: AudiobookshelfRepository
+    private val repository: AudiobookshelfRepository,
+    private val settingsRepository: SettingsRepository,
+    private val playerManager: PlayerManager,
+    private val getMiniPlayerStateUseCase: GetMiniPlayerStateUseCase
 ) : ViewModel() {
     private val _bookId = MutableStateFlow<String?>(null)
 
@@ -29,6 +61,61 @@ class DetailViewModel(
         .filterNotNull()
         .flatMapLatest { id -> getBookWithProgressUseCase(id) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val bookDetail: StateFlow<BookDetailUiModel?> = bookAndProgress
+        .map { pair ->
+            val book = pair?.first ?: return@map null
+            val progress = pair.second
+            
+            val serverUrl = settingsRepository.getServerUrl() ?: ""
+            val token = settingsRepository.getToken() ?: ""
+            
+            val coverUrl = if (!book.coverPath.isNullOrEmpty()) book.coverPath!!
+                           else "${serverUrl.trimEnd('/')}/api/items/${book.id}/cover"
+            val authHeader = if (!book.coverPath.isNullOrEmpty()) null
+                             else "Bearer $token"
+                             
+            val progressLeftText = progress?.let {
+                val left = book.duration - it.currentTime
+                formatDuration(left)
+            }
+
+            BookDetailUiModel(
+                id = book.id,
+                title = book.title,
+                author = book.author,
+                narrator = book.narrator,
+                duration = book.duration,
+                durationText = formatDuration(book.duration),
+                coverUrl = coverUrl,
+                authorizationHeader = authHeader,
+                isDownloaded = book.isDownloaded,
+                description = book.description,
+                chapters = book.chapters.mapIndexed { index, chapter ->
+                    ChapterUiModel(
+                        title = chapter.title.ifEmpty { "Chapter ${index + 1}" },
+                        start = chapter.start,
+                        end = chapter.end,
+                        startText = formatPosition(chapter.start),
+                        durationText = formatDuration(chapter.end - chapter.start)
+                    )
+                },
+                progress = progress?.let {
+                    PlaybackProgressUiModel(
+                        progress = it.progress,
+                        isFinished = it.isFinished,
+                        currentTime = it.currentTime,
+                        lastUpdated = it.lastUpdated
+                    )
+                },
+                progressLeftText = progressLeftText
+            )
+        }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    val showMiniPlayer: StateFlow<Boolean> = getMiniPlayerStateUseCase()
+        .map { it != null }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), false)
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
@@ -109,5 +196,10 @@ class DetailViewModel(
             }
             _isLoading.value = false
         }
+    }
+
+    fun playBook(startPosition: Double) {
+        val book = bookAndProgress.value?.first ?: return
+        playerManager.playBook(book, startPosition)
     }
 }
