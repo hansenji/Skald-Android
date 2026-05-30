@@ -95,13 +95,4 @@ class PreferencesManager(context: Context) {
         prefs.edit().putString("etag_library_$libraryId", etag).apply()
     }
 
-    fun saveLibraries(libraries: List<dev.vikingsen.absclientapp.core.model.Library>) {
-        val json = Json.encodeToString(libraries)
-        prefs.edit().putString("cached_libraries", json).apply()
-    }
-
-    fun getLibraries(): List<dev.vikingsen.absclientapp.core.model.Library> {
-        val json = prefs.getString("cached_libraries", null) ?: return emptyList()
-        return runCatching { Json.decodeFromString<List<dev.vikingsen.absclientapp.core.model.Library>>(json) }.getOrDefault(emptyList())
-    }
 }

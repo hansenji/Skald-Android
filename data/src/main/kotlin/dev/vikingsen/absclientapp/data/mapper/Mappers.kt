@@ -5,6 +5,7 @@ import dev.vikingsen.absclientapp.core.database.LocalAudioFile
 import dev.vikingsen.absclientapp.core.database.LocalChapter
 import dev.vikingsen.absclientapp.core.database.PlaybackProgressEntity
 import dev.vikingsen.absclientapp.core.database.BookWithProgressEntity
+import dev.vikingsen.absclientapp.core.database.LibraryEntity
 import dev.vikingsen.absclientapp.core.network.LibraryResponse
 import dev.vikingsen.absclientapp.core.network.LoggedUserResponse
 import dev.vikingsen.absclientapp.core.model.AudioFile
@@ -17,6 +18,18 @@ import dev.vikingsen.absclientapp.core.model.PlaybackProgress
 import dev.vikingsen.absclientapp.core.model.BookWithProgress
 
 fun LibraryResponse.toDomain(): Library = Library(
+    id = id,
+    name = name,
+    type = type
+)
+
+fun LibraryEntity.toDomain(): Library = Library(
+    id = id,
+    name = name,
+    type = type
+)
+
+fun Library.toEntity(): LibraryEntity = LibraryEntity(
     id = id,
     name = name,
     type = type

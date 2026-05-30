@@ -78,11 +78,24 @@ interface PlaybackProgressDao {
     fun getAllProgressFlow(): Flow<List<PlaybackProgressEntity>>
 }
 
-@Database(entities = [BookEntity::class, PlaybackProgressEntity::class], version = 2, exportSchema = false)
+@Dao
+interface LibraryDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(libraries: List<LibraryEntity>)
+
+    @Query("SELECT * FROM libraries")
+    suspend fun getAllLibraries(): List<LibraryEntity>
+
+    @Query("DELETE FROM libraries")
+    suspend fun deleteAll()
+}
+
+@Database(entities = [BookEntity::class, PlaybackProgressEntity::class, LibraryEntity::class], version = 3, exportSchema = false)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun bookDao(): BookDao
     abstract fun playbackProgressDao(): PlaybackProgressDao
+    abstract fun libraryDao(): LibraryDao
 
     companion object {
         private const val DB_NAME = "abs_client_db"
@@ -97,3 +110,4 @@ abstract class AppDatabase : RoomDatabase() {
         }
     }
 }
+

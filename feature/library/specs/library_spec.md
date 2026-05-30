@@ -25,7 +25,7 @@ Library data flows through these layers:
    - Save the new library ID to `PreferencesManager` via `saveLibraryId()`.
    - Trigger a full book list sync for the newly selected library.
    - Clear the current in-memory book list and reload from the new library's cached data.
-3. **Library List Caching**: The list of available libraries returned from `GET /api/libraries` should be cached locally so the selector can be populated without a network call on subsequent app launches.
+3. **Library List Caching**: The list of available libraries returned from `GET /api/libraries` must be cached locally in the Room database (`libraries` table) to allow offline accessibility and populating the selector without network calls.
 4. **Library ID Persistence**: The selected library ID is saved to `PreferencesManager` via `saveLibraryId()` and persisted across app restarts.
 5. **No Library Selected**: If no library ID is stored (e.g., preferences were cleared), the library screen must display an error message and prevent sync attempts.
 

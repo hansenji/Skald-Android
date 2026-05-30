@@ -3,10 +3,17 @@ package dev.vikingsen.absclientapp.data.repository
 import dev.vikingsen.absclientapp.core.preferences.PreferencesManager
 import dev.vikingsen.absclientapp.domain.repository.SettingsRepository
 import dev.vikingsen.absclientapp.core.model.Library
+import dev.vikingsen.absclientapp.core.database.AppDatabaseProvider
+import dev.vikingsen.absclientapp.data.mapper.toDomain
+import dev.vikingsen.absclientapp.data.mapper.toEntity
 
 class SettingsRepositoryImpl(
-    private val preferencesManager: PreferencesManager
+    private val preferencesManager: PreferencesManager,
+    private val dbProvider: AppDatabaseProvider
 ) : SettingsRepository {
+
+    private val db = dbProvider.database
+    private val libraryDao = db.libraryDao()
 
     override fun getServerUrl(): String? = preferencesManager.getServerUrl()
 
@@ -84,9 +91,11 @@ class SettingsRepositoryImpl(
         preferencesManager.saveLibraryETag(libraryId, etag)
     }
 
-    override fun getCachedLibraries(): List<Library> = preferencesManager.getLibraries()
+    override suspend fun getCachedLibraries(): List<Library> {
+        return libraryDao.getAllLibraries().map { it.toDomain() }
+    }
 
-    override fun saveCachedLibraries(libraries: List<Library>) {
-        preferencesManager.saveLibraries(libraries)
+    override suspend fun saveCachedLibraries(libraries: List<Library>) {
+        libraryDao.insertAll(libraries.map { it.toEntity() })
     }
 }

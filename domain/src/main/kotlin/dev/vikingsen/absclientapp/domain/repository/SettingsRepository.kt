@@ -30,6 +30,6 @@ interface SettingsRepository {
     fun saveLibraryLastSyncTimestamp(timestamp: Long)
     fun getLibraryETag(libraryId: String): String?
     fun saveLibraryETag(libraryId: String, etag: String)
-    fun getCachedLibraries(): List<Library>
-    fun saveCachedLibraries(libraries: List<Library>)
+    suspend fun getCachedLibraries(): List<Library>
+    suspend fun saveCachedLibraries(libraries: List<Library>)
 }

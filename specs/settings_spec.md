@@ -28,6 +28,10 @@ The table below lists all settings keys, types, default values, and description 
 | **`skip_forward_duration`** | Integer | `30` | Duration (in seconds) to jump forward when tapping skip-forward. Configured in mobile settings. |
 | **`skip_backward_duration`** | Integer | `10` | Duration (in seconds) to jump backward when tapping skip-backward. Configured in mobile settings. |
 | **`playback_speed`** | Float | `1.0f` | Persisted playback speed multiplier, cycling from `0.5f` to `3.0f` in `0.25f` steps. Shared between mobile and Android Auto players. |
+| **`library_sync_interval_hours`** | Integer | `24` | Configurable library synchronization interval (in hours). A value of `0` disables periodic sync. |
+| **`library_last_sync_timestamp`** | Long | `0L` | Timestamp of the last successful library synchronization, used to compute elapsed time against sync interval. |
+| **`etag_library_{libraryId}`** | String | `null` | ETag string returned by the server for conditional HTTP requests, cached dynamically per library ID to avoid redundant full syncing. |
+
 
 ---
 

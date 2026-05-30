@@ -8,6 +8,7 @@ import dev.vikingsen.absclientapp.core.database.LocalAudioFile
 import dev.vikingsen.absclientapp.core.database.LocalChapter
 import dev.vikingsen.absclientapp.core.database.PlaybackProgressEntity
 import dev.vikingsen.absclientapp.data.mapper.toDomain
+import dev.vikingsen.absclientapp.data.mapper.toEntity
 import dev.vikingsen.absclientapp.core.network.AudiobookshelfRemoteDataSource
 import dev.vikingsen.absclientapp.core.model.AudioFile
 import dev.vikingsen.absclientapp.core.model.Book
@@ -49,6 +50,7 @@ class AudiobookshelfRepositoryImpl(
     private val db = dbProvider.database
     private val bookDao = db.bookDao()
     private val progressDao = db.playbackProgressDao()
+    private val libraryDao = db.libraryDao()
 
     override suspend fun login(url: String, user: String, pass: String): Result<LoggedUser> = withContext(Dispatchers.IO) {
         runCatching {
@@ -62,7 +64,7 @@ class AudiobookshelfRepositoryImpl(
         runCatching {
             val response = remoteDataSource.fetchLibraries()
             val domainLibs = response.libraries.map { it.toDomain() }
-            preferencesManager.saveLibraries(domainLibs)
+            libraryDao.insertAll(domainLibs.map { it.toEntity() })
             domainLibs
         }
     }
@@ -479,7 +481,7 @@ class AudiobookshelfRepositoryImpl(
     }
 
     override suspend fun getCachedLibraries(): List<Library> = withContext(Dispatchers.IO) {
-        preferencesManager.getLibraries()
+        libraryDao.getAllLibraries().map { it.toDomain() }
     }
 
     private fun buildLibraryQuery(

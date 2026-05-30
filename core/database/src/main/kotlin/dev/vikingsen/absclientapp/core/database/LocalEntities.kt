@@ -54,3 +54,11 @@ data class BookWithProgressEntity(
     @androidx.room.Embedded(prefix = "progress_") val progress: PlaybackProgressEntity?
 )
 
+@Entity(tableName = "libraries")
+data class LibraryEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val type: String?
+)
+
+

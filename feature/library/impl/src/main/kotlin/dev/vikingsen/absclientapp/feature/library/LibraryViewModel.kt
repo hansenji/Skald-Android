@@ -45,6 +45,11 @@ data class BookCardUiModel(
     val progress: PlaybackProgressUiModel?
 )
 
+data class LibraryUiModel(
+    val id: String,
+    val name: String
+)
+
 private data class CombinedParams(
     val libraryId: String,
     val query: String,
@@ -83,7 +88,7 @@ class LibraryViewModel(
     val filterDownloadedOnly = MutableStateFlow(initialDownloadedOnly)
     val sortBy = MutableStateFlow(initialSortOption)
 
-    val libraries = MutableStateFlow<List<Library>>(settingsRepository.getCachedLibraries())
+    val libraries = MutableStateFlow<List<LibraryUiModel>>(emptyList())
     val syncIntervalHours = MutableStateFlow(settingsRepository.getLibrarySyncIntervalHours())
 
     val books: Flow<PagingData<BookCardUiModel>> = combine(
@@ -143,6 +148,11 @@ class LibraryViewModel(
     val error = MutableStateFlow<String?>(null)
 
     init {
+        viewModelScope.launch {
+            libraries.value = settingsRepository.getCachedLibraries().map {
+                LibraryUiModel(it.id, it.name)
+            }
+        }
         fetchLibrariesList()
         checkAndPeriodicSync()
     }
@@ -189,7 +199,7 @@ class LibraryViewModel(
             // Also refresh library list
             val libsResult = fetchLibrariesUseCase()
             if (libsResult.isSuccess) {
-                libraries.value = libsResult.getOrThrow()
+                libraries.value = libsResult.getOrThrow().map { LibraryUiModel(it.id, it.name) }
             }
             
             // Sync books
@@ -206,7 +216,7 @@ class LibraryViewModel(
             val result = fetchLibrariesUseCase()
             if (result.isSuccess) {
                 val libs = result.getOrThrow()
-                libraries.value = libs
+                libraries.value = libs.map { LibraryUiModel(it.id, it.name) }
                 
                 // Auto-selection on first load if none selected
                 if (selectedLibraryId.value.isEmpty()) {
