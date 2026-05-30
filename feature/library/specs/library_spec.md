@@ -47,6 +47,7 @@ Library data flows through these layers:
    - If the server responds with `304 Not Modified`, skip the sync and retain the existing local cache.
    - If the server responds with `200 OK`, store the new `ETag` response header value in `PreferencesManager` (keyed by library ID) and proceed with the sync.
    - If no ETag is stored (first sync), omit the `If-None-Match` header.
+   - **Force Refresh**: An explicit user-initiated pull-to-refresh / swipe-to-refresh on the library screen must bypass the ETag check (omit the `If-None-Match` header), forcing a full sync from the server and updating the database cache.
 5. **Automatic Periodic Sync**:
    - The client must automatically re-sync the library at a user-configurable interval.
    - **Default interval**: 24 hours.
@@ -74,7 +75,10 @@ Library data flows through these layers:
    - Store a `lastDetailFetchTimestamp` (epoch milliseconds) in the `BookEntity`.
    - On navigating to the detail screen, if the elapsed time since the last fetch exceeds a threshold (default: **24 hours**, matching the library sync interval), trigger a fresh network fetch even if the user has visited before.
    - If the elapsed time is within the threshold, skip the network call and display the cached entity (unless the user explicitly refreshes).
-5. **Detail Sync Strategy**:
+5. **Force Refresh**:
+   - The user can explicitly trigger a refresh (e.g., via swipe to refresh on the detail screen).
+   - A force refresh must bypass the `lastDetailFetchTimestamp` 24-hour cache threshold and bypass the ETag-based conditional check (omit the `If-None-Match` header), ensuring a full refresh from the server and updating the local database cache.
+6. **Detail Sync Strategy**:
    - Fetch the full book response including `audioFiles` and `chapters` arrays.
    - Merge with existing local entity: preserve `coverPath` and per-file `localPath` / `downloadStatus` from previously downloaded files.
    - Compute `duration` by summing all audio file durations.
@@ -132,6 +136,10 @@ Library data flows through these layers:
 2. **Default**: `TITLE_ASC`.
 3. **Persistence**: The selected sort option is persisted to `PreferencesManager` and restored on ViewModel initialization.
 
+### E. Swipe to Refresh
+1. **Behavior**: The library screen must support swipe-to-refresh gesture.
+2. **Force Refresh Integration**: Triggering swipe-to-refresh initiates a force sync of the library books, bypassing the ETag conditional checks, forcing the database cache to be updated with fresh metadata from the server (as defined in §2.B.4).
+
 ---
 
 ## 4. Book Detail Screen
@@ -152,6 +160,10 @@ Library data flows through these layers:
 
 ### C. Playback Initiation
 1. Tapping the play action calls `PlayerManager.playBook(book, startPosition)` where `startPosition` is derived from saved progress (`currentTime`) or `0.0` for new books.
+
+### D. Swipe to Refresh
+1. **Behavior**: The detail screen must support swipe-to-refresh gesture.
+2. **Force Refresh Integration**: Triggering swipe-to-refresh initiates a force refresh of the book detail network request, bypassing the ETag check and time-based threshold, forcing the database cache to be updated with fresh metadata from the server (as defined in §2.C.5).
 
 ---
 

@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -79,21 +80,27 @@ fun DetailScreen(
             }
         } else if (bookDetail != null) {
             val book = bookDetail!!
-            DetailContent(
-                book = book,
-                showMiniPlayer = showMiniPlayer,
-                isDownloading = isDownloading,
-                downloadProgress = downloadProgress,
-                downloadingFileName = downloadingFileName,
-                downloadError = downloadError,
-                onDownloadClick = { viewModel.downloadBook() },
-                onRemoveDownloadClick = { viewModel.deleteDownloadedBook() },
-                onPlayClick = { startPos -> 
-                    viewModel.playBook(startPos)
-                    onPlayClick()
-                },
-                modifier = Modifier.padding(paddingValues)
-            )
+            PullToRefreshBox(
+                isRefreshing = isLoading,
+                onRefresh = { viewModel.refresh() },
+                modifier = Modifier.fillMaxSize().padding(paddingValues)
+            ) {
+                DetailContent(
+                    book = book,
+                    showMiniPlayer = showMiniPlayer,
+                    isDownloading = isDownloading,
+                    downloadProgress = downloadProgress,
+                    downloadingFileName = downloadingFileName,
+                    downloadError = downloadError,
+                    onDownloadClick = { viewModel.downloadBook() },
+                    onRemoveDownloadClick = { viewModel.deleteDownloadedBook() },
+                    onPlayClick = { startPos -> 
+                        viewModel.playBook(startPos)
+                        onPlayClick()
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         } else if (error != null) {
             Box(
                 modifier = Modifier.fillMaxSize().padding(paddingValues),

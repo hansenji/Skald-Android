@@ -69,9 +69,9 @@ class AudiobookshelfRepositoryImpl(
         }
     }
 
-    override suspend fun syncLibraryBooks(libraryId: String): Result<Unit> = withContext(Dispatchers.IO) {
+    override suspend fun syncLibraryBooks(libraryId: String, forceRefresh: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
-            val storedEtag = preferencesManager.getLibraryETag(libraryId)
+            val storedEtag = if (forceRefresh) null else preferencesManager.getLibraryETag(libraryId)
             val limit = 100
             var currentPage = 0
             val allItems = mutableListOf<LibraryItem>()
@@ -123,12 +123,20 @@ class AudiobookshelfRepositoryImpl(
             // Map and upsert
             val books = allItems.map { item ->
                 val existing = bookDao.getBookById(item.id)
+                val author = item.media.metadata.authorName
+                    ?: item.media.metadata.authors?.mapNotNull { it.name }?.joinToString(", ")
+                    ?: existing?.author
+                    ?: "Unknown Author"
+                val narrator = item.media.metadata.narratorName
+                    ?: item.media.metadata.narrators?.joinToString(", ")
+                    ?: existing?.narrator
+                    ?: "Unknown Narrator"
                 BookEntity(
                     id = item.id,
                     libraryId = libraryId,
                     title = item.media.metadata.title ?: "Unknown Title",
-                    author = item.media.metadata.authorName ?: "Unknown Author",
-                    narrator = item.media.metadata.narratorName ?: "Unknown Narrator",
+                    author = author,
+                    narrator = narrator,
                     description = existing?.description ?: "",
                     duration = existing?.duration ?: 0.0,
                     coverPath = existing?.coverPath,
@@ -158,20 +166,20 @@ class AudiobookshelfRepositoryImpl(
         }
     }
 
-    override suspend fun fetchBookDetails(bookId: String): Result<Book> = withContext(Dispatchers.IO) {
+    override suspend fun fetchBookDetails(bookId: String, forceRefresh: Boolean): Result<Book> = withContext(Dispatchers.IO) {
         runCatching {
             val existing = bookDao.getBookById(bookId)
             val now = System.currentTimeMillis()
             
             // Check time-based refresh threshold (24 hours)
             val threshold = 24L * 60L * 60L * 1000L
-            val needsRefresh = existing == null || (now - existing.lastDetailFetchTimestamp > threshold)
+            val needsRefresh = forceRefresh || existing == null || (now - existing.lastDetailFetchTimestamp > threshold)
             
             if (!needsRefresh) {
                 return@runCatching existing.toDomain()
             }
             
-            val storedEtag = existing?.etag
+            val storedEtag = if (forceRefresh) null else existing?.etag
             val result = remoteDataSource.fetchBookDetails(bookId, storedEtag)
             
             val bookEntity = when (result) {
@@ -186,12 +194,20 @@ class AudiobookshelfRepositoryImpl(
                     val detailResponse = result.data
                     val newEtag = result.etag
                     
+                    val author = detailResponse.media.metadata.authorName
+                        ?: detailResponse.media.metadata.authors?.mapNotNull { it.name }?.joinToString(", ")
+                        ?: existing?.author
+                        ?: "Unknown Author"
+                    val narrator = detailResponse.media.metadata.narratorName
+                        ?: detailResponse.media.metadata.narrators?.joinToString(", ")
+                        ?: existing?.narrator
+                        ?: "Unknown Narrator"
                     BookEntity(
                         id = detailResponse.id,
                         libraryId = existing?.libraryId ?: preferencesManager.getLibraryId() ?: "",
                         title = detailResponse.media.metadata.title,
-                        author = detailResponse.media.metadata.authorName ?: "Unknown Author",
-                        narrator = detailResponse.media.metadata.narratorName ?: "Unknown Narrator",
+                        author = author,
+                        narrator = narrator,
                         description = detailResponse.media.metadata.description ?: "",
                         duration = detailResponse.media.audioFiles?.sumOf { it.duration ?: 0.0 } ?: 0.0,
                         coverPath = existing?.coverPath,

@@ -171,6 +171,19 @@ class DetailViewModel(
         }
     }
 
+    fun refresh() {
+        val id = bookId.value ?: return
+        isLoading.value = true
+        error.value = null
+        viewModelScope.launch {
+            val result = fetchBookDetailsUseCase(id, forceRefresh = true)
+            if (result.isFailure) {
+                error.value = result.exceptionOrNull()?.message ?: "Failed to refresh details"
+            }
+            isLoading.value = false
+        }
+    }
+
     fun downloadBook() {
         val book = bookAndProgress.value?.first ?: return
         viewModelScope.launch {

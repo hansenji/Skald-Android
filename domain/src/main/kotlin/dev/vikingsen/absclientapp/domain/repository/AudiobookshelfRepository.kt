@@ -15,11 +15,11 @@ import dev.vikingsen.absclientapp.core.model.SortOption
 interface AudiobookshelfRepository {
     suspend fun login(url: String, user: String, pass: String): Result<LoggedUser>
     suspend fun fetchLibraries(): Result<List<Library>>
-    suspend fun syncLibraryBooks(libraryId: String): Result<Unit>
+    suspend fun syncLibraryBooks(libraryId: String, forceRefresh: Boolean = false): Result<Unit>
     fun getBooksFlow(): Flow<List<Book>>
     fun getAllProgressFlow(): Flow<List<PlaybackProgress>>
     fun getBookWithProgressFlow(bookId: String): Flow<Pair<Book?, PlaybackProgress?>>
-    suspend fun fetchBookDetails(bookId: String): Result<Book>
+    suspend fun fetchBookDetails(bookId: String, forceRefresh: Boolean = false): Result<Book>
     suspend fun enqueueBookDownloads(bookId: String): Result<Unit>
     fun getBookDownloadFlow(bookId: String): Flow<DownloadStatusState>
     suspend fun saveLocalProgress(bookId: String, currentTime: Double, totalDuration: Double)

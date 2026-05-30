@@ -186,7 +186,7 @@ class LibraryViewModel(
         settingsRepository.saveLibrarySyncIntervalHours(hours)
     }
 
-    fun refresh() {
+    fun refresh(forceRefresh: Boolean = false) {
         val libraryId = selectedLibraryId.value
         if (libraryId.isEmpty()) {
             error.value = "No library selected"
@@ -203,7 +203,7 @@ class LibraryViewModel(
             }
             
             // Sync books
-            val result = syncLibraryBooksUseCase(libraryId)
+            val result = syncLibraryBooksUseCase(libraryId, forceRefresh)
             if (result.isFailure) {
                 error.value = result.exceptionOrNull()?.message ?: "Failed to sync library"
             }

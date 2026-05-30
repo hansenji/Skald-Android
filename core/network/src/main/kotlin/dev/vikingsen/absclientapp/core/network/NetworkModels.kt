@@ -54,7 +54,15 @@ data class LibraryItemMetadata(
     val title: String? = null,
     val authorName: String? = null,
     val narratorName: String? = null,
-    val seriesName: String? = null
+    val seriesName: String? = null,
+    val authors: List<BookAuthorResponse>? = null,
+    val narrators: List<String>? = null
+)
+
+@Serializable
+data class BookAuthorResponse(
+    val id: String? = null,
+    val name: String? = null
 )
 
 @Serializable
@@ -76,6 +84,8 @@ data class BookMetadata(
     val subtitle: String? = null,
     val authorName: String? = null,
     val narratorName: String? = null,
+    val authors: List<BookAuthorResponse>? = null,
+    val narrators: List<String>? = null,
     val description: String? = null,
     val publishedYear: String? = null,
     val publisher: String? = null
