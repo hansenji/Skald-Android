@@ -15,8 +15,9 @@ class GetMiniPlayerStateUseCase(
             playbackStateProvider.currentBook,
             playbackStateProvider.isPlaying,
             playbackStateProvider.currentPosition,
-            playbackStateProvider.duration
-        ) { book, isPlaying, position, duration ->
+            playbackStateProvider.duration,
+            playbackStateProvider.isLoading
+        ) { book, isPlaying, position, duration, isLoading ->
             if (book == null) null
             else {
                 val serverUrl = settingsRepository.getServerUrl() ?: ""
@@ -34,7 +35,8 @@ class GetMiniPlayerStateUseCase(
                     coverUrl = coverUrl,
                     authorizationHeader = authHeader,
                     isPlaying = isPlaying,
-                    progress = progress
+                    progress = progress,
+                    isLoading = isLoading
                 )
             }
         }

@@ -43,6 +43,7 @@ fun PlayerScreen(
     var showChaptersSheet by remember { mutableStateOf(false) }
     var showSpeedDialog by remember { mutableStateOf(false) }
     var showTimerDialog by remember { mutableStateOf(false) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
 
     if (uiState == null) {
         Box(
@@ -68,6 +69,9 @@ fun PlayerScreen(
                 actions = {
                     IconButton(onClick = { showChaptersSheet = true }) {
                         Icon(Icons.Default.List, contentDescription = "Chapters")
+                    }
+                    IconButton(onClick = { showSettingsDialog = true }) {
+                        Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -268,32 +272,55 @@ fun PlayerScreen(
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Previous Chapter
+                    IconButton(
+                        onClick = { viewModel.skipToPreviousChapter() },
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = skip_previous,
+                            contentDescription = "Previous Chapter",
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
+
                     // Skip Backward
                     IconButton(
                         onClick = { viewModel.skipBackward() },
                         modifier = Modifier.size(56.dp)
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(replay, contentDescription = "Skip Back 10s", tint = Color.White, modifier = Modifier.size(32.dp))
-                            Text("10s", fontSize = 10.sp, color = Color.LightGray)
+                            Icon(replay, contentDescription = "Skip Back ${state.skipBackwardDuration}s", tint = Color.White, modifier = Modifier.size(32.dp))
+                            Text("${state.skipBackwardDuration}s", fontSize = 10.sp, color = Color.LightGray)
                         }
                     }
 
                     // Play/Pause
                     IconButton(
                         onClick = {
-                            if (state.isPlaying) viewModel.pause() else viewModel.play()
+                            if (!state.isLoading) {
+                                if (state.isPlaying) viewModel.pause() else viewModel.play()
+                            }
                         },
                         modifier = Modifier
                             .size(72.dp)
                             .background(MaterialTheme.colorScheme.primary, CircleShape)
                     ) {
-                        Icon(
-                            imageVector = if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = if (state.isPlaying) "Pause" else "Play",
-                            tint = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.size(40.dp)
-                        )
+                        if (state.isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(32.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 3.dp
+                            )
+                        } else {
+                            Icon(
+                                imageVector = if (state.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                contentDescription = if (state.isPlaying) "Pause" else "Play",
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(40.dp)
+                            )
+                        }
                     }
 
                     // Skip Forward
@@ -302,9 +329,22 @@ fun PlayerScreen(
                         modifier = Modifier.size(56.dp)
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(forward_media, contentDescription = "Skip Forward 30s", tint = Color.White, modifier = Modifier.size(32.dp))
-                            Text("30s", fontSize = 10.sp, color = Color.LightGray)
+                            Icon(forward_media, contentDescription = "Skip Forward ${state.skipForwardDuration}s", tint = Color.White, modifier = Modifier.size(32.dp))
+                            Text("${state.skipForwardDuration}s", fontSize = 10.sp, color = Color.LightGray)
                         }
+                    }
+
+                    // Next Chapter
+                    IconButton(
+                        onClick = { viewModel.skipToNextChapter() },
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = skip_next,
+                            contentDescription = "Next Chapter",
+                            tint = Color.White,
+                            modifier = Modifier.size(28.dp)
+                        )
                     }
                 }
 
@@ -313,13 +353,17 @@ fun PlayerScreen(
                 // Extra controls (Speed, Sleep timer)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceAround
+                    horizontalArrangement = Arrangement.SpaceAround,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Speed Control
-                    TextButton(onClick = { showSpeedDialog = true }) {
-                        Icon(getSpeedIcon(state.playbackSpeed), contentDescription = null, tint = Color.Gray)
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("${state.playbackSpeed}x", color = Color.White)
+                    IconButton(onClick = { viewModel.cyclePlaybackSpeed() }) {
+                        Icon(
+                            imageVector = getSpeedIcon(state.playbackSpeed),
+                            contentDescription = "Playback Speed",
+                            tint = Color.White,
+                            modifier = Modifier.size(32.dp)
+                        )
                     }
 
                     // Sleep Timer
@@ -464,11 +508,93 @@ fun PlayerScreen(
                                 )
                             }
                         }
+
+                        if (state.currentChapterTitle != null) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        viewModel.setSleepTimerEndOfChapter()
+                                        showTimerDialog = false
+                                    }
+                                    .padding(vertical = 12.dp, horizontal = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "End of active chapter",
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
                     }
                 },
                 confirmButton = {
                     TextButton(onClick = { showTimerDialog = false }) {
                         Text("Cancel")
+                    }
+                }
+            )
+        }
+
+        // Playback Settings Dialog (Settings Hook)
+        if (showSettingsDialog) {
+            var forwardExpanded by remember { mutableStateOf(false) }
+            var backwardExpanded by remember { mutableStateOf(false) }
+            val options = listOf(10, 30, 60)
+
+            AlertDialog(
+                onDismissRequest = { showSettingsDialog = false },
+                title = { Text("Playback Settings") },
+                text = {
+                    Column(modifier = Modifier.fillMaxWidth().padding(8.dp)) {
+                        Text("Skip Forward Duration", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        Box(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                            TextButton(onClick = { forwardExpanded = true }) {
+                                Text("${state.skipForwardDuration} seconds")
+                            }
+                            DropdownMenu(
+                                expanded = forwardExpanded,
+                                onDismissRequest = { forwardExpanded = false }
+                            ) {
+                                options.forEach { option ->
+                                    DropdownMenuItem(
+                                        text = { Text("$option seconds") },
+                                        onClick = {
+                                            viewModel.setSkipForwardDuration(option)
+                                            forwardExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Text("Skip Backward Duration", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        Box(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                            TextButton(onClick = { backwardExpanded = true }) {
+                                Text("${state.skipBackwardDuration} seconds")
+                            }
+                            DropdownMenu(
+                                expanded = backwardExpanded,
+                                onDismissRequest = { backwardExpanded = false }
+                            ) {
+                                options.forEach { option ->
+                                    DropdownMenuItem(
+                                        text = { Text("$option seconds") },
+                                        onClick = {
+                                            viewModel.setSkipBackwardDuration(option)
+                                            backwardExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showSettingsDialog = false }) {
+                        Text("Close")
                     }
                 }
             )

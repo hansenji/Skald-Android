@@ -59,6 +59,12 @@ class PlayerManager(
     private val _sleepTimerRemaining = MutableStateFlow(0L) // in milliseconds
     val sleepTimerRemaining: StateFlow<Long> = _sleepTimerRemaining.asStateFlow()
 
+    private val _isLoading = MutableStateFlow(false)
+    override val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
+    private var isSleepTimerEndOfChapter = false
+    private var sleepTimerEndOfChapterTargetPosition = 0.0
+
     private var sortedFiles: List<AudioFile> = emptyList()
     private var cumulativeDurations: DoubleArray = DoubleArray(0)
     
@@ -101,7 +107,15 @@ class PlayerManager(
                 // Handle natural track transitions or seeking
                 updateAbsolutePosition()
             }
+
+            override fun onPlaybackStateChanged(playbackState: Int) {
+                _isLoading.value = playbackState == Player.STATE_BUFFERING
+            }
         })
+
+        // Restore playback speed
+        val initialSpeed = settingsRepository.getPlaybackSpeed()
+        setPlaybackSpeed(initialSpeed)
 
         val sessionToken = SessionToken(context, ComponentName(context, AudiobookPlayerService::class.java))
         val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
@@ -260,10 +274,12 @@ class PlayerManager(
     fun setPlaybackSpeed(speed: Float) {
         exoPlayer.setPlaybackSpeed(speed)
         _playbackSpeed.value = speed
+        settingsRepository.savePlaybackSpeed(speed)
     }
 
     fun setSleepTimer(minutes: Int) {
         sleepTimerJob?.cancel()
+        isSleepTimerEndOfChapter = false
         if (minutes <= 0) {
             _sleepTimerRemaining.value = 0L
             return
@@ -283,8 +299,24 @@ class PlayerManager(
         }
     }
 
+    fun setSleepTimerEndOfChapter() {
+        sleepTimerJob?.cancel()
+        isSleepTimerEndOfChapter = false
+        val chapter = _currentChapter.value
+        val book = _currentBook.value
+        if (chapter != null && book != null) {
+            isSleepTimerEndOfChapter = true
+            sleepTimerEndOfChapterTargetPosition = chapter.end
+            val remainingMs = ((chapter.end - _currentPosition.value) * 1000).toLong().coerceAtLeast(0L)
+            _sleepTimerRemaining.value = remainingMs
+        } else {
+            _sleepTimerRemaining.value = 0L
+        }
+    }
+
     fun cancelSleepTimer() {
         sleepTimerJob?.cancel()
+        isSleepTimerEndOfChapter = false
         _sleepTimerRemaining.value = 0L
     }
 
@@ -315,6 +347,16 @@ class PlayerManager(
         if (book != null) {
             val chapter = book.chapters.find { absPos >= it.start && absPos < it.end }
             _currentChapter.value = chapter
+        }
+
+        // Sleep timer end of chapter check
+        if (isSleepTimerEndOfChapter) {
+            val remainingMs = ((sleepTimerEndOfChapterTargetPosition - absPos) * 1000).toLong().coerceAtLeast(0L)
+            _sleepTimerRemaining.value = remainingMs
+            if (absPos >= sleepTimerEndOfChapterTargetPosition) {
+                pause()
+                cancelSleepTimer()
+            }
         }
 
         // Track time listened for syncing

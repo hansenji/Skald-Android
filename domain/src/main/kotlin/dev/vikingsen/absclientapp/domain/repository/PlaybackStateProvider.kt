@@ -8,4 +8,5 @@ interface PlaybackStateProvider {
     val isPlaying: Flow<Boolean>
     val currentPosition: Flow<Double>
     val duration: Flow<Double>
+    val isLoading: Flow<Boolean>
 }

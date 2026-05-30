@@ -7,5 +7,6 @@ data class MiniPlayerState(
     val coverUrl: String,
     val authorizationHeader: String?,
     val isPlaying: Boolean,
-    val progress: Float
+    val progress: Float,
+    val isLoading: Boolean = false
 )

@@ -45,7 +45,7 @@ The Mini Player must offer a premium, modern design matching the rest of the app
   - **Title**: Displays the audiobook title. Single line, bold, with trailing ellipsis if truncated.
   - **Subtitle**: Displays the author's name. Single line, muted color, small font size.
 - **Control Buttons**: A horizontal group on the end containing:
-  - Play/Pause icon button.
+  - Play/Pause icon button. Displays a loading spinner (e.g. `CircularProgressIndicator`) instead of the play/pause icon when the player is in the buffering/preparing state before playback.
   - Close/Dismiss icon button (standard `Close` / `X` vector icon).
 - **Progress Track**: A very thin, unobtrusive read-only linear progress bar (e.g., `2.dp` height) positioned at the very top edge of the Mini Player row. It reflects the playback progress ratio (`currentPosition / duration`) and is not interactive to prevent accidental seeks when tapping the mini player container.
 

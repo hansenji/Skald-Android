@@ -28,6 +28,7 @@ The mobile player UI must support cover art display, a progress scrubber bar, ch
    - The active playback speed must be saved immediately to the `SettingsRepository` via `savePlaybackSpeed(Float)`.
    - The active player speed must be applied to `PlayerManager` and the underlying `ExoPlayer` instance.
    - When a new book begins or playback resumes, the player must initialize using the last persisted speed value.
+3. **Display**: Display the current playback speed in the UI using the SpeedXx.kt icons. With these we don't need an additional lable to display the speed. We can see it in the icon already, e.g. if the user has selected `1.5x` the icon Speed15x.kt is displayed in the UI.
 
 ### C. Sleep Timer
 1. **Trigger Options**: The sleep timer can be set to:
@@ -53,3 +54,4 @@ The mobile player UI must support cover art display, a progress scrubber bar, ch
 - **Chapters Sheet**: A bottom sheet lists all chapters with titles and start/end times. Selecting a chapter seeks directly to the chapter's start position.
 - **Speed Selector**: Tapping the speed label opens a dialog or cycles through the speed options, showing the active speed prominently.
 - **Settings Hook**: Quick settings inside the player screen let the user change the default skip durations (e.g., 10s, 30s, 60s) via dropdowns, persisting the choices to the preferences store.
+- **Play/Pause Button**: Displays a loading spinner (e.g. `CircularProgressIndicator`) instead of the play/pause icon when the player is in the buffering or preparing state before playback.
