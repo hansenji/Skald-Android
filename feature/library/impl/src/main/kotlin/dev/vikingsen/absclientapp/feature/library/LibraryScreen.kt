@@ -8,7 +8,6 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.CheckCircle
@@ -48,7 +47,6 @@ import dev.vikingsen.absclientapp.core.model.SortOption
 @Composable
 fun LibraryScreen(
     onBookClick: (String) -> Unit,
-    onLogout: () -> Unit,
     viewModel: LibraryViewModel = koinViewModel()
 ) {
     val lazyBookCards = viewModel.books.collectAsLazyPagingItems()
@@ -128,9 +126,6 @@ fun LibraryScreen(
                 actions = {
                     IconButton(onClick = { showSettingsDialog = true }) {
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
-                    }
-                    IconButton(onClick = { viewModel.logout(onLogout) }) {
-                        Icon(Icons.Default.ExitToApp, contentDescription = "Logout")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

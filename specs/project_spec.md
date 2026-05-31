@@ -65,7 +65,36 @@ To ensure consistency, maintainability, and compatibility, the codebase must adh
 
 ---
 
-## 4. Success Metrics
+## 4. Main Navigation
+
+The app uses an adaptive top-level navigation pattern that adjusts to the device's screen size:
+
+- **Phone (Compact width)**: A **Material 3 Bottom Navigation Bar** (`NavigationBar`) is displayed at the bottom of the screen.
+- **Larger screens (Medium and Expanded width)**: A **Material 3 Navigation Rail** (`NavigationRail`) is displayed along the leading edge of the screen.
+
+Use the Material 3 `NavigationSuiteScaffold` (from `androidx.compose.material3.adaptive.navigationsuite`) to handle the adaptive switching automatically based on window size class.
+
+### Navigation Destinations
+
+The following top-level destinations are presented in order:
+
+| Destination  | Icon (Outlined / Filled)                          | Label       |
+|--------------|----------------------------------------------------|-------------|
+| **Home**     | `Icons.Outlined.Home` / `Icons.Filled.Home`        | Home        |
+| **Library**  | `Icons.Outlined.LocalLibrary` / `Icons.Filled.LocalLibrary` | Library     |
+| **Settings** | `Icons.Outlined.Settings` / `Icons.Filled.Settings`| Settings    |
+
+- The **outlined** icon variant is shown when the destination is unselected.
+- The **filled** icon variant is shown when the destination is selected.
+- Each destination label must use a localizable string resource.
+
+### Navigation Behavior
+- Selecting a destination navigates to its corresponding feature graph using Androidx Navigation3.
+- Re-selecting the currently active destination should pop its back stack to the root of that destination's graph (standard single-top, restore-state behavior).
+
+---
+
+## 5. Success Metrics
 
 The overall quality and performance of the application will be measured against the following targets:
 - **Playback Start Delay**: Audio output must start within 1.5 seconds under standard network conditions (>10Mbps) for online streaming. Offline playback must start within 500ms.
@@ -76,7 +105,7 @@ The overall quality and performance of the application will be measured against 
 
 ---
 
-## 5. API Source of Truth & Local Configuration
+## 6. API Source of Truth & Local Configuration
 
 Since the official Audiobookshelf server API documentation can be out of date, the **Audiobookshelf mobile app repository** is designated as the primary source of truth for API schemas, endpoints, and expectations:
 - **Repository URL**: [audiobookshelf-app](https://github.com/advplyr/audiobookshelf-app)
@@ -96,9 +125,8 @@ To help developers easily inspect the API source of truth, you can configure a l
 
 ---
 
-## 6. Related Specifications
+## 7. Related Specifications
 
 To inspect detailed configurations and workflows for specific features, refer to the following sub-specifications:
 - **[Authentication Specification](file:///home/hansenji/src/abs-client-app/specs/auth_spec.md)**: Outlines secure token storage (Tink-encrypted DataStore), proactive & reactive token refresh, and login validation policies.
-
 

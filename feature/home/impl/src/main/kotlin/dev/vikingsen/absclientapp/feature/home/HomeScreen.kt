@@ -92,8 +92,6 @@ fun Modifier.shimmerEffect(): Modifier = composed {
 @Composable
 fun HomeScreen(
     onBookClick: (String) -> Unit,
-    onLibraryClick: () -> Unit,
-    onLogout: () -> Unit,
     viewModel: HomeViewModel = koinViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -159,14 +157,7 @@ fun HomeScreen(
                         }
                     }
                 },
-                actions = {
-                    IconButton(onClick = onLibraryClick) {
-                        Icon(Icons.Default.GridView, contentDescription = "Full Library")
-                    }
-                    IconButton(onClick = { viewModel.logout(onLogout) }) {
-                        Icon(Icons.Default.ExitToApp, contentDescription = "Logout")
-                    }
-                },
+                actions = {},
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent
                 )
@@ -197,9 +188,7 @@ fun HomeScreen(
                         onRetry = { viewModel.refresh(forceRefresh = true) }
                     )
                 } else if (uiState.shelves.isEmpty()) {
-                    EmptyScreen(
-                        onBrowseLibrary = onLibraryClick
-                    )
+                    EmptyScreen()
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
@@ -208,8 +197,7 @@ fun HomeScreen(
                         items(uiState.shelves, key = { it.id }) { shelf ->
                             ShelfRow(
                                 shelf = shelf,
-                                onBookClick = onBookClick,
-                                onLibraryClick = onLibraryClick
+                                onBookClick = onBookClick
                             )
                         }
                     }
@@ -222,8 +210,7 @@ fun HomeScreen(
 @Composable
 fun ShelfRow(
     shelf: ShelfUiModel,
-    onBookClick: (String) -> Unit,
-    onLibraryClick: () -> Unit
+    onBookClick: (String) -> Unit
 ) {
     if (shelf.items.isEmpty()) return
 
@@ -245,26 +232,6 @@ fun ShelfRow(
                 fontSize = 18.sp,
                 color = MaterialTheme.colorScheme.onBackground
             )
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable { onLibraryClick() }
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "View All",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = "View All",
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
         }
 
         LazyRow(
@@ -281,10 +248,10 @@ fun ShelfRow(
                         EpisodeShelfCard(item = item, onClick = { onBookClick(item.entityId) })
                     }
                     "series" -> {
-                        SeriesShelfCard(item = item, onClick = onLibraryClick)
+                        SeriesShelfCard(item = item, onClick = {})
                     }
                     "authors" -> {
-                        AuthorShelfCard(item = item, onClick = onLibraryClick)
+                        AuthorShelfCard(item = item, onClick = {})
                     }
                 }
             }
@@ -797,9 +764,7 @@ fun FatalErrorScreen(
 }
 
 @Composable
-fun EmptyScreen(
-    onBrowseLibrary: () -> Unit
-) {
+fun EmptyScreen() {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
@@ -823,17 +788,11 @@ fun EmptyScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Select a library from the top menu or browse the library collection to populate this view.",
+                text = "Select a library from the top menu to populate this view.",
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(24.dp))
-            Button(
-                onClick = onBrowseLibrary
-            ) {
-                Text("Browse Library Collection")
-            }
         }
     }
 }

@@ -47,6 +47,8 @@ include(
     ":feature:player:impl",
     ":feature:home:api",
     ":feature:home:impl",
+    ":feature:settings:api",
+    ":feature:settings:impl",
     ":feature:androidauto",
     ":feature:miniplayer"
 )
