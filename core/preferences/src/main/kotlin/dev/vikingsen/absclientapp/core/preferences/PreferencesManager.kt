@@ -159,4 +159,9 @@ class PreferencesManager(context: Context) {
     fun saveLibraryETag(libraryId: String, etag: String) {
         prefs.edit().putString("etag_library_$libraryId", etag).apply()
     }
+
+    fun getLibraryHomeETag(libraryId: String): String? = prefs.getString("etag_library_home_$libraryId", null)
+    fun saveLibraryHomeETag(libraryId: String, etag: String) {
+        prefs.edit().putString("etag_library_home_$libraryId", etag).apply()
+    }
 }

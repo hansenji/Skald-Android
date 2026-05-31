@@ -13,6 +13,7 @@ import androidx.room.TypeConverters
 import androidx.room.RawQuery
 import androidx.sqlite.db.SupportSQLiteQuery
 import androidx.paging.PagingSource
+import androidx.room.Transaction
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -61,6 +62,17 @@ interface BookDao {
 
     @RawQuery(observedEntities = [BookEntity::class, PlaybackProgressEntity::class])
     fun getBooksPaged(query: SupportSQLiteQuery): PagingSource<Int, BookWithProgressEntity>
+
+    @Query("""
+        SELECT b.* FROM books b 
+        INNER JOIN playback_progress p ON b.id = p.bookId 
+        WHERE b.libraryId = :libraryId AND p.progress > 0 AND p.isFinished = 0 
+        ORDER BY p.lastUpdated DESC
+    """)
+    fun getBooksInProgressFlow(libraryId: String): Flow<List<BookEntity>>
+
+    @Query("SELECT * FROM books WHERE libraryId = :libraryId AND isDownloaded = 1")
+    fun getDownloadedBooksFlow(libraryId: String): Flow<List<BookEntity>>
 }
 
 @Dao
@@ -90,12 +102,50 @@ interface LibraryDao {
     suspend fun deleteAll()
 }
 
-@Database(entities = [BookEntity::class, PlaybackProgressEntity::class, LibraryEntity::class], version = 3, exportSchema = false)
+@Dao
+interface HomeShelfDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertShelves(shelves: List<HomeShelfEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertShelfItems(items: List<HomeShelfItemEntity>)
+
+    @Query("DELETE FROM home_shelves WHERE libraryId = :libraryId")
+    suspend fun deleteShelvesForLibrary(libraryId: String)
+
+    @Transaction
+    @Query("SELECT * FROM home_shelves WHERE libraryId = :libraryId ORDER BY verticalSortOrder ASC")
+    fun getShelvesWithItemsFlow(libraryId: String): Flow<List<HomeShelfWithItems>>
+
+    @Transaction
+    suspend fun replaceShelvesForLibrary(
+        libraryId: String,
+        shelves: List<HomeShelfEntity>,
+        items: List<HomeShelfItemEntity>
+    ) {
+        deleteShelvesForLibrary(libraryId)
+        insertShelves(shelves)
+        insertShelfItems(items)
+    }
+}
+
+@Database(
+    entities = [
+        BookEntity::class,
+        PlaybackProgressEntity::class,
+        LibraryEntity::class,
+        HomeShelfEntity::class,
+        HomeShelfItemEntity::class
+    ],
+    version = 4,
+    exportSchema = false
+)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun bookDao(): BookDao
     abstract fun playbackProgressDao(): PlaybackProgressDao
     abstract fun libraryDao(): LibraryDao
+    abstract fun homeShelfDao(): HomeShelfDao
 
     companion object {
         private const val DB_NAME = "abs_client_db"

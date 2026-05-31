@@ -18,5 +18,7 @@ val domainModule = module {
     single<StartPlaybackSessionUseCase>()
     single<LogoutUseCase>()
     single<GetMiniPlayerStateUseCase>()
+    single<GetPersonalizedShelvesUseCase>()
+    single<SyncPersonalizedShelvesUseCase>()
 }
 

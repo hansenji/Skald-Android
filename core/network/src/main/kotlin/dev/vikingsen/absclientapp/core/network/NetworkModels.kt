@@ -1,6 +1,7 @@
 package dev.vikingsen.absclientapp.core.network
 
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerialName
 
 @Serializable
 data class CredentialsLoginRequest(
@@ -54,7 +55,95 @@ data class LibraryItemsResponse(
 @Serializable
 data class LibraryItem(
     val id: String,
-    val media: LibraryItemMedia
+    val media: LibraryItemMedia,
+    val recentEpisode: NetworkPodcastEpisode? = null
+)
+
+@Serializable
+data class NetworkPodcastEpisode(
+    val id: String,
+    val index: Int? = null,
+    val episode: String? = null,
+    val episodeType: String? = null,
+    val title: String? = null,
+    val subtitle: String? = null,
+    val description: String? = null,
+    val pubDate: String? = null,
+    val publishedAt: Long? = null,
+    val duration: Double? = null,
+    val size: Long? = null
+)
+
+@Serializable
+sealed interface NetworkLibraryShelf {
+    val id: String
+    val label: String
+    val total: Int
+    val type: String
+}
+
+@Serializable
+@SerialName("book")
+data class NetworkBookShelf(
+    override val id: String,
+    override val label: String,
+    override val total: Int,
+    override val type: String,
+    val entities: List<LibraryItem>? = null
+) : NetworkLibraryShelf
+
+@Serializable
+@SerialName("podcast")
+data class NetworkPodcastShelf(
+    override val id: String,
+    override val label: String,
+    override val total: Int,
+    override val type: String,
+    val entities: List<LibraryItem>? = null
+) : NetworkLibraryShelf
+
+@Serializable
+@SerialName("episode")
+data class NetworkEpisodeShelf(
+    override val id: String,
+    override val label: String,
+    override val total: Int,
+    override val type: String,
+    val entities: List<LibraryItem>? = null
+) : NetworkLibraryShelf
+
+@Serializable
+@SerialName("series")
+data class NetworkSeriesShelf(
+    override val id: String,
+    override val label: String,
+    override val total: Int,
+    override val type: String,
+    val entities: List<NetworkSeriesItem>? = null
+) : NetworkLibraryShelf
+
+@Serializable
+@SerialName("authors")
+data class NetworkAuthorShelf(
+    override val id: String,
+    override val label: String,
+    override val total: Int,
+    override val type: String,
+    val entities: List<NetworkAuthorItem>? = null
+) : NetworkLibraryShelf
+
+@Serializable
+data class NetworkSeriesItem(
+    val id: String,
+    val name: String,
+    val books: List<LibraryItem>? = null
+)
+
+@Serializable
+data class NetworkAuthorItem(
+    val id: String,
+    val name: String,
+    val coverPath: String? = null
 )
 
 @Serializable

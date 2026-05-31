@@ -16,6 +16,8 @@ import dev.vikingsen.absclientapp.feature.library.LibraryScreen
 import dev.vikingsen.absclientapp.feature.library.DetailScreen
 import dev.vikingsen.absclientapp.feature.library.api.Library
 import dev.vikingsen.absclientapp.feature.library.api.Detail
+import dev.vikingsen.absclientapp.feature.home.HomeScreen
+import dev.vikingsen.absclientapp.feature.home.api.Home
 import dev.vikingsen.absclientapp.feature.player.PlayerScreen
 import dev.vikingsen.absclientapp.feature.player.api.Player
 import dev.vikingsen.absclientapp.feature.miniplayer.MiniPlayerLayout
@@ -61,8 +63,21 @@ fun MainNavigation() {
                 entry<Login> {
                     LoginScreen(
                         onLoginSuccess = {
-                            // Navigate to Library
+                            // Navigate to Home
+                            backStack.add(Home)
+                        }
+                    )
+                }
+                entry<Home> {
+                    HomeScreen(
+                        onBookClick = { bookId ->
+                            backStack.add(Detail(bookId))
+                        },
+                        onLibraryClick = {
                             backStack.add(Library)
+                        },
+                        onLogout = {
+                            backStack.add(Login)
                         }
                     )
                 }

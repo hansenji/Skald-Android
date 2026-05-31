@@ -41,6 +41,7 @@ interface AudiobookshelfRemoteDataSource {
     suspend fun login(url: String, user: String, pass: String): Pair<LoggedUserResponse, String>
     suspend fun fetchLibraries(): LibrariesResponse
     suspend fun fetchLibraryItems(libraryId: String, limit: Int, page: Int, etag: String? = null): NetworkResult<LibraryItemsResponse>
+    suspend fun fetchPersonalizedShelves(libraryId: String, etag: String? = null): NetworkResult<List<NetworkLibraryShelf>>
     suspend fun fetchBookDetails(bookId: String, etag: String? = null): NetworkResult<BookResponse>
     suspend fun fetchProgressFromServer(bookId: String): MediaProgressResponse?
     suspend fun startPlaybackSession(bookId: String, deviceId: String, deviceName: String): PlaybackSessionResponse
@@ -104,6 +105,32 @@ class AudiobookshelfRemoteDataSourceImpl(
                 NetworkResult.Error("Failed to sync library books: Status ${response.status.value}")
             } else {
                 val data = response.body<LibraryItemsResponse>()
+                val responseEtag = response.headers["ETag"]
+                NetworkResult.Success(data, responseEtag)
+            }
+        }.getOrElse {
+            NetworkResult.Error(it.message ?: "Unknown error")
+        }
+    }
+
+    override suspend fun fetchPersonalizedShelves(
+        libraryId: String,
+        etag: String?
+    ): NetworkResult<List<NetworkLibraryShelf>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val response = client.get("api/libraries/$libraryId/personalized") {
+                url.parameters.append("minified", "1")
+                url.parameters.append("include", "rssfeed,numEpisodesIncomplete")
+                if (!etag.isNullOrEmpty()) {
+                    headers["If-None-Match"] = etag
+                }
+            }
+            if (response.status.value == 304) {
+                NetworkResult.NotModified
+            } else if (response.status.value >= 400) {
+                NetworkResult.Error("Failed to fetch personalized shelves: Status ${response.status.value}")
+            } else {
+                val data = response.body<List<NetworkLibraryShelf>>()
                 val responseEtag = response.headers["ETag"]
                 NetworkResult.Success(data, responseEtag)
             }

@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.koin.compiler)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 
@@ -29,4 +30,7 @@ dependencies {
     implementation(libs.room.ktx)
     implementation(libs.room.paging)
     implementation(libs.androidx.paging.common)
+    
+    // Kotlin Serialization
+    implementation(libs.ktor.serialization.kotlinx.json)
 }

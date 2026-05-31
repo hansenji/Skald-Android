@@ -26,13 +26,24 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.withContext
-import java.io.File
-import androidx.paging.Pager
-import androidx.paging.PagingConfig
-import androidx.paging.PagingData
-import androidx.paging.map
-import androidx.sqlite.db.SimpleSQLiteQuery
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import dev.vikingsen.absclientapp.core.model.HomeShelf
+import dev.vikingsen.absclientapp.core.model.HomeShelfItem
+import dev.vikingsen.absclientapp.core.model.HomeEpisodeMetadata
+import dev.vikingsen.absclientapp.core.database.HomeShelfEntity
+import dev.vikingsen.absclientapp.core.database.HomeShelfItemEntity
+import dev.vikingsen.absclientapp.core.database.HomeShelfWithItems
+import dev.vikingsen.absclientapp.core.network.NetworkLibraryShelf
+import dev.vikingsen.absclientapp.core.network.NetworkBookShelf
+import dev.vikingsen.absclientapp.core.network.NetworkPodcastShelf
+import dev.vikingsen.absclientapp.core.network.NetworkEpisodeShelf
+import dev.vikingsen.absclientapp.core.network.NetworkSeriesShelf
+import dev.vikingsen.absclientapp.core.network.NetworkAuthorShelf
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
 import dev.vikingsen.absclientapp.core.model.BookWithProgress
 import dev.vikingsen.absclientapp.core.model.ReadStatusFilter
 import dev.vikingsen.absclientapp.core.model.SortOption
@@ -40,6 +51,12 @@ import dev.vikingsen.absclientapp.core.network.LibraryItemsResponse
 import dev.vikingsen.absclientapp.core.network.LibraryItem
 import dev.vikingsen.absclientapp.core.network.BookResponse
 import dev.vikingsen.absclientapp.core.network.NetworkResult
+import java.io.File
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.map
+import androidx.sqlite.db.SimpleSQLiteQuery
 
 class AudiobookshelfRepositoryImpl(
     private val context: Context,
@@ -51,6 +68,7 @@ class AudiobookshelfRepositoryImpl(
     private val bookDao = db.bookDao()
     private val progressDao = db.playbackProgressDao()
     private val libraryDao = db.libraryDao()
+    private val homeShelfDao = db.homeShelfDao()
 
     override suspend fun login(url: String, user: String, pass: String): Result<LoggedUser> = withContext(Dispatchers.IO) {
         runCatching {
@@ -525,6 +543,206 @@ class AudiobookshelfRepositoryImpl(
 
     override suspend fun getCachedLibraries(): List<Library> = withContext(Dispatchers.IO) {
         libraryDao.getAllLibraries().map { it.toDomain() }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override fun getHomeShelvesFlow(libraryId: String): Flow<List<HomeShelf>> {
+        return homeShelfDao.getShelvesWithItemsFlow(libraryId).flatMapLatest { dbShelves ->
+            if (dbShelves.isNotEmpty()) {
+                flowOf(dbShelves.map { it.toDomain() })
+            } else {
+                combine(
+                    bookDao.getBooksInProgressFlow(libraryId),
+                    bookDao.getDownloadedBooksFlow(libraryId)
+                ) { inProgressBooks, downloadedBooks ->
+                    val fallbackShelves = mutableListOf<HomeShelf>()
+                    
+                    if (inProgressBooks.isNotEmpty()) {
+                        fallbackShelves.add(
+                            HomeShelf(
+                                id = "local-books-continue",
+                                libraryId = libraryId,
+                                label = "Continue Listening",
+                                total = inProgressBooks.size,
+                                type = "book",
+                                items = inProgressBooks.map { book ->
+                                    HomeShelfItem(
+                                        entityId = book.id,
+                                        title = book.title,
+                                        subtitle = book.author,
+                                        imageUrl = book.coverPath,
+                                        additionalData = null
+                                    )
+                                }
+                            )
+                        )
+                    }
+                    
+                    if (downloadedBooks.isNotEmpty()) {
+                        fallbackShelves.add(
+                            HomeShelf(
+                                id = "local-books",
+                                libraryId = libraryId,
+                                label = "Downloaded Books",
+                                total = downloadedBooks.size,
+                                type = "book",
+                                items = downloadedBooks.map { book ->
+                                    HomeShelfItem(
+                                        entityId = book.id,
+                                        title = book.title,
+                                        subtitle = book.author,
+                                        imageUrl = book.coverPath,
+                                        additionalData = null
+                                    )
+                                }
+                            )
+                        )
+                    }
+                    
+                    fallbackShelves
+                }
+            }
+        }
+    }
+
+    override suspend fun syncHomeShelves(libraryId: String, forceRefresh: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val storedEtag = if (forceRefresh) null else preferencesManager.getLibraryHomeETag(libraryId)
+            val result = remoteDataSource.fetchPersonalizedShelves(libraryId, storedEtag)
+            
+            when (result) {
+                is NetworkResult.NotModified -> {
+                    return@runCatching
+                }
+                is NetworkResult.Error -> {
+                    throw Exception(result.message)
+                }
+                is NetworkResult.Success -> {
+                    val newEtag = result.etag
+                    if (!newEtag.isNullOrEmpty()) {
+                        preferencesManager.saveLibraryHomeETag(libraryId, newEtag)
+                    }
+                    val networkShelves = result.data
+                    
+                    val shelvesList = mutableListOf<HomeShelfEntity>()
+                    val itemsList = mutableListOf<HomeShelfItemEntity>()
+                    
+                    networkShelves.forEachIndexed { verticalIndex, shelf ->
+                        val shelfEntity = HomeShelfEntity(
+                            id = shelf.id,
+                            libraryId = libraryId,
+                            label = shelf.label,
+                            total = shelf.total,
+                            type = shelf.type,
+                            verticalSortOrder = verticalIndex
+                        )
+                        shelvesList.add(shelfEntity)
+                        
+                        when (shelf) {
+                            is NetworkBookShelf -> {
+                                shelf.entities?.forEachIndexed { horizontalIndex, item ->
+                                    val author = item.media.metadata.authorName
+                                        ?: item.media.metadata.authors?.mapNotNull { it.name }?.joinToString(", ")
+                                        ?: "Unknown Author"
+                                    itemsList.add(
+                                        HomeShelfItemEntity(
+                                            compositeId = "${shelf.id}_${item.id}",
+                                            shelfId = shelf.id,
+                                            entityId = item.id,
+                                            title = item.media.metadata.title ?: "Unknown Title",
+                                            subtitle = author,
+                                            imageUrl = null,
+                                            horizontalIndex = horizontalIndex,
+                                            additionalData = null
+                                        )
+                                    )
+                                }
+                            }
+                            is NetworkPodcastShelf -> {
+                                shelf.entities?.forEachIndexed { horizontalIndex, item ->
+                                    val author = item.media.metadata.authorName ?: "Unknown Author"
+                                    itemsList.add(
+                                        HomeShelfItemEntity(
+                                            compositeId = "${shelf.id}_${item.id}",
+                                            shelfId = shelf.id,
+                                            entityId = item.id,
+                                            title = item.media.metadata.title ?: "Unknown Title",
+                                            subtitle = author,
+                                            imageUrl = null,
+                                            horizontalIndex = horizontalIndex,
+                                            additionalData = null
+                                        )
+                                    )
+                                }
+                            }
+                            is NetworkEpisodeShelf -> {
+                                shelf.entities?.forEachIndexed { horizontalIndex, item ->
+                                    val episodeMeta = item.recentEpisode?.let {
+                                        HomeEpisodeMetadata(
+                                            id = it.id,
+                                            title = it.title,
+                                            pubDate = it.pubDate,
+                                            duration = it.duration
+                                        )
+                                    }
+                                    val episodeData = episodeMeta?.let { Json.encodeToString(it) }
+                                    itemsList.add(
+                                        HomeShelfItemEntity(
+                                            compositeId = "${shelf.id}_${item.id}",
+                                            shelfId = shelf.id,
+                                            entityId = item.id,
+                                            title = item.recentEpisode?.title ?: item.media.metadata.title ?: "Unknown Episode",
+                                            subtitle = item.media.metadata.title,
+                                            imageUrl = null,
+                                            horizontalIndex = horizontalIndex,
+                                            additionalData = episodeData
+                                        )
+                                    )
+                                }
+                            }
+                            is NetworkSeriesShelf -> {
+                                shelf.entities?.forEachIndexed { horizontalIndex, item ->
+                                    val booksList = item.books
+                                    val subtitle = if (!booksList.isNullOrEmpty()) "${booksList.size} Books" else "Series"
+                                    val firstBookId = booksList?.firstOrNull()?.id
+                                    val seriesCoverPath = firstBookId?.let { "/api/items/$it/cover" }
+                                    itemsList.add(
+                                        HomeShelfItemEntity(
+                                            compositeId = "${shelf.id}_${item.id}",
+                                            shelfId = shelf.id,
+                                            entityId = item.id,
+                                            title = item.name,
+                                            subtitle = subtitle,
+                                            imageUrl = seriesCoverPath,
+                                            horizontalIndex = horizontalIndex,
+                                            additionalData = null
+                                        )
+                                    )
+                                }
+                            }
+                            is NetworkAuthorShelf -> {
+                                shelf.entities?.forEachIndexed { horizontalIndex, item ->
+                                    itemsList.add(
+                                        HomeShelfItemEntity(
+                                            compositeId = "${shelf.id}_${item.id}",
+                                            shelfId = shelf.id,
+                                            entityId = item.id,
+                                            title = item.name,
+                                            subtitle = null,
+                                            imageUrl = item.coverPath,
+                                            horizontalIndex = horizontalIndex,
+                                            additionalData = null
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    
+                    homeShelfDao.replaceShelvesForLibrary(libraryId, shelvesList, itemsList)
+                }
+            }
+        }
     }
 
     private fun buildLibraryQuery(

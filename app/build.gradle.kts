@@ -112,6 +112,8 @@ dependencies {
   implementation(project(":data"))
   implementation(project(":feature:login:api"))
   implementation(project(":feature:login:impl"))
+  implementation(project(":feature:home:api"))
+  implementation(project(":feature:home:impl"))
   implementation(project(":feature:library:api"))
   implementation(project(":feature:library:impl"))
   implementation(project(":feature:player:api"))

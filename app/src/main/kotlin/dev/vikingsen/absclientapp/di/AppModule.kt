@@ -11,6 +11,7 @@ import dev.vikingsen.absclientapp.feature.login.featureLoginModule
 import dev.vikingsen.absclientapp.feature.player.featurePlayerModule
 import dev.vikingsen.absclientapp.feature.androidauto.featureAndroidAutoModule
 import dev.vikingsen.absclientapp.feature.miniplayer.featureMiniPlayerModule
+import dev.vikingsen.absclientapp.feature.home.featureHomeModule
 import dev.vikingsen.absclientapp.MainViewModel
 import org.koin.dsl.module
 import org.koin.plugin.module.dsl.viewModel
@@ -26,6 +27,7 @@ val appModule = module {
         featureLoginModule,
         featureLibraryModule,
         featurePlayerModule,
+        featureHomeModule,
         featureAndroidAutoModule,
         featureMiniPlayerModule
     )

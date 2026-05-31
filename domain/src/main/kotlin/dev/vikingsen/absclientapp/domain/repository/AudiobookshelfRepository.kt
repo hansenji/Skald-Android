@@ -11,11 +11,14 @@ import androidx.paging.PagingData
 import dev.vikingsen.absclientapp.core.model.BookWithProgress
 import dev.vikingsen.absclientapp.core.model.ReadStatusFilter
 import dev.vikingsen.absclientapp.core.model.SortOption
+import dev.vikingsen.absclientapp.core.model.HomeShelf
 
 interface AudiobookshelfRepository {
     suspend fun login(url: String, user: String, pass: String): Result<LoggedUser>
     suspend fun fetchLibraries(): Result<List<Library>>
     suspend fun syncLibraryBooks(libraryId: String, forceRefresh: Boolean = false): Result<Unit>
+    fun getHomeShelvesFlow(libraryId: String): Flow<List<HomeShelf>>
+    suspend fun syncHomeShelves(libraryId: String, forceRefresh: Boolean = false): Result<Unit>
     fun getBooksFlow(): Flow<List<Book>>
     fun getAllProgressFlow(): Flow<List<PlaybackProgress>>
     fun getBookWithProgressFlow(bookId: String): Flow<Pair<Book?, PlaybackProgress?>>

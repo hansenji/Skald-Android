@@ -118,3 +118,20 @@ fun BookWithProgressEntity.toDomain(): BookWithProgress = BookWithProgress(
     book = book.toDomain(),
     progress = progress?.toDomain()
 )
+
+fun dev.vikingsen.absclientapp.core.database.HomeShelfWithItems.toDomain(): dev.vikingsen.absclientapp.core.model.HomeShelf = dev.vikingsen.absclientapp.core.model.HomeShelf(
+    id = shelf.id,
+    libraryId = shelf.libraryId,
+    label = shelf.label,
+    total = shelf.total,
+    type = shelf.type,
+    items = items.sortedBy { it.horizontalIndex }.map { it.toDomain() }
+)
+
+fun dev.vikingsen.absclientapp.core.database.HomeShelfItemEntity.toDomain(): dev.vikingsen.absclientapp.core.model.HomeShelfItem = dev.vikingsen.absclientapp.core.model.HomeShelfItem(
+    entityId = entityId,
+    title = title,
+    subtitle = subtitle,
+    imageUrl = imageUrl,
+    additionalData = additionalData
+)
