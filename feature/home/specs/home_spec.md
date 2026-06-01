@@ -1,6 +1,6 @@
 # Feature Specification: Home Screen & Personalized Shelves
 
-This document defines the requirements, data structures, network API integration, offline caching behavior, and presentation layouts for the **Home Screen** feature within the ABS Client App project.
+This document defines the requirements, data structures, network API integration, offline caching behavior, and presentation layouts for the **Home Screen** feature within the Skald project.
 
 ---
 
@@ -339,7 +339,7 @@ Within the `LazyRow`, elements are rendered dynamically based on the shelf type:
 The Home Screen navigation keys are housed in a new `:feature:home:api` module:
 
 ```kotlin
-package dev.vikingsen.absclientapp.feature.home.api
+package dev.vikingsen.skald.feature.home.api
 
 import androidx.navigation3.runtime.NavKey
 import kotlinx.serialization.Serializable

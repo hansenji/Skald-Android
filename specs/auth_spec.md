@@ -1,6 +1,6 @@
 # Specification: Client Authentication & Token Refresh Flow
 
-This specification defines the authentication mechanism, storage requirements, request authorization, and token renewal behaviors for the ABS Client App, aligning with the server's session requirements.
+This specification defines the authentication mechanism, storage requirements, request authorization, and token renewal behaviors for the Skald, aligning with the server's session requirements.
 
 ---
 
@@ -85,7 +85,7 @@ dependencies {
 val keysetHandle = AndroidKeysetManager.Builder()
     .withSharedPref(context, "datastore_keyset_prefs", "datastore_keyset")
     .withKeyTemplate(KeyTemplate.createFrom(PredefinedAeadParameters.AES256_GCM))
-    .withMasterKeyUri("android-keystore://abs_datastore_master_key")
+    .withMasterKeyUri("android-keystore://skald_datastore_master_key")
     .build()
     .keysetHandle
 
@@ -95,7 +95,7 @@ val aead = keysetHandle.getPrimitive(RegistryConfiguration.get(), Aead::class.ja
 val secureSerializer = AeadSerializer(
     aead = aead,
     wrappedSerializer = SecureTokensSerializer, // Custom Serializer<SecureTokens>
-    associatedData = "abs_client_auth_tokens".encodeToByteArray()
+    associatedData = "skald_auth_tokens".encodeToByteArray()
 )
 
 // 3. Create the data store instance

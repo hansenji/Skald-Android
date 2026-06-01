@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "dev.vikingsen.absclientapp.feature.library.api"
+    namespace = "dev.vikingsen.skald.feature.library.api"
     compileSdk = 36
     defaultConfig {
         minSdk = 26

@@ -6,7 +6,7 @@ plugins {
 
 
 android {
-    namespace = "dev.vikingsen.absclientapp.feature.miniplayer"
+    namespace = "dev.vikingsen.skald.feature.miniplayer"
     compileSdk = 36
     defaultConfig {
         minSdk = 26

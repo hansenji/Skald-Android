@@ -17,7 +17,7 @@ The client must report playback progress to the self-hosted server to maintain s
 ### A. Session Registration & Initiation
 1. **Playback Session Register**: Before beginning audio playback, the client must request a playback session from the server via `POST /api/items/{bookId}/play`.
 2. **Device Info Payload**: The request must pass a JSON payload with device information:
-   - `clientName`: Hardcoded to `"ABS Client Android"`.
+   - `clientName`: Hardcoded to `"Skald Android"`.
    - `deviceId`: A unique string identifying the user's device.
    - `deviceName`: The user-facing name of the device (e.g., `"Pixel 8"`).
 3. **Session ID Preservation**: The client must store the returned session ID to use for subsequent active session sync requests.

@@ -1,6 +1,6 @@
 # Feature Specification: Android Auto Integration
 
-This document defines the requirements, architecture, and behavioral specifications for adding Android Auto support to the ABS Client App. This feature allows users to browse their audiobook library, resume playback of in-progress books, and control playback directly from their vehicle's dashboard.
+This document defines the requirements, architecture, and behavioral specifications for adding Android Auto support to the Skald. This feature allows users to browse their audiobook library, resume playback of in-progress books, and control playback directly from their vehicle's dashboard.
 
 ---
 
@@ -116,7 +116,7 @@ Due to Android Auto's template-based rendering architecture, custom session comm
 
 Google Assistant voice commands (e.g., in Android Auto or hands-free driving) must be supported to enhance driver safety. These commands bypass the manual browse tree:
 - **Generic Resumption Requests**: Commands like "continue reading my book", "read my audiobook", or "pickup where I last left off" must automatically resume the most recently played audiobook with saved progress.
-- **Specific Content Requests**: Commands like "play [Book Title] on ABS Client App" must query local and remote repositories to find the matching title and start playback.
+- **Specific Content Requests**: Commands like "play [Book Title] on Skald" must query local and remote repositories to find the matching title and start playback.
 
 ---
 

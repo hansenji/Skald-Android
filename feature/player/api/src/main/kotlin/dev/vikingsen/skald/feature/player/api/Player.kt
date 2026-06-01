@@ -1,0 +1,7 @@
+package dev.vikingsen.skald.feature.player.api
+
+import androidx.navigation3.runtime.NavKey
+import kotlinx.serialization.Serializable
+
+@Serializable
+data object Player : NavKey

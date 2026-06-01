@@ -1,0 +1,806 @@
+package dev.vikingsen.skald.data.repository
+
+import android.content.Context
+import dev.vikingsen.skald.core.preferences.PreferencesManager
+import dev.vikingsen.skald.core.database.AppDatabaseProvider
+import dev.vikingsen.skald.core.database.BookEntity
+import dev.vikingsen.skald.core.database.LocalAudioFile
+import dev.vikingsen.skald.core.database.LocalChapter
+import dev.vikingsen.skald.core.database.PlaybackProgressEntity
+import dev.vikingsen.skald.data.mapper.toDomain
+import dev.vikingsen.skald.data.mapper.toEntity
+import dev.vikingsen.skald.core.network.AudiobookshelfRemoteDataSource
+import dev.vikingsen.skald.core.model.AudioFile
+import dev.vikingsen.skald.core.model.Book
+import dev.vikingsen.skald.core.model.DownloadStatusState
+import dev.vikingsen.skald.core.model.Library
+import dev.vikingsen.skald.core.model.LoggedUser
+import dev.vikingsen.skald.core.model.PlaybackProgress
+import dev.vikingsen.skald.domain.repository.AudiobookshelfRepository
+import android.app.DownloadManager
+import android.net.Uri
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import dev.vikingsen.skald.core.model.HomeShelf
+import dev.vikingsen.skald.core.model.HomeShelfItem
+import dev.vikingsen.skald.core.model.HomeEpisodeMetadata
+import dev.vikingsen.skald.core.database.HomeShelfEntity
+import dev.vikingsen.skald.core.database.HomeShelfItemEntity
+import dev.vikingsen.skald.core.database.HomeShelfWithItems
+import dev.vikingsen.skald.core.network.NetworkLibraryShelf
+import dev.vikingsen.skald.core.network.NetworkBookShelf
+import dev.vikingsen.skald.core.network.NetworkPodcastShelf
+import dev.vikingsen.skald.core.network.NetworkEpisodeShelf
+import dev.vikingsen.skald.core.network.NetworkSeriesShelf
+import dev.vikingsen.skald.core.network.NetworkAuthorShelf
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.encodeToString
+import dev.vikingsen.skald.core.model.BookWithProgress
+import dev.vikingsen.skald.core.model.ReadStatusFilter
+import dev.vikingsen.skald.core.model.SortOption
+import dev.vikingsen.skald.core.network.LibraryItemsResponse
+import dev.vikingsen.skald.core.network.LibraryItem
+import dev.vikingsen.skald.core.network.BookResponse
+import dev.vikingsen.skald.core.network.NetworkResult
+import java.io.File
+import androidx.paging.Pager
+import androidx.paging.PagingConfig
+import androidx.paging.PagingData
+import androidx.paging.map
+import androidx.sqlite.db.SimpleSQLiteQuery
+
+class AudiobookshelfRepositoryImpl(
+    private val context: Context,
+    private val dbProvider: AppDatabaseProvider,
+    private val preferencesManager: PreferencesManager,
+    private val remoteDataSource: AudiobookshelfRemoteDataSource
+) : AudiobookshelfRepository {
+    private val db = dbProvider.database
+    private val bookDao = db.bookDao()
+    private val progressDao = db.playbackProgressDao()
+    private val libraryDao = db.libraryDao()
+    private val homeShelfDao = db.homeShelfDao()
+
+    override suspend fun login(url: String, user: String, pass: String): Result<LoggedUser> = withContext(Dispatchers.IO) {
+        runCatching {
+            val (response, formattedUrl) = remoteDataSource.login(url, user, pass)
+            
+            val previousUserId = preferencesManager.getUserId()
+            val previousUsername = preferencesManager.getUsername()
+
+            val isSameUser = if (!previousUserId.isNullOrEmpty() && !response.user.id.isNullOrEmpty()) {
+                previousUserId == response.user.id
+            } else if (!previousUsername.isNullOrEmpty()) {
+                previousUsername.equals(response.user.username, ignoreCase = true)
+            } else {
+                true
+            }
+
+            if (!isSameUser) {
+                clearLocalData()
+                val downloadsFolder = File(context.getExternalFilesDir(null), "downloads")
+                if (downloadsFolder.exists()) {
+                    downloadsFolder.deleteRecursively()
+                }
+                preferencesManager.clear()
+            }
+
+            preferencesManager.saveConnectionDetails(
+                url = formattedUrl,
+                user = response.user.username,
+                token = response.user.accessToken ?: response.user.token,
+                refreshToken = response.user.refreshToken,
+                userId = response.user.id
+            )
+            response.toDomain()
+        }
+    }
+
+    override suspend fun fetchLibraries(): Result<List<Library>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val response = remoteDataSource.fetchLibraries()
+            val domainLibs = response.libraries.map { it.toDomain() }
+            libraryDao.insertAll(domainLibs.map { it.toEntity() })
+            domainLibs
+        }
+    }
+
+    override suspend fun syncLibraryBooks(libraryId: String, forceRefresh: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val storedEtag = if (forceRefresh) null else preferencesManager.getLibraryETag(libraryId)
+            val limit = 100
+            var currentPage = 0
+            val allItems = mutableListOf<LibraryItem>()
+            var total = 0
+            
+            // Fetch first page with ETag
+            val firstResult = remoteDataSource.fetchLibraryItems(libraryId, limit, currentPage, storedEtag)
+            
+            when (firstResult) {
+                is NetworkResult.NotModified -> {
+                    // Not modified, skip sync!
+                    return@runCatching
+                }
+                is NetworkResult.Error -> {
+                    throw Exception(firstResult.message)
+                }
+                is NetworkResult.Success -> {
+                    val newEtag = firstResult.etag
+                    if (!newEtag.isNullOrEmpty()) {
+                        preferencesManager.saveLibraryETag(libraryId, newEtag)
+                    }
+                    val firstPageData = firstResult.data
+                    allItems.addAll(firstPageData.results)
+                    total = firstPageData.total
+                }
+            }
+            
+            // Fetch subsequent pages
+            var fetched = allItems.size
+            while (fetched < total) {
+                currentPage++
+                val pageResult = remoteDataSource.fetchLibraryItems(libraryId, limit, currentPage, null)
+                when (pageResult) {
+                    is NetworkResult.Success -> {
+                        val pageData = pageResult.data
+                        if (pageData.results.isEmpty()) break
+                        allItems.addAll(pageData.results)
+                        fetched += pageData.results.size
+                    }
+                    is NetworkResult.Error -> {
+                        throw Exception("Failed to sync library books page $currentPage: ${pageResult.message}")
+                    }
+                    is NetworkResult.NotModified -> {
+                        break
+                    }
+                }
+            }
+            
+            // Map and upsert
+            val books = allItems.map { item ->
+                val existing = bookDao.getBookById(item.id)
+                val author = item.media.metadata.authorName
+                    ?: item.media.metadata.authors?.mapNotNull { it.name }?.joinToString(", ")
+                    ?: existing?.author
+                    ?: "Unknown Author"
+                val narrator = item.media.metadata.narratorName
+                    ?: item.media.metadata.narrators?.joinToString(", ")
+                    ?: existing?.narrator
+                    ?: "Unknown Narrator"
+                BookEntity(
+                    id = item.id,
+                    libraryId = libraryId,
+                    title = item.media.metadata.title ?: "Unknown Title",
+                    author = author,
+                    narrator = narrator,
+                    description = existing?.description ?: "",
+                    duration = existing?.duration ?: 0.0,
+                    coverPath = existing?.coverPath,
+                    isDownloaded = existing?.isDownloaded ?: false,
+                    audioFiles = existing?.audioFiles ?: emptyList(),
+                    chapters = existing?.chapters ?: emptyList(),
+                    etag = existing?.etag,
+                    lastDetailFetchTimestamp = existing?.lastDetailFetchTimestamp ?: 0L
+                )
+            }
+            bookDao.insertAll(books)
+            preferencesManager.saveLibraryLastSyncTimestamp(System.currentTimeMillis())
+        }
+    }
+
+    override fun getBooksFlow(): Flow<List<Book>> {
+        return bookDao.getAllBooksFlow().map { list -> list.map { it.toDomain() } }
+    }
+
+    override fun getAllProgressFlow(): Flow<List<PlaybackProgress>> {
+        return progressDao.getAllProgressFlow().map { list -> list.map { it.toDomain() } }
+    }
+
+    override fun getBookWithProgressFlow(bookId: String): Flow<Pair<Book?, PlaybackProgress?>> {
+        return bookDao.getBookByIdFlow(bookId).combine(progressDao.getProgressForBookFlow(bookId)) { bookEntity, progressEntity ->
+            bookEntity?.toDomain() to progressEntity?.toDomain()
+        }
+    }
+
+    override suspend fun fetchBookDetails(bookId: String, forceRefresh: Boolean): Result<Book> = withContext(Dispatchers.IO) {
+        runCatching {
+            val existing = bookDao.getBookById(bookId)
+            val now = System.currentTimeMillis()
+            
+            // Check time-based refresh threshold (24 hours)
+            val threshold = 24L * 60L * 60L * 1000L
+            val needsRefresh = forceRefresh || existing == null || (now - existing.lastDetailFetchTimestamp > threshold)
+            
+            if (!needsRefresh) {
+                return@runCatching existing.toDomain()
+            }
+            
+            val storedEtag = if (forceRefresh) null else existing?.etag
+            val result = remoteDataSource.fetchBookDetails(bookId, storedEtag)
+            
+            val bookEntity = when (result) {
+                is NetworkResult.NotModified -> {
+                    if (existing == null) throw Exception("Cached book detail missing on 304 response")
+                    existing.copy(lastDetailFetchTimestamp = now)
+                }
+                is NetworkResult.Error -> {
+                    throw Exception(result.message)
+                }
+                is NetworkResult.Success -> {
+                    val detailResponse = result.data
+                    val newEtag = result.etag
+                    
+                    val author = detailResponse.media.metadata.authorName
+                        ?: detailResponse.media.metadata.authors?.mapNotNull { it.name }?.joinToString(", ")
+                        ?: existing?.author
+                        ?: "Unknown Author"
+                    val narrator = detailResponse.media.metadata.narratorName
+                        ?: detailResponse.media.metadata.narrators?.joinToString(", ")
+                        ?: existing?.narrator
+                        ?: "Unknown Narrator"
+                    BookEntity(
+                        id = detailResponse.id,
+                        libraryId = existing?.libraryId ?: preferencesManager.getLibraryId() ?: "",
+                        title = detailResponse.media.metadata.title,
+                        author = author,
+                        narrator = narrator,
+                        description = detailResponse.media.metadata.description ?: "",
+                        duration = detailResponse.media.audioFiles?.sumOf { it.duration ?: 0.0 } ?: 0.0,
+                        coverPath = existing?.coverPath,
+                        isDownloaded = existing?.isDownloaded ?: false,
+                        audioFiles = detailResponse.media.audioFiles?.map { file ->
+                            val existingFile = existing?.audioFiles?.find { it.ino == file.ino }
+                            LocalAudioFile(
+                                index = file.index,
+                                ino = file.ino,
+                                duration = file.duration ?: 0.0,
+                                mimeType = file.mimeType,
+                                filename = file.metadata?.filename ?: "file_${file.index}",
+                                size = file.metadata?.size ?: 0L,
+                                localPath = existingFile?.localPath,
+                                downloadStatus = existingFile?.downloadStatus ?: "NOT_DOWNLOADED"
+                            )
+                        } ?: emptyList(),
+                        chapters = detailResponse.media.chapters?.map { chapter ->
+                            LocalChapter(
+                                start = chapter.start,
+                                end = chapter.end,
+                                title = chapter.title
+                            )
+                        } ?: emptyList(),
+                        etag = newEtag,
+                        lastDetailFetchTimestamp = now
+                    )
+                }
+            }
+            
+            bookDao.insertBook(bookEntity)
+            
+            // Sync progress from server if exists
+            fetchProgressFromServer(bookId)
+            
+            bookEntity.toDomain()
+        }.recoverCatching { exception ->
+            val local = bookDao.getBookById(bookId)
+            local?.toDomain() ?: throw exception
+        }
+    }
+
+    private suspend fun fetchProgressFromServer(bookId: String) {
+        runCatching {
+            val response = remoteDataSource.fetchProgressFromServer(bookId) ?: return@runCatching
+            val currentProgress = progressDao.getProgressForBook(bookId)
+            if (currentProgress == null || response.currentTime > currentProgress.currentTime) {
+                progressDao.insertProgress(
+                    PlaybackProgressEntity(
+                        bookId = bookId,
+                        currentTime = response.currentTime,
+                        progress = response.progress,
+                        isFinished = response.isFinished,
+                        lastUpdated = System.currentTimeMillis()
+                    )
+                )
+            }
+        }
+    }
+
+    override suspend fun saveLocalProgress(bookId: String, currentTime: Double, totalDuration: Double) {
+        val progress = if (totalDuration > 0) (currentTime / totalDuration).toFloat() else 0f
+        val entity = PlaybackProgressEntity(
+            bookId = bookId,
+            currentTime = currentTime,
+            progress = progress,
+            isFinished = progress >= 0.99f,
+            lastUpdated = System.currentTimeMillis()
+        )
+        progressDao.insertProgress(entity)
+    }
+
+    override suspend fun startPlaybackSession(bookId: String, deviceId: String, deviceName: String): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            val response = remoteDataSource.startPlaybackSession(bookId, deviceId, deviceName)
+            response.id
+        }
+    }
+
+    override suspend fun syncPlaybackProgress(sessionId: String, timeListened: Double, currentTime: Double): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            remoteDataSource.syncPlaybackProgress(sessionId, timeListened, currentTime)
+        }
+    }
+
+    override suspend fun syncStaticProgress(bookId: String, currentTime: Double, progress: Float, isFinished: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            remoteDataSource.syncStaticProgress(bookId, currentTime, progress, isFinished)
+        }
+    }
+
+    override suspend fun enqueueBookDownloads(bookId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val book = bookDao.getBookById(bookId) ?: throw Exception("Book not found")
+            val serverUrl = preferencesManager.getServerUrl() ?: throw Exception("Server URL not configured")
+            val token = preferencesManager.getToken() ?: throw Exception("Auth token not configured")
+            
+            val filesToDownload = book.audioFiles.filter { it.downloadStatus != "COMPLETED" }
+            if (filesToDownload.isEmpty()) return@runCatching
+
+            val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            val sanitizedBase = if (serverUrl.endsWith("/")) serverUrl else "$serverUrl/"
+
+            for (file in filesToDownload) {
+                val downloadUrl = "${sanitizedBase}api/items/$bookId/file/${file.ino}/download"
+                val folder = File(context.getExternalFilesDir(null), "downloads/$bookId")
+                if (!folder.exists()) folder.mkdirs()
+                
+                val extension = file.filename.substringAfterLast('.', "mp3")
+                val destinationFile = File(folder, "${file.ino}.$extension")
+
+                val request = DownloadManager.Request(Uri.parse(downloadUrl))
+                    .setTitle(file.filename)
+                    .setDescription("Downloading file for ${book.title}")
+                    .setDestinationUri(Uri.fromFile(destinationFile))
+                    .addRequestHeader("Authorization", "Bearer $token")
+                    .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE)
+
+                downloadManager.enqueue(request)
+                updateAudioFileDownloadStatus(bookId, file.ino, "DOWNLOADING", null)
+            }
+        }
+    }
+
+    override fun getBookDownloadFlow(bookId: String): Flow<DownloadStatusState> = flow {
+        while (true) {
+            val book = bookDao.getBookById(bookId)
+            if (book == null) {
+                emit(DownloadStatusState.Progress(0f))
+                delay(1000)
+                continue
+            }
+
+            val files = book.audioFiles
+            val totalFiles = files.size
+            if (totalFiles == 0) {
+                emit(DownloadStatusState.Progress(0f))
+                delay(1000)
+                continue
+            }
+
+            val completedCount = files.count { it.downloadStatus == "COMPLETED" }
+            val downloadingFiles = files.filter { it.downloadStatus == "DOWNLOADING" }
+
+            if (completedCount == totalFiles) {
+                val path = files.firstOrNull()?.localPath?.let { File(it).parent } ?: ""
+                emit(DownloadStatusState.Completed(path))
+                break
+            }
+
+            if (downloadingFiles.isEmpty()) {
+                if (completedCount > 0) {
+                    emit(DownloadStatusState.Progress(completedCount.toFloat() / totalFiles))
+                } else {
+                    emit(DownloadStatusState.Progress(0f))
+                }
+                delay(1000)
+                continue
+            }
+
+            val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            val query = DownloadManager.Query().setFilterByStatus(
+                DownloadManager.STATUS_RUNNING or
+                DownloadManager.STATUS_PAUSED or
+                DownloadManager.STATUS_PENDING
+            )
+
+            var activeProgressSum = 0f
+            var activeCount = 0
+
+            runCatching {
+                downloadManager.query(query).use { cursor ->
+                    while (cursor.moveToNext()) {
+                        val uriColumn = cursor.getColumnIndex(DownloadManager.COLUMN_URI)
+                        val remoteUri = cursor.getString(uriColumn) ?: continue
+
+                        val regex = Regex(".*/api/items/([^/]+)/file/([^/]+)/download.*")
+                        val match = regex.matchEntire(remoteUri) ?: continue
+                        val itemBookId = match.groupValues[1]
+                        val itemIno = match.groupValues[2]
+
+                        if (itemBookId == bookId) {
+                            val bytesDownloaded = cursor.getLong(cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
+                            val bytesTotal = cursor.getLong(cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
+                            if (bytesTotal > 0) {
+                                activeProgressSum += bytesDownloaded.toFloat() / bytesTotal
+                            } else {
+                                activeProgressSum += 0.1f
+                            }
+                            activeCount++
+                        }
+                    }
+                }
+            }
+
+            val progressSum = completedCount.toFloat() + activeProgressSum.coerceAtMost(downloadingFiles.size.toFloat())
+            val totalProgress = (progressSum / totalFiles).coerceIn(0f, 1f)
+            emit(DownloadStatusState.Progress(totalProgress))
+            delay(1000)
+        }
+    }.flowOn(Dispatchers.IO)
+
+    private suspend fun updateAudioFileDownloadStatus(bookId: String, ino: String, status: String, localPath: String?) {
+        val book = bookDao.getBookById(bookId) ?: return
+        val updatedFiles = book.audioFiles.map {
+            if (it.ino == ino) {
+                it.copy(localPath = localPath, downloadStatus = status)
+            } else {
+                it
+            }
+        }
+        val isAllDownloaded = updatedFiles.all { it.downloadStatus == "COMPLETED" }
+        bookDao.insertBook(book.copy(audioFiles = updatedFiles, isDownloaded = isAllDownloaded))
+    }
+
+    override suspend fun deleteLocalBookFiles(bookId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val book = bookDao.getBookById(bookId) ?: throw Exception("Book not found")
+
+            // 1. Cancel active downloads in DownloadManager
+            val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
+            val query = DownloadManager.Query()
+            val idsToRemove = mutableListOf<Long>()
+            runCatching {
+                downloadManager.query(query).use { cursor ->
+                    val uriColumn = cursor.getColumnIndex(DownloadManager.COLUMN_URI)
+                    val idColumn = cursor.getColumnIndex(DownloadManager.COLUMN_ID)
+                    if (uriColumn != -1 && idColumn != -1) {
+                        while (cursor.moveToNext()) {
+                            val remoteUri = cursor.getString(uriColumn) ?: continue
+                            val id = cursor.getLong(idColumn)
+
+                            val regex = Regex(".*/api/items/([^/]+)/file/([^/]+)/download.*")
+                            val match = regex.matchEntire(remoteUri) ?: continue
+                            val itemBookId = match.groupValues[1]
+
+                            if (itemBookId == bookId) {
+                                idsToRemove.add(id)
+                            }
+                        }
+                    }
+                }
+            }
+            if (idsToRemove.isNotEmpty()) {
+                downloadManager.remove(*idsToRemove.toLongArray())
+            }
+
+            // 2. Delete local directory recursively
+            val folder = File(context.getExternalFilesDir(null), "downloads/$bookId")
+            if (folder.exists()) {
+                val deleted = folder.deleteRecursively()
+                if (!deleted) {
+                    throw Exception("Failed to delete local book files directory")
+                }
+            }
+
+            // 3. Update database
+            val updatedFiles = book.audioFiles.map {
+                it.copy(localPath = null, downloadStatus = "NOT_DOWNLOADED")
+            }
+            val updatedBook = book.copy(audioFiles = updatedFiles, isDownloaded = false)
+            bookDao.insertBook(updatedBook)
+        }
+    }
+
+    override suspend fun clearLocalData() = withContext(Dispatchers.IO) {
+        db.clearAllTables()
+    }
+
+    override fun getBooksPaged(
+        libraryId: String,
+        query: String,
+        filter: ReadStatusFilter,
+        downloadedOnly: Boolean,
+        sortBy: SortOption
+    ): Flow<PagingData<BookWithProgress>> {
+        val sqliteQuery = buildLibraryQuery(libraryId, query, filter, downloadedOnly, sortBy)
+        return Pager(
+            config = PagingConfig(
+                pageSize = 20,
+                enablePlaceholders = false
+            ),
+            pagingSourceFactory = { bookDao.getBooksPaged(sqliteQuery) }
+        ).flow.map { pagingData ->
+            pagingData.map { entity -> entity.toDomain() }
+        }
+    }
+
+    override suspend fun getCachedLibraries(): List<Library> = withContext(Dispatchers.IO) {
+        libraryDao.getAllLibraries().map { it.toDomain() }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override fun getHomeShelvesFlow(libraryId: String): Flow<List<HomeShelf>> {
+        return homeShelfDao.getShelvesWithItemsFlow(libraryId).flatMapLatest { dbShelves ->
+            if (dbShelves.isNotEmpty()) {
+                flowOf(dbShelves.map { it.toDomain() })
+            } else {
+                combine(
+                    bookDao.getBooksInProgressFlow(libraryId),
+                    bookDao.getDownloadedBooksFlow(libraryId)
+                ) { inProgressBooks, downloadedBooks ->
+                    val fallbackShelves = mutableListOf<HomeShelf>()
+                    
+                    if (inProgressBooks.isNotEmpty()) {
+                        fallbackShelves.add(
+                            HomeShelf(
+                                id = "local-books-continue",
+                                libraryId = libraryId,
+                                label = "Continue Listening",
+                                total = inProgressBooks.size,
+                                type = "book",
+                                items = inProgressBooks.map { book ->
+                                    HomeShelfItem(
+                                        entityId = book.id,
+                                        title = book.title,
+                                        subtitle = book.author,
+                                        imageUrl = book.coverPath,
+                                        additionalData = null
+                                    )
+                                }
+                            )
+                        )
+                    }
+                    
+                    if (downloadedBooks.isNotEmpty()) {
+                        fallbackShelves.add(
+                            HomeShelf(
+                                id = "local-books",
+                                libraryId = libraryId,
+                                label = "Downloaded Books",
+                                total = downloadedBooks.size,
+                                type = "book",
+                                items = downloadedBooks.map { book ->
+                                    HomeShelfItem(
+                                        entityId = book.id,
+                                        title = book.title,
+                                        subtitle = book.author,
+                                        imageUrl = book.coverPath,
+                                        additionalData = null
+                                    )
+                                }
+                            )
+                        )
+                    }
+                    
+                    fallbackShelves
+                }
+            }
+        }
+    }
+
+    override suspend fun syncHomeShelves(libraryId: String, forceRefresh: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val storedEtag = if (forceRefresh) null else preferencesManager.getLibraryHomeETag(libraryId)
+            val result = remoteDataSource.fetchPersonalizedShelves(libraryId, storedEtag)
+            
+            when (result) {
+                is NetworkResult.NotModified -> {
+                    return@runCatching
+                }
+                is NetworkResult.Error -> {
+                    throw Exception(result.message)
+                }
+                is NetworkResult.Success -> {
+                    val newEtag = result.etag
+                    if (!newEtag.isNullOrEmpty()) {
+                        preferencesManager.saveLibraryHomeETag(libraryId, newEtag)
+                    }
+                    val networkShelves = result.data
+                    
+                    val shelvesList = mutableListOf<HomeShelfEntity>()
+                    val itemsList = mutableListOf<HomeShelfItemEntity>()
+                    
+                    networkShelves.forEachIndexed { verticalIndex, shelf ->
+                        val shelfEntity = HomeShelfEntity(
+                            id = shelf.id,
+                            libraryId = libraryId,
+                            label = shelf.label,
+                            total = shelf.total,
+                            type = shelf.type,
+                            verticalSortOrder = verticalIndex
+                        )
+                        shelvesList.add(shelfEntity)
+                        
+                        when (shelf) {
+                            is NetworkBookShelf -> {
+                                shelf.entities?.forEachIndexed { horizontalIndex, item ->
+                                    val author = item.media.metadata.authorName
+                                        ?: item.media.metadata.authors?.mapNotNull { it.name }?.joinToString(", ")
+                                        ?: "Unknown Author"
+                                    itemsList.add(
+                                        HomeShelfItemEntity(
+                                            compositeId = "${shelf.id}_${item.id}",
+                                            shelfId = shelf.id,
+                                            entityId = item.id,
+                                            title = item.media.metadata.title ?: "Unknown Title",
+                                            subtitle = author,
+                                            imageUrl = null,
+                                            horizontalIndex = horizontalIndex,
+                                            additionalData = null
+                                        )
+                                    )
+                                }
+                            }
+                            is NetworkPodcastShelf -> {
+                                shelf.entities?.forEachIndexed { horizontalIndex, item ->
+                                    val author = item.media.metadata.authorName ?: "Unknown Author"
+                                    itemsList.add(
+                                        HomeShelfItemEntity(
+                                            compositeId = "${shelf.id}_${item.id}",
+                                            shelfId = shelf.id,
+                                            entityId = item.id,
+                                            title = item.media.metadata.title ?: "Unknown Title",
+                                            subtitle = author,
+                                            imageUrl = null,
+                                            horizontalIndex = horizontalIndex,
+                                            additionalData = null
+                                        )
+                                    )
+                                }
+                            }
+                            is NetworkEpisodeShelf -> {
+                                shelf.entities?.forEachIndexed { horizontalIndex, item ->
+                                    val episodeMeta = item.recentEpisode?.let {
+                                        HomeEpisodeMetadata(
+                                            id = it.id,
+                                            title = it.title,
+                                            pubDate = it.pubDate,
+                                            duration = it.duration
+                                        )
+                                    }
+                                    val episodeData = episodeMeta?.let { Json.encodeToString(it) }
+                                    itemsList.add(
+                                        HomeShelfItemEntity(
+                                            compositeId = "${shelf.id}_${item.id}",
+                                            shelfId = shelf.id,
+                                            entityId = item.id,
+                                            title = item.recentEpisode?.title ?: item.media.metadata.title ?: "Unknown Episode",
+                                            subtitle = item.media.metadata.title,
+                                            imageUrl = null,
+                                            horizontalIndex = horizontalIndex,
+                                            additionalData = episodeData
+                                        )
+                                    )
+                                }
+                            }
+                            is NetworkSeriesShelf -> {
+                                shelf.entities?.forEachIndexed { horizontalIndex, item ->
+                                    val booksList = item.books
+                                    val subtitle = if (!booksList.isNullOrEmpty()) "${booksList.size} Books" else "Series"
+                                    val firstBookId = booksList?.firstOrNull()?.id
+                                    val seriesCoverPath = firstBookId?.let { "/api/items/$it/cover" }
+                                    itemsList.add(
+                                        HomeShelfItemEntity(
+                                            compositeId = "${shelf.id}_${item.id}",
+                                            shelfId = shelf.id,
+                                            entityId = item.id,
+                                            title = item.name,
+                                            subtitle = subtitle,
+                                            imageUrl = seriesCoverPath,
+                                            horizontalIndex = horizontalIndex,
+                                            additionalData = null
+                                        )
+                                    )
+                                }
+                            }
+                            is NetworkAuthorShelf -> {
+                                shelf.entities?.forEachIndexed { horizontalIndex, item ->
+                                    itemsList.add(
+                                        HomeShelfItemEntity(
+                                            compositeId = "${shelf.id}_${item.id}",
+                                            shelfId = shelf.id,
+                                            entityId = item.id,
+                                            title = item.name,
+                                            subtitle = null,
+                                            imageUrl = item.coverPath,
+                                            horizontalIndex = horizontalIndex,
+                                            additionalData = null
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    
+                    homeShelfDao.replaceShelvesForLibrary(libraryId, shelvesList, itemsList)
+                }
+            }
+        }
+    }
+
+    private fun buildLibraryQuery(
+        libraryId: String,
+        searchQuery: String,
+        filterStatus: ReadStatusFilter,
+        downloadedOnly: Boolean,
+        sortBy: SortOption
+    ): SimpleSQLiteQuery {
+        val sql = java.lang.StringBuilder()
+        val bindArgs = ArrayList<Any>()
+        
+        sql.append("SELECT b.*, " +
+                   "p.bookId AS progress_bookId, p.currentTime AS progress_currentTime, " +
+                   "p.progress AS progress_progress, p.isFinished AS progress_isFinished, " +
+                   "p.lastUpdated AS progress_lastUpdated " +
+                   "FROM books b LEFT JOIN playback_progress p ON b.id = p.bookId " +
+                   "WHERE b.libraryId = ?")
+        bindArgs.add(libraryId)
+        
+        if (searchQuery.isNotEmpty()) {
+            sql.append(" AND (b.title LIKE ? OR b.author LIKE ? OR b.narrator LIKE ?)")
+            val wildcardQuery = "%$searchQuery%"
+            bindArgs.add(wildcardQuery)
+            bindArgs.add(wildcardQuery)
+            bindArgs.add(wildcardQuery)
+        }
+        
+        if (downloadedOnly) {
+            sql.append(" AND b.isDownloaded = 1")
+        }
+        
+        when (filterStatus) {
+            ReadStatusFilter.ALL -> {}
+            ReadStatusFilter.UNREAD -> {
+                sql.append(" AND (p.progress IS NULL OR (p.progress = 0 AND p.isFinished = 0))")
+            }
+            ReadStatusFilter.IN_PROGRESS -> {
+                sql.append(" AND (p.progress IS NOT NULL AND p.progress > 0 AND p.isFinished = 0)")
+            }
+            ReadStatusFilter.READ -> {
+                sql.append(" AND (p.isFinished = 1 OR p.progress >= 0.99)")
+            }
+        }
+        
+        sql.append(" ORDER BY ")
+        when (sortBy) {
+            SortOption.TITLE_ASC -> sql.append("b.title COLLATE NOCASE ASC")
+            SortOption.TITLE_DESC -> sql.append("b.title COLLATE NOCASE DESC")
+            SortOption.AUTHOR_ASC -> sql.append("b.author COLLATE NOCASE ASC")
+            SortOption.AUTHOR_DESC -> sql.append("b.author COLLATE NOCASE DESC")
+            SortOption.DURATION_ASC -> sql.append("b.duration ASC")
+            SortOption.DURATION_DESC -> sql.append("b.duration DESC")
+            SortOption.LAST_PLAYED -> {
+                sql.append("CASE WHEN p.lastUpdated IS NULL THEN 1 ELSE 0 END, p.lastUpdated DESC, b.title COLLATE NOCASE ASC")
+            }
+        }
+        
+        return SimpleSQLiteQuery(sql.toString(), bindArgs.toArray())
+    }
+}

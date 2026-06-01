@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "dev.vikingsen.absclientapp.core.model"
+    namespace = "dev.vikingsen.skald.core.model"
     compileSdk = 36
     defaultConfig {
         minSdk = 26

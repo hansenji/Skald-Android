@@ -1,6 +1,11 @@
-# ABS Client App
+# Skald
 
 An Android client for [Audiobookshelf](https://www.audiobookshelf.org/), a self-hosted audiobook and podcast server. Built with Kotlin, Jetpack Compose, and modern Android development best practices.
+
+### 📖 What is a Skald?
+In Old Norse culture, a **skald** (or *skáld*) was a poet, storyteller, and oral historian. Skalds travelled between courts composing elaborate poems to preserve history, share mythologies, and entertain listeners with heroic stories of old. 
+
+As a modern audiobook and podcast player, **Skald** continues this oral tradition—acting as your digital storyteller, bringing narrated books and audio epics directly to your ears (fitting perfectly under the developer namespace `dev.vikingsen`!).
 
 ---
 
@@ -63,7 +68,7 @@ graph TD
 | **`:data`** | Repository implementations coordinating caching, networking, downloads, and playback progress syncing. |
 | **`:core:model`** | Domain models (e.g., `Book`, `Library`, `Chapter`) and business utilities. |
 | **`:core:preferences`** | Key-value settings persistence using `SharedPreferences` (`PreferencesManager`). |
-| **`:core:database`** | Room local database (`abs_client_db`) and entity definitions caching library metadata. |
+| **`:core:database`** | Room local database (`skald_db`) and entity definitions caching library metadata. |
 | **`:core:network`** | Ktor HTTP client configuration (`AudiobookshelfRemoteDataSource`) and JSON serialization/deserialization DTOs. |
 | **`:core:player`** | Media3 ExoPlayer orchestration, `AudiobookPlayerService` background service, and `PlayerManager`. |
 
@@ -73,7 +78,7 @@ graph TD
 - **Dependency Injection:** Koin for Android and Jetpack Compose.
 - **Networking:** Ktor Client with `kotlinx.serialization` (JSON parsing).
 - **Local Persistence:** SQLite Database using Room (Metadata, playback progress, download queues).
-- **Preferences:** Android SharedPreferences (`abs_client_prefs`) for runtime configurations.
+- **Preferences:** Android SharedPreferences (`skald_prefs`) for runtime configurations.
 - **Media Playback:** Android Media3 (ExoPlayer and MediaSession).
 - **Image Loading:** Coil (`io.coil-kt:coil-compose`) for cover art loading and cache coordination.
 

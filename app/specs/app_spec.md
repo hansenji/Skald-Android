@@ -1,4 +1,4 @@
-# ABS Client App - App Module Specification
+# Skald - App Module Specification
 
 This specification details the specifics of the `:app` module, which acts as the main orchestrator, application entry point, styling theme provider, and navigation host.
 
@@ -12,7 +12,7 @@ This specification details the specifics of the `:app` module, which acts as the
   - Loads `appModule` which merges all sub-module DI definitions.
 - **`MainActivity`**: Inherits from `ComponentActivity`. It serves as the single window frame:
   - Enables edge-to-edge rendering with custom transparent system status bar and navigation bar styles.
-  - Hosts the main Compose UI hierarchy wrapped in the root application theme (`ABSClientAppTheme`) and a base Surface container.
+  - Hosts the main Compose UI hierarchy wrapped in the root application theme (`SkaldTheme`) and a base Surface container.
   - Calls `MainNavigation()` to launch the navigation entry point.
 
 ---
@@ -53,4 +53,4 @@ The `:app` module is responsible for defining page destinations and handling tra
 App-wide design elements and branding are declared in the `theme/` package:
 - **`Color.kt`**: Tailored dark-mode primary, secondary, and tertiary theme color maps (e.g., sleek HSL gradients, high-contrast text shades).
 - **`Type.kt`**: Material 3 typography style guidelines mapped to system fonts.
-- **`Theme.kt`**: Main `ABSClientAppTheme` composable wrapper providing dynamic or fixed dark styling schemes matching application layouts.
+- **`Theme.kt`**: Main `SkaldTheme` composable wrapper providing dynamic or fixed dark styling schemes matching application layouts.

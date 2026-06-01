@@ -6,7 +6,7 @@ plugins {
 
 
 android {
-    namespace = "dev.vikingsen.absclientapp.data"
+    namespace = "dev.vikingsen.skald.data"
     compileSdk = 36
     defaultConfig {
         minSdk = 26

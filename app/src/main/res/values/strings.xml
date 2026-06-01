@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">ABS Client App</string>
+    <string name="app_name">Skald</string>
     <string name="nav_home">Home</string>
     <string name="nav_library">Library</string>
     <string name="nav_settings">Settings</string>

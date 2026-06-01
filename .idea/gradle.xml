@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="GradleSettings">
+    <option name="linkedExternalProjectsSettings">
+      <GradleProjectSettings>
+        <option name="testRunner" value="CHOOSE_PER_TEST" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/app" />
+            <option value="$PROJECT_DIR$/core" />
+            <option value="$PROJECT_DIR$/core/database" />
+            <option value="$PROJECT_DIR$/core/model" />
+            <option value="$PROJECT_DIR$/core/network" />
+            <option value="$PROJECT_DIR$/core/player" />
+            <option value="$PROJECT_DIR$/core/preferences" />
+            <option value="$PROJECT_DIR$/data" />
+            <option value="$PROJECT_DIR$/domain" />
+            <option value="$PROJECT_DIR$/feature" />
+            <option value="$PROJECT_DIR$/feature/androidauto" />
+            <option value="$PROJECT_DIR$/feature/home" />
+            <option value="$PROJECT_DIR$/feature/home/api" />
+            <option value="$PROJECT_DIR$/feature/home/impl" />
+            <option value="$PROJECT_DIR$/feature/library" />
+            <option value="$PROJECT_DIR$/feature/library/api" />
+            <option value="$PROJECT_DIR$/feature/library/impl" />
+            <option value="$PROJECT_DIR$/feature/login" />
+            <option value="$PROJECT_DIR$/feature/login/api" />
+            <option value="$PROJECT_DIR$/feature/login/impl" />
+            <option value="$PROJECT_DIR$/feature/miniplayer" />
+            <option value="$PROJECT_DIR$/feature/player" />
+            <option value="$PROJECT_DIR$/feature/player/api" />
+            <option value="$PROJECT_DIR$/feature/player/impl" />
+            <option value="$PROJECT_DIR$/feature/settings" />
+            <option value="$PROJECT_DIR$/feature/settings/api" />
+            <option value="$PROJECT_DIR$/feature/settings/impl" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+    </option>
+  </component>
+</project>

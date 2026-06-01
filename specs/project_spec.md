@@ -1,12 +1,12 @@
-# ABS Client App - Project Specification
+# Skald - Project Specification
 
-This document serves as the high-level source of truth for the ABS Client App project's purpose, design principles, supported form factors, global architectural constraints, and success measurements.
+This document serves as the high-level source of truth for the Skald project's purpose, design principles, supported form factors, global architectural constraints, and success measurements.
 
 ---
 
 ## 1. Application Purpose & User Context
 
-The ABS Client App is an Android client for **Audiobookshelf**, a self-hosted audiobook and podcast server. 
+The Skald is an Android client for **Audiobookshelf**, a self-hosted audiobook and podcast server. 
 
 ### User Context
 Users self-host their own media collections and expect a premium mobile listening experience. Typical usage patterns:

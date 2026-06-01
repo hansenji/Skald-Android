@@ -1,6 +1,6 @@
 # Audiobookshelf Server API - Client Integration Specification
 
-This document defines the server API endpoints, request payloads, and data structures utilized by the ABS Client App, merging insights from the official Audiobookshelf mobile reference app (`audiobookshelf-app`) and our client application's current implementation.
+This document defines the server API endpoints, request payloads, and data structures utilized by the Skald, merging insights from the official Audiobookshelf mobile reference app (`audiobookshelf-app`) and our client application's current implementation.
 
 ---
 
@@ -254,7 +254,7 @@ Prepares the server to track active playback.
 ```json
 {
   "deviceInfo": {
-    "clientName": "ABS Client Android",
+    "clientName": "Skald Android",
     "deviceId": "unique_device_uuid",
     "deviceName": "Pixel 10 Pro"
   },
@@ -416,7 +416,7 @@ Full `PlaybackSession` object representing the offline event.
   ],
   "deviceInfo": {
     "deviceId": "device_uuid",
-    "clientName": "ABS Client Android"
+    "clientName": "Skald Android"
   }
 }
 ```

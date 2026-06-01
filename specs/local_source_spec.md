@@ -14,7 +14,7 @@ The client uses two primary data storage strategies:
 
 ## 2. Key-Value Storage (SharedPreferences)
 
-Managed via `PreferencesManager` under the filename `abs_client_prefs`. For detailed behavioral rules, see [settings_spec.md](settings_spec.md).
+Managed via `PreferencesManager` under the filename `skald_prefs`. For detailed behavioral rules, see [settings_spec.md](settings_spec.md).
 
 ### Summary of Keys:
 - `server_url` (String?): Base URL of the connection instance.
@@ -32,7 +32,7 @@ Managed via `PreferencesManager` under the filename `abs_client_prefs`. For deta
 
 ## 3. Relational Caching (Room Database)
 
-Implemented in `AppDatabase.kt` with database filename `abs_client_db`. Currently defined under Schema Version `1`.
+Implemented in `AppDatabase.kt` with database filename `skald_db`. Currently defined under Schema Version `1`.
 
 ### Table: `books`
 Caches the list of audiobooks retrieved from the server, alongside download metadata.
