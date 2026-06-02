@@ -113,5 +113,5 @@ To build the application, execute the following commands from the project root:
 
 For deep-dive documentation on specific aspects of the codebase:
 - High-level design and success metrics: See [specs/project_spec.md](file:///home/hansenji/src/abs-client-app/specs/project_spec.md)
-- Persistent SQLite schemas and SharedPrefs rules: See [specs/local_source_spec.md](file:///home/hansenji/src/abs-client-app/specs/local_source_spec.md)
-- Settings & Speed Sync behavioral specifications: See [specs/settings_spec.md](file:///home/hansenji/src/abs-client-app/specs/settings_spec.md)
+- Persistent SQLite schemas: See [core/database/specs/database_spec.md](file:///home/hansenji/src/abs-client-app/core/database/specs/database_spec.md)
+- Settings & User Preferences specifications: See [core/preferences/specs/settings_spec.md](file:///home/hansenji/src/abs-client-app/core/preferences/specs/settings_spec.md)
