@@ -20,5 +20,6 @@ val domainModule = module {
     single<GetMiniPlayerStateUseCase>()
     single<GetPersonalizedShelvesUseCase>()
     single<SyncPersonalizedShelvesUseCase>()
+    single<SyncGlobalProgressUseCase>()
 }
 

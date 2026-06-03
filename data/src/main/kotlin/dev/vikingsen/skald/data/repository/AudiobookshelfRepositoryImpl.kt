@@ -51,6 +51,8 @@ import dev.vikingsen.skald.core.network.LibraryItemsResponse
 import dev.vikingsen.skald.core.network.LibraryItem
 import dev.vikingsen.skald.core.network.BookResponse
 import dev.vikingsen.skald.core.network.NetworkResult
+import dev.vikingsen.skald.core.network.UserProgressResponse
+import dev.vikingsen.skald.core.network.NetworkMediaProgress
 import java.io.File
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
@@ -341,6 +343,64 @@ class AudiobookshelfRepositoryImpl(
     override suspend fun syncStaticProgress(bookId: String, currentTime: Double, progress: Float, isFinished: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             remoteDataSource.syncStaticProgress(bookId, currentTime, progress, isFinished)
+        }
+    }
+
+    override suspend fun syncGlobalProgress(forceRefresh: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val storedEtag = if (forceRefresh) null else preferencesManager.getUserETag()
+            val result = remoteDataSource.fetchCurrentUserProgress(storedEtag)
+            
+            when (result) {
+                is NetworkResult.NotModified -> {
+                    // Local cache is up-to-date, nothing to sync
+                }
+                is NetworkResult.Error -> {
+                    throw Exception(result.message)
+                }
+                is NetworkResult.Success -> {
+                    val newEtag = result.etag
+                    if (!newEtag.isNullOrEmpty()) {
+                        preferencesManager.saveUserETag(newEtag)
+                    }
+                    val userResponse = result.data
+                    
+                    userResponse.mediaProgress.forEach { serverProgress ->
+                        val bookId = serverProgress.libraryItemId
+                        val localProgress = progressDao.getProgressForBook(bookId)
+                        
+                        if (localProgress == null) {
+                            progressDao.insertProgress(
+                                PlaybackProgressEntity(
+                                    bookId = bookId,
+                                    currentTime = serverProgress.currentTime,
+                                    progress = serverProgress.progress.toFloat(),
+                                    isFinished = serverProgress.isFinished,
+                                    lastUpdated = serverProgress.lastUpdate
+                                )
+                            )
+                        } else if (serverProgress.lastUpdate > localProgress.lastUpdated) {
+                            progressDao.insertProgress(
+                                PlaybackProgressEntity(
+                                    bookId = bookId,
+                                    currentTime = serverProgress.currentTime,
+                                    progress = serverProgress.progress.toFloat(),
+                                    isFinished = serverProgress.isFinished,
+                                    lastUpdated = serverProgress.lastUpdate
+                                )
+                            )
+                        } else if (localProgress.lastUpdated > serverProgress.lastUpdate) {
+                            // Local progress is newer, sync to server
+                            remoteDataSource.syncStaticProgress(
+                                bookId = bookId,
+                                currentTime = localProgress.currentTime,
+                                progress = localProgress.progress,
+                                isFinished = localProgress.isFinished
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 

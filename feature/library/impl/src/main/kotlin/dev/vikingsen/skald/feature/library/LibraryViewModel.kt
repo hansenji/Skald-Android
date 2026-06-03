@@ -14,6 +14,7 @@ import dev.vikingsen.skald.domain.usecase.GetBooksUseCase
 import dev.vikingsen.skald.domain.usecase.LogoutUseCase
 import dev.vikingsen.skald.domain.usecase.SyncLibraryBooksUseCase
 import dev.vikingsen.skald.domain.usecase.GetMiniPlayerStateUseCase
+import dev.vikingsen.skald.domain.usecase.SyncGlobalProgressUseCase
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -65,7 +66,8 @@ class LibraryViewModel(
     private val fetchLibrariesUseCase: FetchLibrariesUseCase,
     private val logoutUseCase: LogoutUseCase,
     private val settingsRepository: SettingsRepository,
-    private val getMiniPlayerStateUseCase: GetMiniPlayerStateUseCase
+    private val getMiniPlayerStateUseCase: GetMiniPlayerStateUseCase,
+    private val syncGlobalProgressUseCase: SyncGlobalProgressUseCase
 ) : ViewModel() {
 
     val showMiniPlayer: StateFlow<Boolean> = getMiniPlayerStateUseCase()
@@ -204,8 +206,11 @@ class LibraryViewModel(
             
             // Sync books
             val result = syncLibraryBooksUseCase(libraryId, forceRefresh)
-            if (result.isFailure) {
-                error.value = result.exceptionOrNull()?.message ?: "Failed to sync library"
+            val progressResult = syncGlobalProgressUseCase(forceRefresh)
+            if (result.isFailure || progressResult.isFailure) {
+                error.value = result.exceptionOrNull()?.message 
+                    ?: progressResult.exceptionOrNull()?.message 
+                    ?: "Failed to sync library"
             }
             isRefreshing.value = false
         }
@@ -244,8 +249,11 @@ class LibraryViewModel(
                     isRefreshing.value = true
                     error.value = null
                     val result = syncLibraryBooksUseCase(libraryId)
-                    if (result.isFailure) {
-                        error.value = result.exceptionOrNull()?.message ?: "Failed to sync library"
+                    val progressResult = syncGlobalProgressUseCase()
+                    if (result.isFailure || progressResult.isFailure) {
+                        error.value = result.exceptionOrNull()?.message 
+                            ?: progressResult.exceptionOrNull()?.message 
+                            ?: "Failed to sync library"
                     }
                     isRefreshing.value = false
                 }

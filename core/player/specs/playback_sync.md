@@ -39,3 +39,28 @@ The client must report playback progress to the self-hosted server to maintain s
 ### D. Offline Resilience
 1. **Local Stash**: If progress synchronization fails due to offline states, the progress must be stored in the local Room database (`PlaybackProgressEntity`) to prevent data loss.
 2. **Sync Re-attempt**: The client should attempt to push cached offline progress to the server once network connectivity is re-established.
+
+### E. Global Progress Synchronization (Periodic/Background Sync)
+
+To ensure media playback progress stays in sync with the Audiobookshelf server automatically and transparently across multiple devices without manual user action, the client must perform periodic global progress synchronization.
+
+1. **Synchronization Endpoint**: The client fetches the user profile data via `GET /api/me`.
+2. **ETag-Based Conditional Requests (Prevent Server Overload)**:
+   - On each sync request, the client must send an `If-None-Match` header with the cached ETag from `PreferencesManager` (stored under the key `etag_user`).
+   - If the server responds with `304 Not Modified`, skip the sync processing (no changes to database).
+   - If the server responds with `200 OK`, update the `etag_user` entry in `PreferencesManager` and proceed with the update strategy.
+3. **Synchronization Trigger Points**:
+   - **Application Startup**: Trigger a background sync during app initialization.
+   - **App Foregrounding (Resume)**: Trigger a background sync when the application returns to the foreground.
+   - **Manual Library Refresh**: When a user performs a swipe-to-refresh/manual refresh on the library screen, a global progress sync must be triggered alongside the library sync.
+4. **Resolution Strategy**:
+   For each item in the server's `mediaProgress` list:
+   - Check if a local `PlaybackProgressEntity` exists for the given `bookId` (or `bookId-episodeId`).
+   - **Server is Newer**: If the server progress `lastUpdate` timestamp is greater than the local progress `lastUpdated` timestamp, update the local database cache with the server's `currentTime`, `progress`, and `isFinished`.
+   - **Local is Newer**: If the local progress `lastUpdated` timestamp is greater than the server's progress `lastUpdate` timestamp, push the local progress update to the server via the static progress update endpoint.
+   - **Missing Locally**: If the item exists on the server but has no record in the local database, insert a new local `PlaybackProgressEntity` with the server's values.
+5. **Offline Sessions Bundling**:
+   Immediately after resolving the media progress fetched via `GET /api/me`, the sync routine must check the local database for any queued offline playback sessions (`PlaybackSessionEntity`). If found:
+   - Sync them in a batch request to `POST /api/session/local-all`.
+   - Upon successful server response, clear those synced sessions from the local database.
+

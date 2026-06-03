@@ -339,7 +339,43 @@ Sent periodically (e.g., every 10 seconds) during active listening.
 }
 ```
 
-#### 2. Update Progress State
+#### 2. Retrieve All Progress (User Profile)
+Retrieves the logged-in user profile, which contains the list of all active media progress states. Used for global and regular progress synchronization.
+
+*   **Endpoint**: `GET /api/me`
+
+##### Headers
+*   **Request**:
+    *   `Authorization: Bearer <jwt_token>`
+    *   `If-None-Match: <etag>` (Optional, to use cache and avoid overloading the server)
+*   **Response**:
+    *   `ETag: <etag>` (Returned with `200 OK`)
+    *   *Status Code: `304 Not Modified` is returned if matching ETag is sent*
+
+##### Response Schema (`GET /api/me` - 200 OK)
+Returns the root user profile directly, containing the `mediaProgress` list of all active items:
+```json
+{
+  "id": "user_id_uuid",
+  "username": "user",
+  "mediaProgress": [
+    {
+      "id": "progress_id",
+      "libraryItemId": "item_id",
+      "episodeId": null,
+      "duration": 3600.0,
+      "progress": 0.25,
+      "currentTime": 900.0,
+      "isFinished": false,
+      "lastUpdate": 1716945600000,
+      "startedAt": 1716945000000,
+      "finishedAt": null
+    }
+  ]
+}
+```
+
+#### 3. Update Progress State
 *   **Our App Endpoint**: `POST /api/me/progress`
 *   **Reference App Endpoint**: `PATCH /api/me/progress/{itemId}`
 

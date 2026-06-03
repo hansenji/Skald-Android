@@ -47,6 +47,7 @@ interface AudiobookshelfRemoteDataSource {
     suspend fun startPlaybackSession(bookId: String, deviceId: String, deviceName: String): PlaybackSessionResponse
     suspend fun syncPlaybackProgress(sessionId: String, timeListened: Double, currentTime: Double)
     suspend fun syncStaticProgress(bookId: String, currentTime: Double, progress: Float, isFinished: Boolean)
+    suspend fun fetchCurrentUserProgress(etag: String? = null): NetworkResult<UserProgressResponse>
     fun downloadFile(bookId: String, ino: String, destinationFile: File, totalBytes: Long): Flow<Float>
 }
 
@@ -210,6 +211,27 @@ class AudiobookshelfRemoteDataSourceImpl(
         }
         if (httpResponse.status.value >= 400) {
             throw Exception("Failed to sync static progress: Status ${httpResponse.status.value}")
+        }
+    }
+
+    override suspend fun fetchCurrentUserProgress(etag: String?): NetworkResult<UserProgressResponse> = withContext(Dispatchers.IO) {
+        runCatching {
+            val response = client.get("api/me") {
+                if (!etag.isNullOrEmpty()) {
+                    headers["If-None-Match"] = etag
+                }
+            }
+            if (response.status.value == 304) {
+                NetworkResult.NotModified
+            } else if (response.status.value >= 400) {
+                NetworkResult.Error("Failed to fetch user progress: Status ${response.status.value}")
+            } else {
+                val data = response.body<UserProgressResponse>()
+                val responseEtag = response.headers["ETag"]
+                NetworkResult.Success(data, responseEtag)
+            }
+        }.getOrElse {
+            NetworkResult.Error(it.message ?: "Unknown error")
         }
     }
 

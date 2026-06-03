@@ -70,6 +70,19 @@ fun MainNavigation() {
     val mainViewModel: MainViewModel = koinViewModel()
     val miniPlayerViewModel: MiniPlayerViewModel = koinViewModel()
 
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                mainViewModel.syncGlobalProgress()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     val startDestination = remember {
         mainViewModel.startDestination
     }

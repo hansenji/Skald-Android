@@ -251,3 +251,24 @@ data class MediaProgressResponse(
     val isFinished: Boolean,
     val progress: Float
 )
+
+@Serializable
+data class UserProgressResponse(
+    val id: String,
+    val username: String,
+    val mediaProgress: List<NetworkMediaProgress> = emptyList()
+)
+
+@Serializable
+data class NetworkMediaProgress(
+    val id: String,
+    val libraryItemId: String,
+    val episodeId: String? = null,
+    val duration: Double,
+    val progress: Double,
+    val currentTime: Double,
+    val isFinished: Boolean,
+    val lastUpdate: Long,
+    val startedAt: Long? = null,
+    val finishedAt: Long? = null
+)
