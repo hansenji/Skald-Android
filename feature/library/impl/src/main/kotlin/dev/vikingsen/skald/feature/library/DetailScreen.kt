@@ -338,7 +338,7 @@ fun DetailContent(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = book.description,
+                text = book.description.parseHtml(),
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 lineHeight = 20.sp
