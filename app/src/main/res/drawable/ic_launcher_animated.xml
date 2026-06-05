@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animation-list xmlns:android="http://schemas.android.com/apk/res/android"
+    android:oneshot="false">
+    <item android:duration="50">
+        <rotate
+            android:drawable="@mipmap/ic_launcher_foreground"
+            android:fromDegrees="0.0"
+            android:toDegrees="0.0"
+            android:pivotX="50%"
+            android:pivotY="100%" />
+    </item>
+    <item android:duration="50">
+        <rotate
+            android:drawable="@mipmap/ic_launcher_foreground"
+            android:fromDegrees="1.04"
+            android:toDegrees="1.04"
+            android:pivotX="50%"
+            android:pivotY="100%" />
+    </item>
+    <item android:duration="50">
+        <rotate
+            android:drawable="@mipmap/ic_launcher_foreground"
+            android:fromDegrees="2.0"
+            android:toDegrees="2.0"
+            android:pivotX="50%"
+            android:pivotY="100%" />
+    </item>
+    <item android:duration="50">
+        <rotate
+            android:drawable="@mipmap/ic_launcher_foreground"
+            android:fromDegrees="2.83"
+            android:toDegrees="2.83"
+            android:pivotX="50%"
+            android:pivotY="100%" />
+    </item>
+    <item android:duration="50">
+        <rotate
+            android:drawable="@mipmap/ic_launcher_foreground"
+            android:fromDegrees="3.46"
+            android:toDegrees="3.46"
+            android:pivotX="50%"
+            android:pivotY="100%" />
+    </item>
+    <item android:duration="50">
+        <rotate
+            android:drawable="@mipmap/ic_launcher_foreground"
+            android:fromDegrees="3.86"
+            android:toDegrees="3.86"
+            android:pivotX="50%"
+            android:pivotY="100%" />
+    </item>
+    <item android:duration="50">
+        <rotate
+            android:drawable="@mipmap/ic_launcher_foreground"
+            android:fromDegrees="4.0"
+            android:toDegrees="4.0"
+            android:pivotX="50%"
+            android:pivotY="100%" />
+    </item>
+    <item android:duration="50">
+        <rotate
+            android:drawable="@mipmap/ic_launcher_foreground"
+            android:fromDegrees="3.86"
+            android:toDegrees="3.86"
+            android:pivotX="50%"
+            android:pivotY="100%" />
+    </item>
+    <item android:duration="50">
+        <rotate
+            android:drawable="@mipmap/ic_launcher_foreground"
+            android:fromDegrees="3.46"
+            android:toDegrees="3.46"
+            android:pivotX="50%"
+            android:pivotY="100%" />
+    </item>
+    <item android:duration="50">
+        <rotate
+            android:drawable="@mipmap/ic_launcher_foreground"
+            android:fromDegrees="2.83"
+            android:toDegrees="2.83"
+            android:pivotX="50%"
+            android:pivotY="100%" />
+    </item>
+    <item android:duration="50">
+        <rotate
+            android:drawable="@mipmap/ic_launcher_foreground"
+            android:fromDegrees="2.0"
+            android:toDegrees="2.0"
+            android:pivotX="50%"
+            android:pivotY="100%" />
+    </item>
+    <item android:duration="50">
+        <rotate
+            android:drawable="@mipmap/ic_launcher_foreground"
+            android:fromDegrees="1.04"
+            android:toDegrees="1.04"
+            android:pivotX="50%"
+            android:pivotY="100%" />
+    </item>
+    <item android:duration="50">
+        <rotate
+            android:drawable="@mipmap/ic_launcher_foreground"
+            android:fromDegrees="0.0"
+            android:toDegrees="0.0"
+            android:pivotX="50%"
+            android:pivotY="100%" />
+    </item>
+    <item android:duration="50">
+        <rotate
+            android:drawable="@mipmap/ic_launcher_foreground"
+            android:fromDegrees="-1.04"
+            android:toDegrees="-1.04"
+            android:pivotX="50%"
+            android:pivotY="100%" />
+    </item>
+    <item android:duration="50">
+        <rotate
+            android:drawable="@mipmap/ic_launcher_foreground"
+            android:fromDegrees="-2.0"
+            android:toDegrees="-2.0"
+            android:pivotX="50%"
+            android:pivotY="100%" />
+    </item>
+    <item android:duration="50">
+        <rotate
+            android:drawable="@mipmap/ic_launcher_foreground"
+            android:fromDegrees="-2.83"
+            android:toDegrees="-2.83"
+            android:pivotX="50%"
+            android:pivotY="100%" />
+    </item>
+    <item android:duration="50">
+        <rotate
+            android:drawable="@mipmap/ic_launcher_foreground"
+            android:fromDegrees="-3.46"
+            android:toDegrees="-3.46"
+            android:pivotX="50%"
+            android:pivotY="100%" />
+    </item>
+    <item android:duration="50">
+        <rotate
+            android:drawable="@mipmap/ic_launcher_foreground"
+            android:fromDegrees="-3.86"
+            android:toDegrees="-3.86"
+            android:pivotX="50%"
+            android:pivotY="100%" />
+    </item>
+    <item android:duration="50">
+        <rotate
+            android:drawable="@mipmap/ic_launcher_foreground"
+            android:fromDegrees="-4.0"
+            android:toDegrees="-4.0"
+            android:pivotX="50%"
+            android:pivotY="100%" />
+    </item>
+    <item android:duration="50">
+        <rotate
+            android:drawable="@mipmap/ic_launcher_foreground"
+            android:fromDegrees="-3.86"
+            android:toDegrees="-3.86"
+            android:pivotX="50%"
+            android:pivotY="100%" />
+    </item>
+    <item android:duration="50">
+        <rotate
+            android:drawable="@mipmap/ic_launcher_foreground"
+            android:fromDegrees="-3.46"
+            android:toDegrees="-3.46"
+            android:pivotX="50%"
+            android:pivotY="100%" />
+    </item>
+    <item android:duration="50">
+        <rotate
+            android:drawable="@mipmap/ic_launcher_foreground"
+            android:fromDegrees="-2.83"
+            android:toDegrees="-2.83"
+            android:pivotX="50%"
+            android:pivotY="100%" />
+    </item>
+    <item android:duration="50">
+        <rotate
+            android:drawable="@mipmap/ic_launcher_foreground"
+            android:fromDegrees="-2.0"
+            android:toDegrees="-2.0"
+            android:pivotX="50%"
+            android:pivotY="100%" />
+    </item>
+    <item android:duration="50">
+        <rotate
+            android:drawable="@mipmap/ic_launcher_foreground"
+            android:fromDegrees="-1.04"
+            android:toDegrees="-1.04"
+            android:pivotX="50%"
+            android:pivotY="100%" />
+    </item>
+</animation-list>
