@@ -45,6 +45,9 @@ class SettingsViewModel(
     private val _goBackOnInterrupt = MutableStateFlow(true)
     val goBackOnInterrupt: StateFlow<Boolean> = _goBackOnInterrupt.asStateFlow()
 
+    private val _hideEmptyLibraryTabs = MutableStateFlow(false)
+    val hideEmptyLibraryTabs: StateFlow<Boolean> = _hideEmptyLibraryTabs.asStateFlow()
+
     private val _syncIntervalHours = MutableStateFlow(24)
     val syncIntervalHours: StateFlow<Int> = _syncIntervalHours.asStateFlow()
 
@@ -73,6 +76,7 @@ class SettingsViewModel(
         _skipBackwardDuration.value = settingsRepository.getSkipBackwardDuration()
         _playbackSpeed.value = settingsRepository.getPlaybackSpeed()
         _goBackOnInterrupt.value = settingsRepository.getGoBackOnInterrupt()
+        _hideEmptyLibraryTabs.value = settingsRepository.getHideEmptyLibraryTabs()
         _syncIntervalHours.value = settingsRepository.getLibrarySyncIntervalHours()
         _lastSyncTimestamp.value = settingsRepository.getLibraryLastSyncTimestamp()
 
@@ -106,6 +110,11 @@ class SettingsViewModel(
     fun updateGoBackOnInterrupt(enabled: Boolean) {
         _goBackOnInterrupt.value = enabled
         settingsRepository.saveGoBackOnInterrupt(enabled)
+    }
+
+    fun updateHideEmptyLibraryTabs(enabled: Boolean) {
+        _hideEmptyLibraryTabs.value = enabled
+        settingsRepository.saveHideEmptyLibraryTabs(enabled)
     }
 
     fun updateSyncInterval(hours: Int) {

@@ -6,7 +6,7 @@ This document serves as the high-level and detailed specification for the **Sett
 
 ## 1. Feature Context & Constraints
 
-The Settings Screen is the central configuration panel for the application. It is accessible as a top-level destination from the main navigation bar/rail, as specified in [project_spec.md](file:///home/hansenji/src/abs-client-app/specs/project_spec.md).
+The Settings Screen is the central configuration panel for the application. It is accessible as a top-level destination from the main navigation bar/rail, as specified in [project_spec.md](../../../specs/project_spec.md).
 
 ### Key Responsibilities:
 1. **Account Management**: Display active connection details and provide secure session termination.
@@ -17,8 +17,8 @@ The Settings Screen is the central configuration panel for the application. It i
 ### Architectural Dependencies:
 - **Presentation**: `:feature:settings` (`SettingsScreen`, `SettingsViewModel`).
 - **Domain**: `:domain` (`LogoutUseCase`, `GetPreferencesUseCase`, `UpdatePreferencesUseCase`).
-- **Data/Preferences**: `:core:preferences` (`PreferencesManager`), storing state in `skald_prefs` and `secure_tokens.pb` as defined in [settings_spec.md](file:///home/hansenji/src/abs-client-app/core/preferences/specs/settings_spec.md).
-- **Authentication**: `:core:network` / `:feature:login` for credentials cleanup, complying with [auth_spec.md](file:///home/hansenji/src/abs-client-app/specs/auth_spec.md).
+- **Data/Preferences**: `:core:preferences` (`PreferencesManager`), storing state in `skald_prefs` and `secure_tokens.pb` as defined in [settings_spec.md](../../../core/preferences/specs/settings_spec.md).
+- **Authentication**: `:core:network` / `:feature:login` for credentials cleanup, complying with [auth_spec.md](../../../specs/auth_spec.md).
 
 ---
 
@@ -74,13 +74,13 @@ The UI is organized vertically into grouped categories using `Card` containers o
     - *Message*: "Are you sure you want to log out? Unsynced listening progress may be lost."
     - *Confirm*: "Log Out" (Destructive red)
     - *Dismiss*: "Cancel"
-  - **Logout Behavior**: Resolves `LogoutUseCase`. It clears access/refresh tokens in `secure_tokens.pb`, server configuration details, and cached sync ETags. Resets filters to defaults but preserves playback control durations (as specified in [auth_spec.md](file:///home/hansenji/src/abs-client-app/specs/auth_spec.md) and [settings_spec.md](file:///home/hansenji/src/abs-client-app/core/preferences/specs/settings_spec.md)).
+  - **Logout Behavior**: Resolves `LogoutUseCase`. It clears access/refresh tokens in `secure_tokens.pb`, server configuration details, and cached sync ETags. Resets filters to defaults but preserves playback control durations (as specified in [auth_spec.md](../../../specs/auth_spec.md) and [settings_spec.md](../../../core/preferences/specs/settings_spec.md)).
 
 ### B. Playback Preferences Section
 - **Skip Forward Duration**:
   - Key: `skip_forward_duration` (Default: `30` seconds)
   - Layout: Clicking displays a single-choice list dialog with options: `10s`, `15s`, `30s`, `45s`, `60s`.
-  - Impact: Directly alters the jump size of the skip-forward action in both the phone player UI and custom Android Auto actions, as detailed in [session_spec.md](file:///home/hansenji/src/abs-client-app/core/player/specs/session_spec.md).
+  - Impact: Directly alters the jump size of the skip-forward action in both the phone player UI and custom Android Auto actions, as detailed in [session_spec.md](../../../core/player/specs/session_spec.md).
 - **Skip Backward Duration**:
   - Key: `skip_backward_duration` (Default: `10` seconds)
   - Layout: Clicking displays a single-choice list dialog with options: `5s`, `10s`, `15s`, `30s`, `45s`, `60s`.
@@ -98,16 +98,20 @@ The UI is organized vertically into grouped categories using `Card` containers o
 - **Periodic Sync Interval**:
   - Key: `library_sync_interval_hours` (Default: `24` hours)
   - Layout: Dropdown or list dialog picker offering: `Disabled (0h)`, `1 hour`, `6 hours`, `12 hours`, `24 hours`, `48 hours`, `72 hours`.
-  - Behavior: Schedules or cancels background tasks (via Android `WorkManager` or internal alarms) to periodically query the library items and progress, as specified in [library_spec.md](file:///home/hansenji/src/abs-client-app/feature/library/specs/library_spec.md).
+  - Behavior: Schedules or cancels background tasks (via Android `WorkManager` or internal alarms) to periodically query and synchronize metadata across all library tabs (Books, Series, Collections, Authors, Playlists) and global progress, as specified in [library_spec.md](../../library/specs/library_spec.md).
 - **Last Synced Timestamp**:
   - Key: `library_last_sync_timestamp`
   - Layout: Plain status text showing the relative elapsed time since the last successful sync (e.g., "Last synced: 35 minutes ago" or "Never synced").
 - **Sync Now Button**:
   - Layout: Small filled or elevated button.
-  - Behavior: Bypasses ETag caching checks (omits `If-None-Match` header) to trigger an immediate full library pull and global progress synchronization (`GET /api/libraries/{id}/items` and `GET /api/me`), updating local tables. Disable button with a spinner during active syncing.
+  - Behavior: Bypasses ETag caching checks (omits `If-None-Match` header) to trigger an immediate full library synchronization for all tabs (fetching books, series, collections, authors, and playlists) and global progress synchronization (`GET /api/me`), updating local tables. Disable button with a spinner during active syncing.
+- **Hide Empty Tabs**:
+  - Key: `hide_empty_library_tabs` (Boolean, Default: `false`)
+  - Layout: An M3 `Switch` toggle item.
+  - Behavior: When enabled, library tabs (Series, Collections, Authors, Playlists) that contain 0 cached items after a successful sync are hidden from the library tab container. The Books tab is always visible.
 - **Storage Metrics & Clear Cache**:
-  - Displays the total size occupied by offline downloaded tracks (sum of files under `downloads/` directory) and cached database records.
-  - **Clear Cache Button**: Outlined button that deletes downloaded audiobook tracks, clears search indices, and wipes DB caches. Retains active login session credentials.
+  - Displays the total size occupied by offline downloaded tracks (sum of files under `downloads/` directory) and cached database records across all tabs.
+  - **Clear Cache Button**: Outlined button that deletes downloaded audiobook tracks, clears search indices, and wipes DB caches for all library categories (Books, Series, Collections, Authors, Playlists). Retains active login session credentials.
 
 ---
 
@@ -126,6 +130,7 @@ All configurations adjusted on this screen map directly to fields within the per
 | **Go Back on Interrupt** | `go_back_on_interrupt` | Boolean | `true` | `PreferencesManager.saveGoBackOnInterrupt()` (to be added) |
 | **Sync Interval** | `library_sync_interval_hours` | Integer | `24` | `PreferencesManager.saveLibrarySyncIntervalHours()` |
 | **Last Sync** | `library_last_sync_timestamp` | Long | `0L` | `PreferencesManager.getLibraryLastSyncTimestamp()` |
+| **Hide Empty Tabs** | `hide_empty_library_tabs` | Boolean | `false` | `PreferencesManager.saveHideEmptyLibraryTabs()` (to be added) |
 
 ---
 

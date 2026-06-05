@@ -38,6 +38,7 @@ fun SettingsScreen(
     val skipBackwardDuration by viewModel.skipBackwardDuration.collectAsState()
     val playbackSpeed by viewModel.playbackSpeed.collectAsState()
     val goBackOnInterrupt by viewModel.goBackOnInterrupt.collectAsState()
+    val hideEmptyLibraryTabs by viewModel.hideEmptyLibraryTabs.collectAsState()
     val syncIntervalHours by viewModel.syncIntervalHours.collectAsState()
     val lastSyncTimestamp by viewModel.lastSyncTimestamp.collectAsState()
 
@@ -304,6 +305,13 @@ fun SettingsScreen(
                         Text(text = stringResource(R.string.settings_clear_cache))
                     }
                 }
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+                SettingsToggleItem(
+                    title = stringResource(R.string.settings_hide_empty_tabs_label),
+                    subtitle = stringResource(R.string.settings_hide_empty_tabs_desc),
+                    checked = hideEmptyLibraryTabs,
+                    onCheckedChange = { viewModel.updateHideEmptyLibraryTabs(it) }
+                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))

@@ -96,6 +96,7 @@ class AudiobookshelfRemoteDataSourceImpl(
             val response = client.get("api/libraries/$libraryId/items") {
                 url.parameters.append("limit", limit.toString())
                 url.parameters.append("page", page.toString())
+                url.parameters.append("minified", "0")
                 if (!etag.isNullOrEmpty()) {
                     headers["If-None-Match"] = etag
                 }

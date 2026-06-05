@@ -36,8 +36,8 @@ Detail data flows through these layers:
    - A force refresh must bypass the `lastDetailFetchTimestamp` 24-hour cache threshold and bypass the ETag-based conditional check (omit the `If-None-Match` header), ensuring a full refresh from the server and updating the local database cache.
 6. **Detail Sync Strategy**:
    - Fetch the full book response including `audioFiles` and `chapters` arrays.
-   - Merge with existing local entity: preserve `coverPath` and per-file `localPath` / `downloadStatus` from previously downloaded files.
-   - Compute `duration` by summing all audio file durations.
+   - Merge with existing local entity: update basic metadata (title, author, description, duration) if different, and preserve `coverPath` and per-file `localPath` / `downloadStatus` from previously downloaded files.
+   - Compute `duration` from the detail response (or by summing all audio file durations) and store it.
    - Update `etag` and `lastDetailFetchTimestamp`.
    - Insert the updated `BookEntity` to the local database.
 7. **Server Progress Fetch**: After storing the book entity, fetch the server-side playback progress via `GET /api/me/progress/{bookId}`.

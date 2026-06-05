@@ -27,6 +27,10 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+enum class LibraryTab {
+    BOOKS, SERIES, COLLECTIONS, AUTHORS, PLAYLISTS
+}
+
 data class PlaybackProgressUiModel(
     val progress: Float,
     val isFinished: Boolean,
@@ -83,6 +87,33 @@ class LibraryViewModel(
     } ?: SortOption.TITLE_ASC
 
     private val initialDownloadedOnly = settingsRepository.getDownloadedOnlyFilter()
+
+    val currentTab = MutableStateFlow(LibraryTab.BOOKS)
+
+    val hideEmptyTabsFlow: StateFlow<Boolean> = settingsRepository.observeHideEmptyLibraryTabs()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = settingsRepository.getHideEmptyLibraryTabs()
+        )
+
+    val visibleTabs: StateFlow<List<LibraryTab>> = hideEmptyTabsFlow
+        .map { hideEmpty ->
+            if (hideEmpty) {
+                listOf(LibraryTab.BOOKS)
+            } else {
+                LibraryTab.entries
+            }
+        }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = if (settingsRepository.getHideEmptyLibraryTabs()) {
+                listOf(LibraryTab.BOOKS)
+            } else {
+                LibraryTab.entries.toList()
+            }
+        )
 
     val selectedLibraryId = MutableStateFlow(settingsRepository.getLibraryId() ?: "")
     val searchQuery = MutableStateFlow("")
@@ -155,6 +186,13 @@ class LibraryViewModel(
                 LibraryUiModel(it.id, it.name)
             }
         }
+        viewModelScope.launch {
+            visibleTabs.collect { tabs ->
+                if (currentTab.value !in tabs) {
+                    currentTab.value = LibraryTab.BOOKS
+                }
+            }
+        }
         fetchLibrariesList()
         checkAndPeriodicSync()
     }
@@ -166,6 +204,10 @@ class LibraryViewModel(
         
         // Trigger full book list sync for newly selected library
         refresh()
+    }
+
+    fun setCurrentTab(tab: LibraryTab) {
+        currentTab.value = tab
     }
 
     fun setFilterStatus(status: ReadStatusFilter) {

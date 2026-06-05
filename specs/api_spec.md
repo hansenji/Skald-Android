@@ -140,7 +140,7 @@ Retrieves the collections of media (audiobooks or podcasts) configured on the se
 Retrieves books or podcasts in a specified library.
 
 *   **Endpoint**: `GET /api/libraries/{libraryId}/items`
-*   **Our Parameters**: `limit` (Int), `page` (Int)
+*   **Our Parameters**: `limit` (Int), `page` (Int), `minified` (Int) [defaults to `1` on server, set to `0` to request enhanced/non-minified metadata]
 *   **Reference Parameters**: `limit` (Int), `minified` (Boolean/Int), `filter` (String), `sort` (String), `collapseseries` (Int)
 
 #### Headers
@@ -168,7 +168,8 @@ Retrieves books or podcasts in a specified library.
           "authors": [{ "id": "author_id", "name": "Author Name" }],
           "narrators": ["Narrator Name"],
           "genres": ["Fiction"],
-          "publishedYear": "2026"
+          "publishedYear": "2026",
+          "description": "Detailed book description, returned when minified=0..."
         },
         "numChapters": 12,
         "duration": 3600.0,

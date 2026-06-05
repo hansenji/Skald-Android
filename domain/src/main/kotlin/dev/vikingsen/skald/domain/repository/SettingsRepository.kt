@@ -1,6 +1,7 @@
 package dev.vikingsen.skald.domain.repository
 
 import dev.vikingsen.skald.core.model.Library
+import kotlinx.coroutines.flow.Flow
 
 interface SettingsRepository {
     fun getServerUrl(): String?
@@ -34,4 +35,7 @@ interface SettingsRepository {
     fun saveLibraryETag(libraryId: String, etag: String)
     suspend fun getCachedLibraries(): List<Library>
     suspend fun saveCachedLibraries(libraries: List<Library>)
+    fun getHideEmptyLibraryTabs(): Boolean
+    fun saveHideEmptyLibraryTabs(enabled: Boolean)
+    fun observeHideEmptyLibraryTabs(): Flow<Boolean>
 }

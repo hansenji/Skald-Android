@@ -58,6 +58,9 @@ class PreferencesManager(context: Context) {
     private val _isLoggedIn = MutableStateFlow(isLoggedIn())
     val isLoggedInFlow: StateFlow<Boolean> = _isLoggedIn.asStateFlow()
 
+    private val _hideEmptyLibraryTabs = MutableStateFlow(getHideEmptyLibraryTabs())
+    val hideEmptyLibraryTabs: StateFlow<Boolean> = _hideEmptyLibraryTabs.asStateFlow()
+
     suspend fun saveConnectionDetails(url: String, user: String, token: String, refreshToken: String? = null, userId: String? = null) {
         val sanitizedUrl = if (url.endsWith("/")) url.substring(0, url.length - 1) else url
         prefs.edit().apply {
@@ -126,6 +129,7 @@ class PreferencesManager(context: Context) {
         _serverUrl.value = null
         _username.value = null
         _isLoggedIn.value = false
+        _hideEmptyLibraryTabs.value = false
     }
 
     fun getSkipForwardDuration(): Int = prefs.getInt("skip_forward_duration", 30)
@@ -173,5 +177,11 @@ class PreferencesManager(context: Context) {
     fun getUserETag(): String? = prefs.getString("etag_user", null)
     fun saveUserETag(etag: String) {
         prefs.edit().putString("etag_user", etag).apply()
+    }
+
+    fun getHideEmptyLibraryTabs(): Boolean = prefs.getBoolean("hide_empty_library_tabs", false)
+    fun saveHideEmptyLibraryTabs(enabled: Boolean) {
+        prefs.edit().putBoolean("hide_empty_library_tabs", enabled).apply()
+        _hideEmptyLibraryTabs.value = enabled
     }
 }

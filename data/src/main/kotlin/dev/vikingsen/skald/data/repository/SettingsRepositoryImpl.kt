@@ -6,6 +6,7 @@ import dev.vikingsen.skald.core.model.Library
 import dev.vikingsen.skald.core.database.AppDatabaseProvider
 import dev.vikingsen.skald.data.mapper.toDomain
 import dev.vikingsen.skald.data.mapper.toEntity
+import kotlinx.coroutines.flow.Flow
 
 class SettingsRepositoryImpl(
     private val preferencesManager: PreferencesManager,
@@ -104,4 +105,12 @@ class SettingsRepositoryImpl(
     override suspend fun saveCachedLibraries(libraries: List<Library>) {
         libraryDao.insertAll(libraries.map { it.toEntity() })
     }
+
+    override fun getHideEmptyLibraryTabs(): Boolean = preferencesManager.getHideEmptyLibraryTabs()
+
+    override fun saveHideEmptyLibraryTabs(enabled: Boolean) {
+        preferencesManager.saveHideEmptyLibraryTabs(enabled)
+    }
+
+    override fun observeHideEmptyLibraryTabs(): Flow<Boolean> = preferencesManager.hideEmptyLibraryTabs
 }
