@@ -40,7 +40,19 @@ data class BookEntity(
     val audioFiles: List<LocalAudioFile>,
     val chapters: List<LocalChapter>,
     val etag: String? = null,
-    val lastDetailFetchTimestamp: Long = 0L
+    val lastDetailFetchTimestamp: Long = 0L,
+    val seriesId: String? = null,
+    val seriesSequence: String? = null
+)
+
+@Entity(tableName = "series")
+data class SeriesEntity(
+    @PrimaryKey val id: String,
+    val libraryId: String,
+    val name: String,
+    val description: String?,
+    val bookCount: Int,
+    val etag: String? = null
 )
 
 @Entity(tableName = "playback_progress")

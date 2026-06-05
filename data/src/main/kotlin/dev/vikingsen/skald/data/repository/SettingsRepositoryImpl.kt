@@ -98,6 +98,24 @@ class SettingsRepositoryImpl(
         preferencesManager.saveLibraryETag(libraryId, etag)
     }
 
+    override fun getLibrarySeriesETag(libraryId: String): String? = preferencesManager.getLibrarySeriesETag(libraryId)
+
+    override fun saveLibrarySeriesETag(libraryId: String, etag: String) {
+        preferencesManager.saveLibrarySeriesETag(libraryId, etag)
+    }
+
+    override fun getSeriesFilter(): String? = preferencesManager.getSeriesFilter()
+
+    override fun saveSeriesFilter(filter: String) {
+        preferencesManager.saveSeriesFilter(filter)
+    }
+
+    override fun getSeriesSortOption(): String? = preferencesManager.getSeriesSortOption()
+
+    override fun saveSeriesSortOption(sort: String) {
+        preferencesManager.saveSeriesSortOption(sort)
+    }
+
     override suspend fun getCachedLibraries(): List<Library> {
         return libraryDao.getAllLibraries().map { it.toDomain() }
     }

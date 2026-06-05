@@ -6,5 +6,7 @@ import org.koin.plugin.module.dsl.viewModel
 val featureLibraryModule = module {
     viewModel<LibraryViewModel>()
     viewModel<DetailViewModel>()
+    viewModel<SeriesDetailViewModel>()
 }
+
 

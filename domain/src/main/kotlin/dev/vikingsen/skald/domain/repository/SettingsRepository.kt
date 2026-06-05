@@ -33,6 +33,12 @@ interface SettingsRepository {
     fun saveLibraryLastSyncTimestamp(timestamp: Long)
     fun getLibraryETag(libraryId: String): String?
     fun saveLibraryETag(libraryId: String, etag: String)
+    fun getLibrarySeriesETag(libraryId: String): String?
+    fun saveLibrarySeriesETag(libraryId: String, etag: String)
+    fun getSeriesFilter(): String?
+    fun saveSeriesFilter(filter: String)
+    fun getSeriesSortOption(): String?
+    fun saveSeriesSortOption(sort: String)
     suspend fun getCachedLibraries(): List<Library>
     suspend fun saveCachedLibraries(libraries: List<Library>)
     fun getHideEmptyLibraryTabs(): Boolean

@@ -48,6 +48,7 @@ interface AudiobookshelfRemoteDataSource {
     suspend fun syncPlaybackProgress(sessionId: String, timeListened: Double, currentTime: Double)
     suspend fun syncStaticProgress(bookId: String, currentTime: Double, progress: Float, isFinished: Boolean)
     suspend fun fetchCurrentUserProgress(etag: String? = null): NetworkResult<UserProgressResponse>
+    suspend fun fetchLibrarySeries(libraryId: String, etag: String? = null): NetworkResult<SeriesListResponse>
     fun downloadFile(bookId: String, ino: String, destinationFile: File, totalBytes: Long): Flow<Float>
 }
 
@@ -228,6 +229,33 @@ class AudiobookshelfRemoteDataSourceImpl(
                 NetworkResult.Error("Failed to fetch user progress: Status ${response.status.value}")
             } else {
                 val data = response.body<UserProgressResponse>()
+                val responseEtag = response.headers["ETag"]
+                NetworkResult.Success(data, responseEtag)
+            }
+        }.getOrElse {
+            NetworkResult.Error(it.message ?: "Unknown error")
+        }
+    }
+
+    override suspend fun fetchLibrarySeries(
+        libraryId: String,
+        etag: String?
+    ): NetworkResult<SeriesListResponse> = withContext(Dispatchers.IO) {
+        runCatching {
+            val response = client.get("api/libraries/$libraryId/series") {
+                url.parameters.append("limit", "10000")
+                url.parameters.append("minified", "1")
+                url.parameters.append("sort", "name")
+                if (!etag.isNullOrEmpty()) {
+                    headers["If-None-Match"] = etag
+                }
+            }
+            if (response.status.value == 304) {
+                NetworkResult.NotModified
+            } else if (response.status.value >= 400) {
+                NetworkResult.Error("Failed to fetch library series: Status ${response.status.value}")
+            } else {
+                val data = response.body<SeriesListResponse>()
                 val responseEtag = response.headers["ETag"]
                 NetworkResult.Success(data, responseEtag)
             }

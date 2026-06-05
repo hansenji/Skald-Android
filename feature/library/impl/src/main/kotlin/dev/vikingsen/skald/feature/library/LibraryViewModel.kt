@@ -8,13 +8,18 @@ import androidx.paging.map
 import dev.vikingsen.skald.core.model.Library
 import dev.vikingsen.skald.core.model.ReadStatusFilter
 import dev.vikingsen.skald.core.model.SortOption
+import dev.vikingsen.skald.core.model.SeriesFilter
+import dev.vikingsen.skald.core.model.SeriesSortOption
 import dev.vikingsen.skald.domain.repository.SettingsRepository
+import dev.vikingsen.skald.domain.repository.AudiobookshelfRepository
 import dev.vikingsen.skald.domain.usecase.FetchLibrariesUseCase
 import dev.vikingsen.skald.domain.usecase.GetBooksUseCase
 import dev.vikingsen.skald.domain.usecase.LogoutUseCase
 import dev.vikingsen.skald.domain.usecase.SyncLibraryBooksUseCase
 import dev.vikingsen.skald.domain.usecase.GetMiniPlayerStateUseCase
 import dev.vikingsen.skald.domain.usecase.SyncGlobalProgressUseCase
+import dev.vikingsen.skald.domain.usecase.GetSeriesUseCase
+import dev.vikingsen.skald.domain.usecase.SyncLibrarySeriesUseCase
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,12 +52,25 @@ data class BookCardUiModel(
     val authorizationHeader: String?,
     val isDownloaded: Boolean,
     val duration: Double,
-    val progress: PlaybackProgressUiModel?
+    val progress: PlaybackProgressUiModel?,
+    val seriesSequence: String? = null
 )
 
 data class LibraryUiModel(
     val id: String,
     val name: String
+)
+
+data class SeriesCardUiModel(
+    val id: String,
+    val name: String,
+    val bookCount: Int,
+    val readBookCount: Int,
+    val progress: Float,
+    val covers: List<String>,
+    val authorizationHeader: String?,
+    val lastPlayed: Long,
+    val inProgress: Boolean
 )
 
 private data class CombinedParams(
@@ -67,6 +85,9 @@ private data class CombinedParams(
 class LibraryViewModel(
     private val getBooksUseCase: GetBooksUseCase,
     private val syncLibraryBooksUseCase: SyncLibraryBooksUseCase,
+    private val getSeriesUseCase: GetSeriesUseCase,
+    private val syncLibrarySeriesUseCase: SyncLibrarySeriesUseCase,
+    private val repository: AudiobookshelfRepository,
     private val fetchLibrariesUseCase: FetchLibrariesUseCase,
     private val logoutUseCase: LogoutUseCase,
     private val settingsRepository: SettingsRepository,
@@ -88,6 +109,12 @@ class LibraryViewModel(
 
     private val initialDownloadedOnly = settingsRepository.getDownloadedOnlyFilter()
 
+    val selectedLibraryId = MutableStateFlow(settingsRepository.getLibraryId() ?: "")
+    val searchQuery = MutableStateFlow("")
+    val filterStatus = MutableStateFlow(initialFilterStatus)
+    val filterDownloadedOnly = MutableStateFlow(initialDownloadedOnly)
+    val sortBy = MutableStateFlow(initialSortOption)
+
     val currentTab = MutableStateFlow(LibraryTab.BOOKS)
 
     val hideEmptyTabsFlow: StateFlow<Boolean> = settingsRepository.observeHideEmptyLibraryTabs()
@@ -97,29 +124,123 @@ class LibraryViewModel(
             initialValue = settingsRepository.getHideEmptyLibraryTabs()
         )
 
-    val visibleTabs: StateFlow<List<LibraryTab>> = hideEmptyTabsFlow
-        .map { hideEmpty ->
-            if (hideEmpty) {
-                listOf(LibraryTab.BOOKS)
+    val visibleTabs: StateFlow<List<LibraryTab>> = combine(
+        hideEmptyTabsFlow,
+        selectedLibraryId.flatMapLatest { libraryId ->
+            if (libraryId.isEmpty()) flowOf(0)
+            else repository.getSeriesFlow(libraryId).map { it.size }
+        }
+    ) { hideEmpty, seriesCount ->
+        if (hideEmpty) {
+            val tabs = mutableListOf(LibraryTab.BOOKS)
+            if (seriesCount > 0) {
+                tabs.add(LibraryTab.SERIES)
+            }
+            tabs
+        } else {
+            LibraryTab.entries.toList()
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = if (settingsRepository.getHideEmptyLibraryTabs()) {
+            listOf(LibraryTab.BOOKS)
+        } else {
+            LibraryTab.entries.toList()
+        }
+    )
+
+    val seriesFilter = MutableStateFlow(
+        settingsRepository.getSeriesFilter()?.let {
+            runCatching { SeriesFilter.valueOf(it) }.getOrNull()
+        } ?: SeriesFilter.ALL
+    )
+    val seriesSort = MutableStateFlow(
+        settingsRepository.getSeriesSortOption()?.let {
+            runCatching { SeriesSortOption.valueOf(it) }.getOrNull()
+        } ?: SeriesSortOption.NAME_ASC
+    )
+
+    fun setSeriesFilter(filter: SeriesFilter) {
+        seriesFilter.value = filter
+        settingsRepository.saveSeriesFilter(filter.name)
+    }
+
+    fun setSeriesSort(sort: SeriesSortOption) {
+        seriesSort.value = sort
+        settingsRepository.saveSeriesSortOption(sort.name)
+    }
+
+    val series: Flow<List<SeriesCardUiModel>> = selectedLibraryId
+        .flatMapLatest { libraryId ->
+            if (libraryId.isEmpty()) {
+                flowOf(emptyList())
             } else {
-                LibraryTab.entries
+                combine(
+                    getSeriesUseCase(libraryId),
+                    repository.getBooksWithProgressForLibraryFlow(libraryId),
+                    searchQuery,
+                    seriesFilter,
+                    seriesSort
+                ) { seriesList, booksList, query, filter, sort ->
+                    val booksBySeries = booksList.groupBy { it.book.seriesId }
+                    val serverUrl = settingsRepository.getServerUrl() ?: ""
+                    val token = settingsRepository.getToken() ?: ""
+                    val authHeader = "Bearer $token"
+
+                    seriesList
+                        .map { series ->
+                            val seriesBooks = booksBySeries[series.id] ?: emptyList()
+                            val readBookCount = seriesBooks.count { it.progress?.isFinished == true || (it.progress?.progress ?: 0f) >= 0.99f }
+                            val inProgressBookCount = seriesBooks.count { (it.progress?.progress ?: 0f) > 0f && it.progress?.isFinished != true }
+                            val lastPlayed = seriesBooks.mapNotNull { it.progress?.lastUpdated }.maxOrNull() ?: 0L
+
+                            // collage covers
+                            val covers = seriesBooks
+                                .sortedBy { it.book.seriesSequence.toSequenceNumber() }
+                                .take(3)
+                                .map { bookWithProgress ->
+                                    val book = bookWithProgress.book
+                                    if (!book.coverPath.isNullOrEmpty()) book.coverPath!!
+                                    else "${serverUrl.trimEnd('/')}/api/items/${book.id}/cover"
+                                }
+
+                            val progress = if (series.bookCount > 0) readBookCount.toFloat() / series.bookCount else 0f
+
+                            SeriesCardUiModel(
+                                id = series.id,
+                                name = series.name,
+                                bookCount = series.bookCount,
+                                readBookCount = readBookCount,
+                                progress = progress,
+                                covers = covers,
+                                authorizationHeader = authHeader,
+                                lastPlayed = lastPlayed,
+                                inProgress = inProgressBookCount > 0 || (readBookCount > 0 && readBookCount < series.bookCount)
+                            )
+                        }
+                        .filter { item ->
+                            if (query.isNotEmpty() && !item.name.contains(query, ignoreCase = true)) {
+                                false
+                            } else {
+                                when (filter) {
+                                    SeriesFilter.ALL -> true
+                                    SeriesFilter.IN_PROGRESS -> item.inProgress
+                                    SeriesFilter.COMPLETED -> item.readBookCount == item.bookCount && item.bookCount > 0
+                                }
+                            }
+                        }
+                        .sortedWith { a, b ->
+                            when (sort) {
+                                SeriesSortOption.NAME_ASC -> a.name.compareTo(b.name, ignoreCase = true)
+                                SeriesSortOption.NAME_DESC -> b.name.compareTo(a.name, ignoreCase = true)
+                                SeriesSortOption.BOOKS_COUNT_DESC -> b.bookCount.compareTo(a.bookCount)
+                                SeriesSortOption.RECENTLY_UPDATED -> b.lastPlayed.compareTo(a.lastPlayed)
+                            }
+                        }
+                }
             }
         }
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = if (settingsRepository.getHideEmptyLibraryTabs()) {
-                listOf(LibraryTab.BOOKS)
-            } else {
-                LibraryTab.entries.toList()
-            }
-        )
-
-    val selectedLibraryId = MutableStateFlow(settingsRepository.getLibraryId() ?: "")
-    val searchQuery = MutableStateFlow("")
-    val filterStatus = MutableStateFlow(initialFilterStatus)
-    val filterDownloadedOnly = MutableStateFlow(initialDownloadedOnly)
-    val sortBy = MutableStateFlow(initialSortOption)
 
     val libraries = MutableStateFlow<List<LibraryUiModel>>(emptyList())
     val syncIntervalHours = MutableStateFlow(settingsRepository.getLibrarySyncIntervalHours())
@@ -170,7 +291,8 @@ class LibraryViewModel(
                                 currentTime = it.currentTime,
                                 lastUpdated = it.lastUpdated
                             )
-                        }
+                        },
+                        seriesSequence = book.seriesSequence
                     )
                 }
             }.cachedIn(viewModelScope)
@@ -246,11 +368,13 @@ class LibraryViewModel(
                 libraries.value = libsResult.getOrThrow().map { LibraryUiModel(it.id, it.name) }
             }
             
-            // Sync books
+            // Sync books & series
             val result = syncLibraryBooksUseCase(libraryId, forceRefresh)
+            val seriesResult = syncLibrarySeriesUseCase(libraryId, forceRefresh)
             val progressResult = syncGlobalProgressUseCase(forceRefresh)
-            if (result.isFailure || progressResult.isFailure) {
+            if (result.isFailure || seriesResult.isFailure || progressResult.isFailure) {
                 error.value = result.exceptionOrNull()?.message 
+                    ?: seriesResult.exceptionOrNull()?.message
                     ?: progressResult.exceptionOrNull()?.message 
                     ?: "Failed to sync library"
             }
@@ -291,9 +415,11 @@ class LibraryViewModel(
                     isRefreshing.value = true
                     error.value = null
                     val result = syncLibraryBooksUseCase(libraryId)
+                    val seriesResult = syncLibrarySeriesUseCase(libraryId)
                     val progressResult = syncGlobalProgressUseCase()
-                    if (result.isFailure || progressResult.isFailure) {
+                    if (result.isFailure || seriesResult.isFailure || progressResult.isFailure) {
                         error.value = result.exceptionOrNull()?.message 
+                            ?: seriesResult.exceptionOrNull()?.message
                             ?: progressResult.exceptionOrNull()?.message 
                             ?: "Failed to sync library"
                     }
@@ -301,6 +427,12 @@ class LibraryViewModel(
                 }
             }
         }
+    }
+
+    private fun String?.toSequenceNumber(): Double {
+        if (this == null) return Double.MAX_VALUE
+        val cleaned = this.trim().takeWhile { it.isDigit() || it == '.' }
+        return cleaned.toDoubleOrNull() ?: Double.MAX_VALUE
     }
 
     fun logout(onComplete: () -> Unit) {

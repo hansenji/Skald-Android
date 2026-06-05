@@ -13,5 +13,7 @@ data class Book(
     val audioFiles: List<AudioFile>,
     val chapters: List<Chapter>,
     val etag: String? = null,
-    val lastDetailFetchTimestamp: Long = 0L
+    val lastDetailFetchTimestamp: Long = 0L,
+    val seriesId: String? = null,
+    val seriesSequence: String? = null
 )

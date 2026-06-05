@@ -16,6 +16,8 @@ import dev.vikingsen.skald.core.model.DownloadStatusState
 import dev.vikingsen.skald.core.model.Library
 import dev.vikingsen.skald.core.model.LoggedUser
 import dev.vikingsen.skald.core.model.PlaybackProgress
+import dev.vikingsen.skald.core.database.SeriesEntity
+import dev.vikingsen.skald.core.model.Series
 import dev.vikingsen.skald.domain.repository.AudiobookshelfRepository
 import android.app.DownloadManager
 import android.net.Uri
@@ -178,6 +180,10 @@ class AudiobookshelfRepositoryImpl(
                     ?: item.media.metadata.narrators?.joinToString(", ")
                     ?: existing?.narrator
                     ?: "Unknown Narrator"
+                val seriesInfo = item.media.metadata.series?.firstOrNull()
+                val seriesId = seriesInfo?.id
+                val seriesSequence = seriesInfo?.sequence
+
                 BookEntity(
                     id = item.id,
                     libraryId = libraryId,
@@ -191,7 +197,9 @@ class AudiobookshelfRepositoryImpl(
                     audioFiles = existing?.audioFiles ?: emptyList(),
                     chapters = existing?.chapters ?: emptyList(),
                     etag = existing?.etag,
-                    lastDetailFetchTimestamp = existing?.lastDetailFetchTimestamp ?: 0L
+                    lastDetailFetchTimestamp = existing?.lastDetailFetchTimestamp ?: 0L,
+                    seriesId = seriesId ?: existing?.seriesId,
+                    seriesSequence = seriesSequence ?: existing?.seriesSequence
                 )
             }
             bookDao.insertAll(books)
@@ -249,6 +257,10 @@ class AudiobookshelfRepositoryImpl(
                         ?: detailResponse.media.metadata.narrators?.joinToString(", ")
                         ?: existing?.narrator
                         ?: "Unknown Narrator"
+                    val seriesInfo = detailResponse.media.metadata.series?.firstOrNull()
+                    val seriesId = seriesInfo?.id
+                    val seriesSequence = seriesInfo?.sequence
+
                     BookEntity(
                         id = detailResponse.id,
                         libraryId = existing?.libraryId ?: preferencesManager.getLibraryId() ?: "",
@@ -280,7 +292,9 @@ class AudiobookshelfRepositoryImpl(
                             )
                         } ?: emptyList(),
                         etag = newEtag,
-                        lastDetailFetchTimestamp = now
+                        lastDetailFetchTimestamp = now,
+                        seriesId = seriesId ?: existing?.seriesId,
+                        seriesSequence = seriesSequence ?: existing?.seriesSequence
                     )
                 }
             }
@@ -862,5 +876,69 @@ class AudiobookshelfRepositoryImpl(
         }
         
         return SimpleSQLiteQuery(sql.toString(), bindArgs.toArray())
+    }
+
+    override suspend fun syncLibrarySeries(libraryId: String, forceRefresh: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val storedEtag = if (forceRefresh) null else preferencesManager.getLibrarySeriesETag(libraryId)
+            val result = remoteDataSource.fetchLibrarySeries(libraryId, storedEtag)
+            
+            when (result) {
+                is NetworkResult.NotModified -> return@runCatching
+                is NetworkResult.Error -> throw Exception(result.message)
+                is NetworkResult.Success -> {
+                    val newEtag = result.etag
+                    if (!newEtag.isNullOrEmpty()) {
+                        preferencesManager.saveLibrarySeriesETag(libraryId, newEtag)
+                    }
+                    
+                    val seriesResponseList = result.data.results
+                    val entities = seriesResponseList.map {
+                        SeriesEntity(
+                            id = it.id,
+                            libraryId = libraryId,
+                            name = it.name,
+                            description = it.description,
+                            bookCount = it.books?.size ?: 0,
+                            etag = newEtag
+                        )
+                    }
+                    
+                    // Update book items relation
+                    seriesResponseList.forEach { seriesItem ->
+                        seriesItem.books?.forEach { bookItem ->
+                            val existing = bookDao.getBookById(bookItem.id)
+                            val sequence = bookItem.media.metadata.series?.firstOrNull { it.id == seriesItem.id }?.sequence
+                            if (existing != null) {
+                                if (existing.seriesId != seriesItem.id || existing.seriesSequence != sequence) {
+                                    bookDao.insertBook(existing.copy(
+                                        seriesId = seriesItem.id,
+                                        seriesSequence = sequence
+                                    ))
+                                }
+                            }
+                        }
+                    }
+                    
+                    db.seriesDao().replaceSeriesForLibrary(libraryId, entities)
+                }
+            }
+        }
+    }
+
+    override fun getSeriesFlow(libraryId: String): Flow<List<Series>> {
+        return db.seriesDao().getSeriesFlow(libraryId).map { list -> list.map { it.toDomain() } }
+    }
+
+    override suspend fun getSeriesById(seriesId: String): Series? {
+        return db.seriesDao().getSeriesById(seriesId)?.toDomain()
+    }
+
+    override fun getBooksForSeriesFlow(seriesId: String): Flow<List<BookWithProgress>> {
+        return bookDao.getBooksForSeriesWithProgressFlow(seriesId).map { list -> list.map { it.toDomain() } }
+    }
+
+    override fun getBooksWithProgressForLibraryFlow(libraryId: String): Flow<List<BookWithProgress>> {
+        return bookDao.getBooksWithProgressForLibraryFlow(libraryId).map { list -> list.map { it.toDomain() } }
     }
 }

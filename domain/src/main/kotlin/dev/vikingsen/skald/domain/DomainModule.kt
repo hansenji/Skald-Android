@@ -21,5 +21,8 @@ val domainModule = module {
     single<GetPersonalizedShelvesUseCase>()
     single<SyncPersonalizedShelvesUseCase>()
     single<SyncGlobalProgressUseCase>()
+    single<GetSeriesUseCase>()
+    single<SyncLibrarySeriesUseCase>()
+    single<GetSeriesDetailsUseCase>()
 }
 

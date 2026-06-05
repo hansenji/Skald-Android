@@ -153,13 +153,21 @@ data class LibraryItemMedia(
 )
 
 @Serializable
+data class NetworkSeriesType(
+    val id: String,
+    val name: String,
+    val sequence: String? = null
+)
+
+@Serializable
 data class LibraryItemMetadata(
     val title: String? = null,
     val authorName: String? = null,
     val narratorName: String? = null,
     val seriesName: String? = null,
     val authors: List<BookAuthorResponse>? = null,
-    val narrators: List<String>? = null
+    val narrators: List<String>? = null,
+    val series: List<NetworkSeriesType>? = null
 )
 
 @Serializable
@@ -191,7 +199,8 @@ data class BookMetadata(
     val narrators: List<String>? = null,
     val description: String? = null,
     val publishedYear: String? = null,
-    val publisher: String? = null
+    val publisher: String? = null,
+    val series: List<NetworkSeriesType>? = null
 )
 
 @Serializable
@@ -271,4 +280,21 @@ data class NetworkMediaProgress(
     val lastUpdate: Long,
     val startedAt: Long? = null,
     val finishedAt: Long? = null
+)
+
+@Serializable
+data class SeriesListResponse(
+    val results: List<NetworkSeriesItemResponse>,
+    val total: Int = 0
+)
+
+@Serializable
+data class NetworkSeriesItemResponse(
+    val id: String,
+    val libraryId: String = "",
+    val name: String,
+    val description: String? = null,
+    val addedAt: Long = 0L,
+    val updatedAt: Long = 0L,
+    val books: List<LibraryItem>? = null
 )

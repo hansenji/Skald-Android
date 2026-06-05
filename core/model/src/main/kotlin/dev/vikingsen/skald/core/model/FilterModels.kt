@@ -16,3 +16,16 @@ enum class SortOption {
     DURATION_DESC,
     LAST_PLAYED
 }
+
+enum class SeriesFilter {
+    ALL,
+    IN_PROGRESS,
+    COMPLETED
+}
+
+enum class SeriesSortOption {
+    NAME_ASC,
+    NAME_DESC,
+    BOOKS_COUNT_DESC,
+    RECENTLY_UPDATED
+}

@@ -42,6 +42,8 @@ import androidx.paging.compose.itemContentType
 import androidx.paging.compose.itemKey
 import dev.vikingsen.skald.core.model.ReadStatusFilter
 import dev.vikingsen.skald.core.model.SortOption
+import dev.vikingsen.skald.core.model.SeriesFilter
+import dev.vikingsen.skald.core.model.SeriesSortOption
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Person
@@ -51,6 +53,7 @@ import androidx.compose.material.icons.filled.MusicNote
 @Composable
 fun LibraryScreen(
     onBookClick: (String) -> Unit,
+    onSeriesClick: (String) -> Unit,
     viewModel: LibraryViewModel = koinViewModel()
 ) {
     val lazyBookCards = viewModel.books.collectAsLazyPagingItems()
@@ -482,6 +485,12 @@ fun LibraryScreen(
                         }
                     }
                 }
+                LibraryTab.SERIES -> {
+                    SeriesTabContent(
+                        onSeriesClick = onSeriesClick,
+                        viewModel = viewModel
+                    )
+                }
                 else -> {
                     NorseStubTabContent(tab = currentTab)
                 }
@@ -489,6 +498,379 @@ fun LibraryScreen(
         }
     }
 }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SeriesTabContent(
+    onSeriesClick: (String) -> Unit,
+    viewModel: LibraryViewModel
+) {
+    val seriesList by viewModel.series.collectAsState(initial = emptyList())
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val filter by viewModel.seriesFilter.collectAsState()
+    val sort by viewModel.seriesSort.collectAsState()
+    val showMiniPlayer by viewModel.showMiniPlayer.collectAsState()
+
+    var statusMenuExpanded by remember { mutableStateOf(false) }
+    var sortMenuExpanded by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Search Bar
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { viewModel.searchQuery.value = it },
+            placeholder = { Text("Search series by name...") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = Color(0x33FFFFFF)
+            )
+        )
+
+        // Filter & Sort Row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box {
+                    FilterChip(
+                        selected = filter != SeriesFilter.ALL,
+                        onClick = { statusMenuExpanded = true },
+                        label = {
+                            Text(
+                                text = when (filter) {
+                                    SeriesFilter.ALL -> "All Series"
+                                    SeriesFilter.IN_PROGRESS -> "In Progress"
+                                    SeriesFilter.COMPLETED -> "Completed"
+                                },
+                                fontSize = 12.sp
+                            )
+                        },
+                        trailingIcon = {
+                            Icon(
+                                imageVector = Icons.Default.ArrowDropDown,
+                                contentDescription = "Select status filter",
+                                modifier = Modifier.size(18.dp)
+                            )
+                        },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer,
+                            selectedLabelColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            containerColor = Color.Transparent,
+                            labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        border = FilterChipDefaults.filterChipBorder(
+                            enabled = true,
+                            selected = filter != SeriesFilter.ALL,
+                            borderColor = Color(0x33FFFFFF),
+                            selectedBorderColor = MaterialTheme.colorScheme.primary
+                        )
+                    )
+
+                    DropdownMenu(
+                        expanded = statusMenuExpanded,
+                        onDismissRequest = { statusMenuExpanded = false },
+                        modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                    ) {
+                        SeriesFilter.entries.forEach { statusFilter ->
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = when (statusFilter) {
+                                            SeriesFilter.ALL -> "All Series"
+                                            SeriesFilter.IN_PROGRESS -> "In Progress"
+                                            SeriesFilter.COMPLETED -> "Completed"
+                                        }
+                                    )
+                                },
+                                onClick = {
+                                    viewModel.setSeriesFilter(statusFilter)
+                                    statusMenuExpanded = false
+                                },
+                                trailingIcon = if (filter == statusFilter) {
+                                    { Icon(Icons.Default.Check, contentDescription = null) }
+                                } else null
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Sort Dropdown Button
+            Box {
+                IconButton(
+                    onClick = { sortMenuExpanded = true },
+                    modifier = Modifier
+                        .background(Color(0x1AFFFFFF), RoundedCornerShape(12.dp))
+                        .size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Sort,
+                        contentDescription = "Sort Series",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = sortMenuExpanded,
+                    onDismissRequest = { sortMenuExpanded = false },
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                ) {
+                    SeriesSortOption.entries.forEach { sortOption ->
+                        val label = when (sortOption) {
+                            SeriesSortOption.NAME_ASC -> "Name (A-Z)"
+                            SeriesSortOption.NAME_DESC -> "Name (Z-A)"
+                            SeriesSortOption.BOOKS_COUNT_DESC -> "Books Count"
+                            SeriesSortOption.RECENTLY_UPDATED -> "Recently Updated"
+                        }
+                        DropdownMenuItem(
+                            text = { Text(label) },
+                            onClick = {
+                                viewModel.setSeriesSort(sortOption)
+                                sortMenuExpanded = false
+                            },
+                            trailingIcon = if (sort == sortOption) {
+                                { Icon(Icons.Default.Check, contentDescription = null) }
+                            } else null
+                        )
+                    }
+                }
+            }
+        }
+
+        if (seriesList.isEmpty()) {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No series found.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 140.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(bottom = if (showMiniPlayer) 80.dp else 16.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(seriesList.size, key = { index -> seriesList[index].id }) { index ->
+                    val seriesCard = seriesList[index]
+                    SeriesCard(
+                        series = seriesCard,
+                        onClick = { onSeriesClick(seriesCard.id) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SeriesCard(
+    series: SeriesCardUiModel,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column {
+            SeriesCoverCollage(
+                covers = series.covers,
+                seriesName = series.name,
+                authorizationHeader = series.authorizationHeader,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Progress Bar at the bottom of the collage
+            if (series.progress > 0f && series.progress < 1f) {
+                LinearProgressIndicator(
+                    progress = { series.progress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(4.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = Color(0x33FFFFFF)
+                )
+            }
+
+            Column(
+                modifier = Modifier.padding(12.dp)
+            ) {
+                Text(
+                    text = series.name,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                val progressText = if (series.readBookCount == series.bookCount && series.bookCount > 0) {
+                    "Completed"
+                } else {
+                    "${series.readBookCount}/${series.bookCount} read"
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${series.bookCount} books",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = progressText,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = if (series.readBookCount == series.bookCount && series.bookCount > 0) {
+                            MaterialTheme.colorScheme.secondary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SeriesCoverCollage(
+    covers: List<String>,
+    seriesName: String,
+    authorizationHeader: String?,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+            .background(Color.DarkGray)
+    ) {
+        if (covers.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primary,
+                                MaterialTheme.colorScheme.tertiary
+                            )
+                        )
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = seriesName.take(1).uppercase(),
+                    color = Color.White,
+                    fontSize = 42.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        } else if (covers.size == 1) {
+            AsyncCoverImage(
+                coverUrl = covers[0],
+                authHeader = authorizationHeader,
+                contentDescription = seriesName,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else if (covers.size == 2) {
+            Row(modifier = Modifier.fillMaxSize()) {
+                AsyncCoverImage(
+                    coverUrl = covers[0],
+                    authHeader = authorizationHeader,
+                    contentDescription = seriesName,
+                    modifier = Modifier.weight(1f).fillMaxHeight()
+                )
+                Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(Color.Black))
+                AsyncCoverImage(
+                    coverUrl = covers[1],
+                    authHeader = authorizationHeader,
+                    contentDescription = seriesName,
+                    modifier = Modifier.weight(1f).fillMaxHeight()
+                )
+            }
+        } else {
+            Row(modifier = Modifier.fillMaxSize()) {
+                AsyncCoverImage(
+                    coverUrl = covers[0],
+                    authHeader = authorizationHeader,
+                    contentDescription = seriesName,
+                    modifier = Modifier.weight(1f).fillMaxHeight()
+                )
+                Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(Color.Black))
+                Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
+                    AsyncCoverImage(
+                        coverUrl = covers[1],
+                        authHeader = authorizationHeader,
+                        contentDescription = seriesName,
+                        modifier = Modifier.weight(1f).fillMaxWidth()
+                    )
+                    Box(modifier = Modifier.height(1.dp).fillMaxWidth().background(Color.Black))
+                    AsyncCoverImage(
+                        coverUrl = covers[2],
+                        authHeader = authorizationHeader,
+                        contentDescription = seriesName,
+                        modifier = Modifier.weight(1f).fillMaxWidth()
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AsyncCoverImage(
+    coverUrl: String,
+    authHeader: String?,
+    contentDescription: String,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val imageRequest = remember(coverUrl) {
+        ImageRequest.Builder(context)
+            .data(coverUrl)
+            .crossfade(true)
+            .build()
+    }
+    SubcomposeAsyncImage(
+        model = imageRequest,
+        contentDescription = contentDescription,
+        contentScale = ContentScale.Crop,
+        modifier = modifier
+    )
 }
 
 @Composable

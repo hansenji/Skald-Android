@@ -16,6 +16,8 @@ import dev.vikingsen.skald.core.model.Library
 import dev.vikingsen.skald.core.model.LoggedUser
 import dev.vikingsen.skald.core.model.PlaybackProgress
 import dev.vikingsen.skald.core.model.BookWithProgress
+import dev.vikingsen.skald.core.database.SeriesEntity
+import dev.vikingsen.skald.core.model.Series
 
 fun LibraryResponse.toDomain(): Library = Library(
     id = id,
@@ -87,7 +89,9 @@ fun BookEntity.toDomain(): Book = Book(
     audioFiles = audioFiles.map { it.toDomain() },
     chapters = chapters.map { it.toDomain() },
     etag = etag,
-    lastDetailFetchTimestamp = lastDetailFetchTimestamp
+    lastDetailFetchTimestamp = lastDetailFetchTimestamp,
+    seriesId = seriesId,
+    seriesSequence = seriesSequence
 )
 
 fun Book.toEntity(): BookEntity = BookEntity(
@@ -103,7 +107,27 @@ fun Book.toEntity(): BookEntity = BookEntity(
     audioFiles = audioFiles.map { it.toEntity() },
     chapters = chapters.map { it.toEntity() },
     etag = etag,
-    lastDetailFetchTimestamp = lastDetailFetchTimestamp
+    lastDetailFetchTimestamp = lastDetailFetchTimestamp,
+    seriesId = seriesId,
+    seriesSequence = seriesSequence
+)
+
+fun SeriesEntity.toDomain(): Series = Series(
+    id = id,
+    libraryId = libraryId,
+    name = name,
+    description = description,
+    bookCount = bookCount,
+    etag = etag
+)
+
+fun Series.toEntity(): SeriesEntity = SeriesEntity(
+    id = id,
+    libraryId = libraryId,
+    name = name,
+    description = description,
+    bookCount = bookCount,
+    etag = etag
 )
 
 fun PlaybackProgressEntity.toDomain(): PlaybackProgress = PlaybackProgress(

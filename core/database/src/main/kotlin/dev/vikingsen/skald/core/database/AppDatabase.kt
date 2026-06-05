@@ -73,6 +73,52 @@ interface BookDao {
 
     @Query("SELECT * FROM books WHERE libraryId = :libraryId AND isDownloaded = 1")
     fun getDownloadedBooksFlow(libraryId: String): Flow<List<BookEntity>>
+
+    @Transaction
+    @Query("""
+        SELECT b.*, 
+        p.bookId AS progress_bookId, p.currentTime AS progress_currentTime, 
+        p.progress AS progress_progress, p.isFinished AS progress_isFinished, 
+        p.lastUpdated AS progress_lastUpdated 
+        FROM books b LEFT JOIN playback_progress p ON b.id = p.bookId 
+        WHERE b.libraryId = :libraryId AND b.seriesId IS NOT NULL
+    """)
+    fun getBooksWithProgressForLibraryFlow(libraryId: String): Flow<List<BookWithProgressEntity>>
+
+    @Transaction
+    @Query("""
+        SELECT b.*, 
+        p.bookId AS progress_bookId, p.currentTime AS progress_currentTime, 
+        p.progress AS progress_progress, p.isFinished AS progress_isFinished, 
+        p.lastUpdated AS progress_lastUpdated 
+        FROM books b LEFT JOIN playback_progress p ON b.id = p.bookId 
+        WHERE b.seriesId = :seriesId
+    """)
+    fun getBooksForSeriesWithProgressFlow(seriesId: String): Flow<List<BookWithProgressEntity>>
+}
+
+@Dao
+interface SeriesDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(seriesList: List<SeriesEntity>)
+
+    @Query("SELECT * FROM series WHERE libraryId = :libraryId")
+    fun getSeriesFlow(libraryId: String): Flow<List<SeriesEntity>>
+
+    @Query("SELECT * FROM series WHERE id = :seriesId")
+    suspend fun getSeriesById(seriesId: String): SeriesEntity?
+
+    @Query("SELECT COUNT(*) FROM series WHERE libraryId = :libraryId")
+    fun getSeriesCountFlow(libraryId: String): Flow<Int>
+
+    @Query("DELETE FROM series WHERE libraryId = :libraryId")
+    suspend fun deleteSeriesForLibrary(libraryId: String)
+
+    @Transaction
+    suspend fun replaceSeriesForLibrary(libraryId: String, seriesList: List<SeriesEntity>) {
+        deleteSeriesForLibrary(libraryId)
+        insertAll(seriesList)
+    }
 }
 
 @Dao
@@ -135,9 +181,10 @@ interface HomeShelfDao {
         PlaybackProgressEntity::class,
         LibraryEntity::class,
         HomeShelfEntity::class,
-        HomeShelfItemEntity::class
+        HomeShelfItemEntity::class,
+        SeriesEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -146,6 +193,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun playbackProgressDao(): PlaybackProgressDao
     abstract fun libraryDao(): LibraryDao
     abstract fun homeShelfDao(): HomeShelfDao
+    abstract fun seriesDao(): SeriesDao
 
     companion object {
         private const val DB_NAME = "skald_db"

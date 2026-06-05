@@ -12,14 +12,20 @@ import dev.vikingsen.skald.core.model.BookWithProgress
 import dev.vikingsen.skald.core.model.ReadStatusFilter
 import dev.vikingsen.skald.core.model.SortOption
 import dev.vikingsen.skald.core.model.HomeShelf
+import dev.vikingsen.skald.core.model.Series
 
 interface AudiobookshelfRepository {
     suspend fun login(url: String, user: String, pass: String): Result<LoggedUser>
     suspend fun fetchLibraries(): Result<List<Library>>
     suspend fun syncLibraryBooks(libraryId: String, forceRefresh: Boolean = false): Result<Unit>
+    suspend fun syncLibrarySeries(libraryId: String, forceRefresh: Boolean = false): Result<Unit>
     fun getHomeShelvesFlow(libraryId: String): Flow<List<HomeShelf>>
     suspend fun syncHomeShelves(libraryId: String, forceRefresh: Boolean = false): Result<Unit>
     fun getBooksFlow(): Flow<List<Book>>
+    fun getSeriesFlow(libraryId: String): Flow<List<Series>>
+    suspend fun getSeriesById(seriesId: String): Series?
+    fun getBooksForSeriesFlow(seriesId: String): Flow<List<BookWithProgress>>
+    fun getBooksWithProgressForLibraryFlow(libraryId: String): Flow<List<BookWithProgress>>
     fun getAllProgressFlow(): Flow<List<PlaybackProgress>>
     fun getBookWithProgressFlow(bookId: String): Flow<Pair<Book?, PlaybackProgress?>>
     suspend fun fetchBookDetails(bookId: String, forceRefresh: Boolean = false): Result<Book>

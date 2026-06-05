@@ -174,6 +174,21 @@ class PreferencesManager(context: Context) {
         prefs.edit().putString("etag_library_home_$libraryId", etag).apply()
     }
 
+    fun getLibrarySeriesETag(libraryId: String): String? = prefs.getString("etag_library_series_$libraryId", null)
+    fun saveLibrarySeriesETag(libraryId: String, etag: String) {
+        prefs.edit().putString("etag_library_series_$libraryId", etag).apply()
+    }
+
+    fun getSeriesFilter(): String? = prefs.getString("filter_series_status", null)
+    fun saveSeriesFilter(filter: String) {
+        prefs.edit().putString("filter_series_status", filter).apply()
+    }
+
+    fun getSeriesSortOption(): String? = prefs.getString("sort_series_option", null)
+    fun saveSeriesSortOption(sort: String) {
+        prefs.edit().putString("sort_series_option", sort).apply()
+    }
+
     fun getUserETag(): String? = prefs.getString("etag_user", null)
     fun saveUserETag(etag: String) {
         prefs.edit().putString("etag_user", etag).apply()
