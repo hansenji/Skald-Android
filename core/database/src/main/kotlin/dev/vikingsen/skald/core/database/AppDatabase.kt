@@ -107,6 +107,19 @@ interface BookDao {
         WHERE ab.authorId = :authorId
     """)
     fun getBooksForAuthorWithProgressFlow(authorId: String): Flow<List<BookWithProgressEntity>>
+
+    @Transaction
+    @Query("""
+        SELECT b.*, 
+        p.bookId AS progress_bookId, p.currentTime AS progress_currentTime, 
+        p.progress AS progress_progress, p.isFinished AS progress_isFinished, 
+        p.lastUpdated AS progress_lastUpdated 
+        FROM books b LEFT JOIN playback_progress p ON b.id = p.bookId 
+        INNER JOIN collection_books cb ON b.id = cb.bookId
+        WHERE cb.collectionId = :collectionId
+        ORDER BY cb.sortOrder ASC
+    """)
+    fun getBooksForCollectionWithProgressFlow(collectionId: String): Flow<List<BookWithProgressEntity>>
 }
 
 @Dao
@@ -232,9 +245,11 @@ interface HomeShelfDao {
         HomeShelfItemEntity::class,
         SeriesEntity::class,
         AuthorEntity::class,
-        AuthorBookCrossRef::class
+        AuthorBookCrossRef::class,
+        CollectionEntity::class,
+        CollectionBookCrossRef::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -245,6 +260,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun homeShelfDao(): HomeShelfDao
     abstract fun seriesDao(): SeriesDao
     abstract fun authorDao(): AuthorDao
+    abstract fun collectionDao(): CollectionDao
+
 
     companion object {
         private const val DB_NAME = "skald_db"

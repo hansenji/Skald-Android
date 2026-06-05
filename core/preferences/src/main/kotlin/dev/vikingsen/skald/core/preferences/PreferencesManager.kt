@@ -209,4 +209,14 @@ class PreferencesManager(context: Context) {
         prefs.edit().putBoolean("hide_empty_library_tabs", enabled).apply()
         _hideEmptyLibraryTabs.value = enabled
     }
+
+    fun getLibraryCollectionsETag(libraryId: String): String? = prefs.getString("etag_library_collections_$libraryId", null)
+    fun saveLibraryCollectionsETag(libraryId: String, etag: String) {
+        prefs.edit().putString("etag_library_collections_$libraryId", etag).apply()
+    }
+
+    fun getCollectionsSortOption(): String? = prefs.getString("sort_collections_option", null)
+    fun saveCollectionsSortOption(sort: String) {
+        prefs.edit().putString("sort_collections_option", sort).apply()
+    }
 }

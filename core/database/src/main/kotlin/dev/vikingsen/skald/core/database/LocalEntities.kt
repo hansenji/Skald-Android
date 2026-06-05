@@ -117,4 +117,30 @@ data class HomeShelfWithItems(
     val items: List<HomeShelfItemEntity>
 )
 
+@Entity(tableName = "collections")
+data class CollectionEntity(
+    @PrimaryKey val id: String,
+    val libraryId: String,
+    val name: String,
+    val description: String?,
+    val lastUpdated: Long
+)
+
+@Entity(
+    tableName = "collection_books",
+    primaryKeys = ["collectionId", "bookId"]
+)
+data class CollectionBookCrossRef(
+    val collectionId: String,
+    val bookId: String,
+    val sortOrder: Int
+)
+
+data class CollectionBookCoverInfo(
+    val collectionId: String,
+    val bookId: String,
+    val coverPath: String?
+)
+
+
 

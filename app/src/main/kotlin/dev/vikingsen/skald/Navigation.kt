@@ -29,10 +29,12 @@ import dev.vikingsen.skald.feature.library.LibraryScreen
 import dev.vikingsen.skald.feature.library.DetailScreen
 import dev.vikingsen.skald.feature.library.SeriesDetailScreen
 import dev.vikingsen.skald.feature.library.AuthorDetailScreen
+import dev.vikingsen.skald.feature.library.CollectionDetailScreen
 import dev.vikingsen.skald.feature.library.api.Library
 import dev.vikingsen.skald.feature.library.api.Detail
 import dev.vikingsen.skald.feature.library.api.SeriesDetail
 import dev.vikingsen.skald.feature.library.api.AuthorDetail
+import dev.vikingsen.skald.feature.library.api.CollectionDetail
 import dev.vikingsen.skald.feature.home.HomeScreen
 import dev.vikingsen.skald.feature.home.api.Home
 import dev.vikingsen.skald.feature.settings.SettingsScreen
@@ -145,6 +147,9 @@ fun MainNavigation() {
                             },
                             onAuthorClick = { authorId ->
                                 backStack.add(AuthorDetail(authorId))
+                            },
+                            onCollectionClick = { collectionId ->
+                                backStack.add(CollectionDetail(collectionId))
                             }
                         )
                     }
@@ -181,6 +186,17 @@ fun MainNavigation() {
                     entry<AuthorDetail> { key ->
                         AuthorDetailScreen(
                             authorId = key.authorId,
+                            onBackClick = {
+                                backStack.removeLastOrNull()
+                            },
+                            onBookClick = { bookId ->
+                                backStack.add(Detail(bookId))
+                            }
+                        )
+                    }
+                    entry<CollectionDetail> { key ->
+                        CollectionDetailScreen(
+                            collectionId = key.collectionId,
                             onBackClick = {
                                 backStack.removeLastOrNull()
                             },

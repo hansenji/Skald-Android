@@ -22,6 +22,10 @@ import dev.vikingsen.skald.core.database.AuthorEntity
 import dev.vikingsen.skald.core.model.Author
 import dev.vikingsen.skald.core.network.NetworkAuthorResponse
 import dev.vikingsen.skald.core.network.AuthorDetailsResponse
+import dev.vikingsen.skald.core.database.CollectionEntity
+import dev.vikingsen.skald.core.database.CollectionBookCrossRef
+import dev.vikingsen.skald.core.model.BookCollection
+import dev.vikingsen.skald.core.network.NetworkCollectionResponse
 
 fun LibraryResponse.toDomain(): Library = Library(
     id = id,
@@ -183,3 +187,22 @@ fun Author.toEntity(): AuthorEntity = AuthorEntity(
     bookCount = bookCount,
     etag = etag
 )
+
+fun CollectionEntity.toDomain(bookIds: List<String>, bookCovers: List<String>): BookCollection = BookCollection(
+    id = id,
+    libraryId = libraryId,
+    name = name,
+    description = description,
+    bookIds = bookIds,
+    bookCovers = bookCovers,
+    lastUpdated = lastUpdated
+)
+
+fun NetworkCollectionResponse.toEntity(libId: String, timestamp: Long): CollectionEntity = CollectionEntity(
+    id = id,
+    libraryId = if (libraryId.isNotEmpty()) libraryId else libId,
+    name = name,
+    description = description,
+    lastUpdated = lastUpdate ?: timestamp
+)
+

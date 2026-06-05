@@ -50,6 +50,8 @@ import dev.vikingsen.skald.core.model.SeriesFilter
 import dev.vikingsen.skald.core.model.SeriesSortOption
 import dev.vikingsen.skald.core.model.Author
 import dev.vikingsen.skald.core.model.AuthorsSortOption
+import dev.vikingsen.skald.core.model.BookCollection
+import dev.vikingsen.skald.core.model.CollectionsSortOption
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -65,6 +67,7 @@ fun LibraryScreen(
     onBookClick: (String) -> Unit,
     onSeriesClick: (String) -> Unit,
     onAuthorClick: (String) -> Unit,
+    onCollectionClick: (String) -> Unit,
     viewModel: LibraryViewModel = koinViewModel()
 ) {
     val lazyBookCards = viewModel.books.collectAsLazyPagingItems()
@@ -494,6 +497,12 @@ fun LibraryScreen(
                 LibraryTab.SERIES -> {
                     SeriesTabContent(
                         onSeriesClick = onSeriesClick,
+                        viewModel = viewModel
+                    )
+                }
+                LibraryTab.COLLECTIONS -> {
+                    CollectionsTabContent(
+                        onCollectionClick = onCollectionClick,
                         viewModel = viewModel
                     )
                 }
@@ -1500,3 +1509,167 @@ fun InitialAvatarMini(
         )
     }
 }
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CollectionsTabContent(
+    onCollectionClick: (String) -> Unit,
+    viewModel: LibraryViewModel
+) {
+    val collectionsList by viewModel.collections.collectAsState(initial = emptyList())
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val sort by viewModel.collectionsSort.collectAsState()
+    val showMiniPlayer by viewModel.showMiniPlayer.collectAsState()
+
+    var sortMenuExpanded by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Search Bar
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { viewModel.searchQuery.value = it },
+            placeholder = { Text("Search collections by name...") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = Color(0x33FFFFFF)
+            )
+        )
+
+        // Filter & Sort Row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Sort Dropdown Button
+            Box {
+                IconButton(
+                    onClick = { sortMenuExpanded = true },
+                    modifier = Modifier
+                        .background(Color(0x1AFFFFFF), RoundedCornerShape(12.dp))
+                        .size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Sort,
+                        contentDescription = "Sort Collections",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = sortMenuExpanded,
+                    onDismissRequest = { sortMenuExpanded = false },
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                ) {
+                    CollectionsSortOption.entries.forEach { sortOption ->
+                        val label = when (sortOption) {
+                            CollectionsSortOption.NAME_ASC -> "Name (A-Z)"
+                            CollectionsSortOption.NAME_DESC -> "Name (Z-A)"
+                            CollectionsSortOption.BOOKS_COUNT_DESC -> "Books Count"
+                            CollectionsSortOption.LAST_MODIFIED -> "Recently Updated"
+                        }
+                        DropdownMenuItem(
+                            text = { Text(label) },
+                            onClick = {
+                                viewModel.setCollectionsSort(sortOption)
+                                sortMenuExpanded = false
+                            },
+                            trailingIcon = if (sort == sortOption) {
+                                { Icon(Icons.Default.Check, contentDescription = null) }
+                            } else null
+                        )
+                    }
+                }
+            }
+        }
+
+        if (collectionsList.isEmpty()) {
+            LibraryEmptyState(
+                icon = Icons.Default.Folder,
+                title = "No Collections Found",
+                description = "There are no collections in this library, or sync is required.",
+                buttonText = "Sync Now",
+                onButtonClick = { viewModel.refresh(forceRefresh = true) }
+            )
+        } else {
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 140.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                contentPadding = PaddingValues(bottom = if (showMiniPlayer) 80.dp else 16.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(collectionsList.size, key = { index -> collectionsList[index].id }) { index ->
+                    val collectionCard = collectionsList[index]
+                    CollectionCard(
+                        collection = collectionCard,
+                        onClick = { onCollectionClick(collectionCard.id) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CollectionCard(
+    collection: BookCollection,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Column {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp))
+            ) {
+                val covers = collection.bookCovers.take(4)
+                CollectionCoverCollage(
+                    covers = covers,
+                    collectionName = collection.name,
+                    authorizationHeader = null,
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+
+            Column(
+                modifier = Modifier.padding(12.dp)
+            ) {
+                Text(
+                    text = collection.name,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                
+                val bookCountText = if (collection.bookIds.size == 1) "1 book" else "${collection.bookIds.size} books"
+                Text(
+                    text = bookCountText,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+

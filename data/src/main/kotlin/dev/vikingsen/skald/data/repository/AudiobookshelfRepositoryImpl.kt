@@ -23,6 +23,11 @@ import dev.vikingsen.skald.domain.repository.AudiobookshelfRepository
 import dev.vikingsen.skald.core.model.Author
 import dev.vikingsen.skald.core.database.AuthorEntity
 import dev.vikingsen.skald.core.database.AuthorBookCrossRef
+import dev.vikingsen.skald.core.database.CollectionEntity
+import dev.vikingsen.skald.core.database.CollectionBookCrossRef
+import dev.vikingsen.skald.core.database.CollectionBookCoverInfo
+import dev.vikingsen.skald.core.model.BookCollection
+import dev.vikingsen.skald.core.network.NetworkCollectionResponse
 import android.app.DownloadManager
 import android.net.Uri
 import kotlinx.coroutines.delay
@@ -1136,4 +1141,131 @@ class AudiobookshelfRepositoryImpl(
     override fun getBooksForAuthorFlow(authorId: String): Flow<List<BookWithProgress>> {
         return bookDao.getBooksForAuthorWithProgressFlow(authorId).map { list -> list.map { it.toDomain() } }
     }
+
+    override fun getCollectionsFlow(libraryId: String): Flow<List<BookCollection>> {
+        val serverUrl = preferencesManager.getServerUrl() ?: ""
+        return combine(
+            db.collectionDao().getCollectionsFlow(libraryId),
+            db.collectionDao().getCollectionBookCoversFlow()
+        ) { collections, covers ->
+            val coversMap = covers.groupBy { it.collectionId }
+            collections.map { col ->
+                val colCovers = coversMap[col.id]?.map { coverInfo ->
+                    coverInfo.coverPath.takeIf { !it.isNullOrEmpty() }
+                        ?: "${serverUrl.trimEnd('/')}/api/items/${coverInfo.bookId}/cover"
+                } ?: emptyList()
+                val colBookIds = coversMap[col.id]?.map { it.bookId } ?: emptyList()
+                col.toDomain(bookIds = colBookIds, bookCovers = colCovers)
+            }
+        }
+    }
+
+    override suspend fun syncLibraryCollections(libraryId: String, forceRefresh: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val storedEtag = if (forceRefresh) null else preferencesManager.getLibraryCollectionsETag(libraryId)
+            val result = remoteDataSource.fetchLibraryCollections(libraryId, storedEtag)
+            
+            when (result) {
+                is NetworkResult.NotModified -> return@runCatching
+                is NetworkResult.Error -> throw Exception(result.message)
+                is NetworkResult.Success -> {
+                    val newEtag = result.etag
+                    if (!newEtag.isNullOrEmpty()) {
+                        preferencesManager.saveLibraryCollectionsETag(libraryId, newEtag)
+                    }
+                    
+                    val collectionsResponseList = result.data
+                    val timestamp = System.currentTimeMillis()
+                    val entities = collectionsResponseList.map {
+                        it.toEntity(libraryId, timestamp)
+                    }
+                    
+                    val crossRefs = collectionsResponseList.flatMap { collectionDto ->
+                        collectionDto.books?.mapIndexed { index, bookItem ->
+                            CollectionBookCrossRef(
+                                collectionId = collectionDto.id,
+                                bookId = bookItem.id,
+                                sortOrder = index
+                            )
+                        } ?: emptyList()
+                    }
+                    
+                    db.collectionDao().replaceCollectionsForLibrary(libraryId, entities, crossRefs)
+                }
+            }
+        }
+    }
+
+    override suspend fun getCollectionDetails(collectionId: String, forceRefresh: Boolean): Result<BookCollection> = withContext(Dispatchers.IO) {
+        runCatching {
+            val local = db.collectionDao().getCollectionById(collectionId)
+            if (local != null && !forceRefresh) {
+                val bookIds = db.collectionDao().getBookIdsForCollection(collectionId)
+                val serverUrl = preferencesManager.getServerUrl() ?: ""
+                val bookCovers = bookIds.map { bookId ->
+                    val book = bookDao.getBookById(bookId)
+                    book?.coverPath.takeIf { !it.isNullOrEmpty() }
+                        ?: "${serverUrl.trimEnd('/')}/api/items/$bookId/cover"
+                }
+                return@runCatching local.toDomain(bookIds, bookCovers)
+            }
+            
+            val result = remoteDataSource.fetchCollectionDetails(collectionId)
+            when (result) {
+                is NetworkResult.NotModified -> {
+                    if (local == null) throw Exception("Cached collection missing on 304 response")
+                    val bookIds = db.collectionDao().getBookIdsForCollection(collectionId)
+                    val serverUrl = preferencesManager.getServerUrl() ?: ""
+                    val bookCovers = bookIds.map { bookId ->
+                        val book = bookDao.getBookById(bookId)
+                        book?.coverPath.takeIf { !it.isNullOrEmpty() }
+                            ?: "${serverUrl.trimEnd('/')}/api/items/$bookId/cover"
+                    }
+                    local.toDomain(bookIds, bookCovers)
+                }
+                is NetworkResult.Error -> {
+                    if (local == null) throw Exception(result.message)
+                    val bookIds = db.collectionDao().getBookIdsForCollection(collectionId)
+                    val serverUrl = preferencesManager.getServerUrl() ?: ""
+                    val bookCovers = bookIds.map { bookId ->
+                        val book = bookDao.getBookById(bookId)
+                        book?.coverPath.takeIf { !it.isNullOrEmpty() }
+                            ?: "${serverUrl.trimEnd('/')}/api/items/$bookId/cover"
+                    }
+                    local.toDomain(bookIds, bookCovers)
+                }
+                is NetworkResult.Success -> {
+                    val detail = result.data
+                    val libraryId = local?.libraryId ?: preferencesManager.getLibraryId() ?: ""
+                    val entity = detail.toEntity(libraryId, System.currentTimeMillis())
+                    
+                    db.collectionDao().insertCollection(entity)
+                    
+                    val crossRefs = detail.books?.mapIndexed { index, bookItem ->
+                        CollectionBookCrossRef(
+                            collectionId = detail.id,
+                            bookId = bookItem.id,
+                            sortOrder = index
+                        )
+                    } ?: emptyList()
+                    
+                    db.collectionDao().replaceCrossRefsForCollection(detail.id, crossRefs)
+                    
+                    val bookIds = crossRefs.map { it.bookId }
+                    val serverUrl = preferencesManager.getServerUrl() ?: ""
+                    val bookCovers = bookIds.map { bookId ->
+                        val book = bookDao.getBookById(bookId)
+                        book?.coverPath.takeIf { !it.isNullOrEmpty() }
+                            ?: "${serverUrl.trimEnd('/')}/api/items/$bookId/cover"
+                    }
+                    entity.toDomain(bookIds, bookCovers)
+                }
+            }
+        }
+    }
+
+    override fun getBooksForCollectionFlow(collectionId: String): Flow<List<BookWithProgress>> {
+        return bookDao.getBooksForCollectionWithProgressFlow(collectionId).map { list -> list.map { it.toDomain() } }
+    }
 }
+

@@ -8,6 +8,7 @@ val featureLibraryModule = module {
     viewModel<DetailViewModel>()
     viewModel<SeriesDetailViewModel>()
     viewModel<AuthorDetailViewModel>()
+    viewModel<CollectionDetailViewModel>()
 }
 
 

@@ -14,6 +14,7 @@ import dev.vikingsen.skald.core.model.SortOption
 import dev.vikingsen.skald.core.model.HomeShelf
 import dev.vikingsen.skald.core.model.Series
 import dev.vikingsen.skald.core.model.Author
+import dev.vikingsen.skald.core.model.BookCollection
 
 interface AudiobookshelfRepository {
     suspend fun login(url: String, user: String, pass: String): Result<LoggedUser>
@@ -54,5 +55,9 @@ interface AudiobookshelfRepository {
     suspend fun syncLibraryAuthors(libraryId: String, forceRefresh: Boolean = false): Result<Unit>
     suspend fun getAuthorDetails(authorId: String, forceRefresh: Boolean = false): Result<Author>
     fun getBooksForAuthorFlow(authorId: String): Flow<List<BookWithProgress>>
+    fun getCollectionsFlow(libraryId: String): Flow<List<BookCollection>>
+    suspend fun syncLibraryCollections(libraryId: String, forceRefresh: Boolean = false): Result<Unit>
+    suspend fun getCollectionDetails(collectionId: String, forceRefresh: Boolean = false): Result<BookCollection>
+    fun getBooksForCollectionFlow(collectionId: String): Flow<List<BookWithProgress>>
 }
 

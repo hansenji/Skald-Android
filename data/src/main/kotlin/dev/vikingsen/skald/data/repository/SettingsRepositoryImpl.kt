@@ -143,4 +143,16 @@ class SettingsRepositoryImpl(
     }
 
     override fun observeHideEmptyLibraryTabs(): Flow<Boolean> = preferencesManager.hideEmptyLibraryTabs
+
+    override fun getLibraryCollectionsETag(libraryId: String): String? = preferencesManager.getLibraryCollectionsETag(libraryId)
+
+    override fun saveLibraryCollectionsETag(libraryId: String, etag: String) {
+        preferencesManager.saveLibraryCollectionsETag(libraryId, etag)
+    }
+
+    override fun getCollectionsSortOption(): String? = preferencesManager.getCollectionsSortOption()
+
+    override fun saveCollectionsSortOption(sort: String) {
+        preferencesManager.saveCollectionsSortOption(sort)
+    }
 }

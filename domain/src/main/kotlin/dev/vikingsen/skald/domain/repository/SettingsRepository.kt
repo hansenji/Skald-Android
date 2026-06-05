@@ -48,4 +48,8 @@ interface SettingsRepository {
     fun getHideEmptyLibraryTabs(): Boolean
     fun saveHideEmptyLibraryTabs(enabled: Boolean)
     fun observeHideEmptyLibraryTabs(): Flow<Boolean>
+    fun getLibraryCollectionsETag(libraryId: String): String?
+    fun saveLibraryCollectionsETag(libraryId: String, etag: String)
+    fun getCollectionsSortOption(): String?
+    fun saveCollectionsSortOption(sort: String)
 }

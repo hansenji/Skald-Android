@@ -51,6 +51,8 @@ interface AudiobookshelfRemoteDataSource {
     suspend fun fetchLibrarySeries(libraryId: String, etag: String? = null): NetworkResult<SeriesListResponse>
     suspend fun fetchLibraryAuthors(libraryId: String, etag: String? = null): NetworkResult<AuthorsListResponse>
     suspend fun fetchAuthorDetails(authorId: String): NetworkResult<AuthorDetailsResponse>
+    suspend fun fetchLibraryCollections(libraryId: String, etag: String? = null): NetworkResult<List<NetworkCollectionResponse>>
+    suspend fun fetchCollectionDetails(collectionId: String): NetworkResult<NetworkCollectionResponse>
     fun downloadFile(bookId: String, ino: String, destinationFile: File, totalBytes: Long): Flow<Float>
 }
 
@@ -308,6 +310,49 @@ class AudiobookshelfRemoteDataSourceImpl(
             NetworkResult.Error(it.message ?: "Unknown error")
         }
     }
+
+    override suspend fun fetchLibraryCollections(
+        libraryId: String,
+        etag: String?
+    ): NetworkResult<List<NetworkCollectionResponse>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val response = client.get("api/libraries/$libraryId/collections") {
+                url.parameters.append("minified", "1")
+                if (!etag.isNullOrEmpty()) {
+                    headers["If-None-Match"] = etag
+                }
+            }
+            if (response.status.value == 304) {
+                NetworkResult.NotModified
+            } else if (response.status.value >= 400) {
+                NetworkResult.Error("Failed to fetch library collections: Status ${response.status.value}")
+            } else {
+                val data = response.body<LibraryCollectionsResponse>()
+                val responseEtag = response.headers["ETag"]
+                NetworkResult.Success(data.results, responseEtag)
+            }
+        }.getOrElse {
+            NetworkResult.Error(it.message ?: "Unknown error")
+        }
+    }
+
+    override suspend fun fetchCollectionDetails(
+        collectionId: String
+    ): NetworkResult<NetworkCollectionResponse> = withContext(Dispatchers.IO) {
+        runCatching {
+            val response = client.get("api/collections/$collectionId")
+            if (response.status.value >= 400) {
+                NetworkResult.Error("Failed to fetch collection details: Status ${response.status.value}")
+            } else {
+                val data = response.body<NetworkCollectionResponse>()
+                val responseEtag = response.headers["ETag"]
+                NetworkResult.Success(data, responseEtag)
+            }
+        }.getOrElse {
+            NetworkResult.Error(it.message ?: "Unknown error")
+        }
+    }
+
 
     override fun downloadFile(bookId: String, ino: String, destinationFile: File, totalBytes: Long): Flow<Float> = flow {
         val responseStatement: HttpStatement = client.prepareGet("api/items/$bookId/file/$ino/download")
