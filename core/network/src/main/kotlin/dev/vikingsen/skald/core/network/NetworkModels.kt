@@ -2,6 +2,11 @@ package dev.vikingsen.skald.core.network
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerialName
+import kotlinx.serialization.json.JsonTransformingSerializer
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.builtins.ListSerializer
 
 @Serializable
 data class CredentialsLoginRequest(
@@ -159,6 +164,18 @@ data class NetworkSeriesType(
     val sequence: String? = null
 )
 
+object NetworkSeriesListSerializer : JsonTransformingSerializer<List<NetworkSeriesType>>(
+    ListSerializer(NetworkSeriesType.serializer())
+) {
+    override fun transformDeserialize(element: JsonElement): JsonElement {
+        return when (element) {
+            is JsonArray -> element
+            is JsonObject -> JsonArray(listOf(element))
+            else -> JsonArray(emptyList())
+        }
+    }
+}
+
 @Serializable
 data class LibraryItemMetadata(
     val title: String? = null,
@@ -167,6 +184,7 @@ data class LibraryItemMetadata(
     val seriesName: String? = null,
     val authors: List<BookAuthorResponse>? = null,
     val narrators: List<String>? = null,
+    @Serializable(with = NetworkSeriesListSerializer::class)
     val series: List<NetworkSeriesType>? = null
 )
 
@@ -200,6 +218,7 @@ data class BookMetadata(
     val description: String? = null,
     val publishedYear: String? = null,
     val publisher: String? = null,
+    @Serializable(with = NetworkSeriesListSerializer::class)
     val series: List<NetworkSeriesType>? = null
 )
 
