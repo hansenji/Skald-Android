@@ -24,5 +24,8 @@ val domainModule = module {
     single<GetSeriesUseCase>()
     single<SyncLibrarySeriesUseCase>()
     single<GetSeriesDetailsUseCase>()
+    single<GetAuthorsUseCase>()
+    single<SyncLibraryAuthorsUseCase>()
+    single<GetAuthorDetailsUseCase>()
 }
 

@@ -317,3 +317,28 @@ data class NetworkSeriesItemResponse(
     val updatedAt: Long = 0L,
     val books: List<LibraryItem>? = null
 )
+
+@Serializable
+data class AuthorsListResponse(
+    val authors: List<NetworkAuthorResponse>
+)
+
+@Serializable
+data class NetworkAuthorResponse(
+    val id: String,
+    val name: String,
+    val description: String? = null,
+    val imagePath: String? = null,
+    val numBooks: Int? = null,
+    val bookCount: Int? = null,
+    val etag: String? = null
+)
+
+@Serializable
+data class AuthorDetailsResponse(
+    val id: String,
+    val name: String,
+    val description: String? = null,
+    val imagePath: String? = null,
+    val libraryItems: List<LibraryItem>? = null
+)

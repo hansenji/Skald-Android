@@ -48,6 +48,12 @@ import dev.vikingsen.skald.core.model.ReadStatusFilter
 import dev.vikingsen.skald.core.model.SortOption
 import dev.vikingsen.skald.core.model.SeriesFilter
 import dev.vikingsen.skald.core.model.SeriesSortOption
+import dev.vikingsen.skald.core.model.Author
+import dev.vikingsen.skald.core.model.AuthorsSortOption
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import kotlinx.coroutines.launch
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Person
@@ -58,6 +64,7 @@ import androidx.compose.material.icons.filled.MusicNote
 fun LibraryScreen(
     onBookClick: (String) -> Unit,
     onSeriesClick: (String) -> Unit,
+    onAuthorClick: (String) -> Unit,
     viewModel: LibraryViewModel = koinViewModel()
 ) {
     val lazyBookCards = viewModel.books.collectAsLazyPagingItems()
@@ -487,6 +494,12 @@ fun LibraryScreen(
                 LibraryTab.SERIES -> {
                     SeriesTabContent(
                         onSeriesClick = onSeriesClick,
+                        viewModel = viewModel
+                    )
+                }
+                LibraryTab.AUTHORS -> {
+                    AuthorsTabContent(
+                        onAuthorClick = onAuthorClick,
                         viewModel = viewModel
                     )
                 }
@@ -1202,5 +1215,288 @@ fun LibraryEmptyState(
                 }
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AuthorsTabContent(
+    onAuthorClick: (String) -> Unit,
+    viewModel: LibraryViewModel
+) {
+    val authorsList by viewModel.authors.collectAsState(initial = emptyList())
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val sort by viewModel.authorsSort.collectAsState()
+    val showMiniPlayer by viewModel.showMiniPlayer.collectAsState()
+
+    var sortMenuExpanded by remember { mutableStateOf(false) }
+
+    val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
+
+    val alphabet = ('A'..'Z').toList()
+    
+    val letterToIndex = remember(authorsList) {
+        alphabet.associateWith { letter ->
+            authorsList.indexOfFirst { it.name.trimStart().startsWith(letter, ignoreCase = true) }
+        }.filterValues { it != -1 }
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Search Bar
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { viewModel.searchQuery.value = it },
+            placeholder = { Text("Search authors by name...") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = Color(0x33FFFFFF)
+            )
+        )
+
+        // Filter & Sort Row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "${authorsList.size} Authors",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // Sort Dropdown Button
+            Box {
+                IconButton(
+                    onClick = { sortMenuExpanded = true },
+                    modifier = Modifier
+                        .background(Color(0x1AFFFFFF), RoundedCornerShape(12.dp))
+                        .size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Sort,
+                        contentDescription = "Sort Authors",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = sortMenuExpanded,
+                    onDismissRequest = { sortMenuExpanded = false },
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                ) {
+                    AuthorsSortOption.entries.forEach { sortOption ->
+                        val label = when (sortOption) {
+                            AuthorsSortOption.NAME_ASC -> "Name (A-Z)"
+                            AuthorsSortOption.NAME_DESC -> "Name (Z-A)"
+                            AuthorsSortOption.BOOKS_COUNT_DESC -> "Books Count"
+                        }
+                        DropdownMenuItem(
+                            text = { Text(label) },
+                            onClick = {
+                                viewModel.setAuthorsSort(sortOption)
+                                sortMenuExpanded = false
+                            },
+                            trailingIcon = if (sort == sortOption) {
+                                { Icon(Icons.Default.Check, contentDescription = null) }
+                            } else null
+                        )
+                    }
+                }
+            }
+        }
+
+        if (authorsList.isEmpty()) {
+            LibraryEmptyState(
+                icon = Icons.Default.Person,
+                title = "No Authors Found",
+                description = "There are no authors in this library, or sync is required.",
+                buttonText = "Sync Now",
+                onButtonClick = { viewModel.refresh(forceRefresh = true) }
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(end = 24.dp),
+                    contentPadding = PaddingValues(bottom = if (showMiniPlayer) 80.dp else 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(authorsList, key = { it.id }) { author ->
+                        AuthorRowItem(
+                            author = author,
+                            onClick = { onAuthorClick(author.id) }
+                        )
+                    }
+                }
+
+                // A-Z Scroller Strip on the right
+                AlphabetScroller(
+                    alphabet = alphabet,
+                    letterToIndex = letterToIndex,
+                    onLetterClick = { index ->
+                        coroutineScope.launch {
+                            listState.scrollToItem(index)
+                        }
+                    },
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .fillMaxHeight()
+                        .width(24.dp)
+                        .padding(vertical = 16.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun AlphabetScroller(
+    alphabet: List<Char>,
+    letterToIndex: Map<Char, Int>,
+    onLetterClick: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        alphabet.forEach { letter ->
+            val targetIndex = letterToIndex[letter]
+            val isEnabled = targetIndex != null
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .clickable(enabled = isEnabled) { targetIndex?.let { onLetterClick(it) } },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = letter.toString(),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isEnabled) MaterialTheme.colorScheme.primary else Color.Gray.copy(alpha = 0.4f)
+                )
+            }
+        }
+    }
+}
+
+
+@Composable
+fun AuthorRowItem(
+    author: Author,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Author Avatar (48.dp circular)
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(Color.DarkGray),
+                contentAlignment = Alignment.Center
+            ) {
+                if (!author.imagePath.isNullOrEmpty()) {
+                    val context = LocalContext.current
+                    val imageRequest = remember(author.imagePath) {
+                        ImageRequest.Builder(context)
+                            .data(author.imagePath)
+                            .crossfade(true)
+                            .build()
+                    }
+                    SubcomposeAsyncImage(
+                        model = imageRequest,
+                        contentDescription = author.name,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize(),
+                        error = {
+                            InitialAvatarMini(name = author.name)
+                        }
+                    )
+                } else {
+                    InitialAvatarMini(name = author.name)
+                }
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            // Author details
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = author.name,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "${author.bookCount} books",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun InitialAvatarMini(
+    name: String,
+    modifier: Modifier = Modifier
+) {
+    val brandColors = listOf(
+        Color(0xFFBB86FC), // ElectricPurple
+        Color(0xFF03DAC6), // CyanAccent
+        Color(0xFFFF79C6)  // SoftPink
+    )
+    val hashCode = name.hashCode()
+    val index = if (hashCode == Int.MIN_VALUE) 0 else kotlin.math.abs(hashCode) % brandColors.size
+    val bgColor = brandColors[index]
+
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(bgColor),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = name.trim().take(1).uppercase(),
+            color = Color.White,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold
+        )
     }
 }

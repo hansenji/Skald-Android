@@ -20,6 +20,9 @@ import dev.vikingsen.skald.core.model.PlaybackProgress
 import dev.vikingsen.skald.core.database.SeriesEntity
 import dev.vikingsen.skald.core.model.Series
 import dev.vikingsen.skald.domain.repository.AudiobookshelfRepository
+import dev.vikingsen.skald.core.model.Author
+import dev.vikingsen.skald.core.database.AuthorEntity
+import dev.vikingsen.skald.core.database.AuthorBookCrossRef
 import android.app.DownloadManager
 import android.net.Uri
 import kotlinx.coroutines.delay
@@ -1045,5 +1048,92 @@ class AudiobookshelfRepositoryImpl(
             size += dir.length()
         }
         return size
+    }
+
+    override fun getAuthorsFlow(libraryId: String): Flow<List<Author>> {
+        return db.authorDao().getAuthorsFlow(libraryId).map { list -> list.map { it.toDomain() } }
+    }
+
+    override suspend fun syncLibraryAuthors(libraryId: String, forceRefresh: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val storedEtag = if (forceRefresh) null else preferencesManager.getLibraryAuthorsETag(libraryId)
+            val result = remoteDataSource.fetchLibraryAuthors(libraryId, storedEtag)
+            
+            when (result) {
+                is NetworkResult.NotModified -> return@runCatching
+                is NetworkResult.Error -> throw Exception(result.message)
+                is NetworkResult.Success -> {
+                    val newEtag = result.etag
+                    if (!newEtag.isNullOrEmpty()) {
+                        preferencesManager.saveLibraryAuthorsETag(libraryId, newEtag)
+                    }
+                    
+                    val authorsResponseList = result.data.authors
+                    val entities = authorsResponseList.map {
+                        AuthorEntity(
+                            id = it.id,
+                            libraryId = libraryId,
+                            name = it.name,
+                            description = it.description,
+                            imagePath = it.imagePath,
+                            bookCount = it.bookCount ?: it.numBooks ?: 0,
+                            etag = newEtag
+                        )
+                    }
+                    
+                    db.authorDao().replaceAuthorsForLibrary(libraryId, entities)
+                }
+            }
+        }
+    }
+
+    override suspend fun getAuthorDetails(authorId: String, forceRefresh: Boolean): Result<Author> = withContext(Dispatchers.IO) {
+        runCatching {
+            val local = db.authorDao().getAuthorById(authorId)
+            if (local != null && !forceRefresh && !local.description.isNullOrEmpty()) {
+                return@runCatching local.toDomain()
+            }
+            
+            val result = remoteDataSource.fetchAuthorDetails(authorId)
+            when (result) {
+                is NetworkResult.NotModified -> {
+                    local?.toDomain() ?: throw Exception("Author details not found")
+                }
+                is NetworkResult.Error -> {
+                    local?.toDomain() ?: throw Exception(result.message)
+                }
+                is NetworkResult.Success -> {
+                    val detail = result.data
+                    val libraryId = local?.libraryId ?: preferencesManager.getLibraryId() ?: ""
+                    
+                    val entity = AuthorEntity(
+                        id = detail.id,
+                        libraryId = libraryId,
+                        name = detail.name,
+                        description = detail.description,
+                        imagePath = detail.imagePath,
+                        bookCount = detail.libraryItems?.size ?: local?.bookCount ?: 0,
+                        etag = local?.etag
+                    )
+                    
+                    db.authorDao().insertAll(listOf(entity))
+                    
+                    val crossRefs = detail.libraryItems?.map { item ->
+                        AuthorBookCrossRef(
+                            authorId = detail.id,
+                            bookId = item.id
+                        )
+                    } ?: emptyList()
+                    
+                    db.authorDao().replaceAuthorBookCrossRefsForAuthor(detail.id, crossRefs)
+                    
+                    entity.toDomain()
+                }
+            }
+        }
+    }
+
+    override fun getBooksForAuthorFlow(authorId: String): Flow<List<BookWithProgress>> {
+        return bookDao.getBooksForAuthorWithProgressFlow(authorId).map { list -> list.map { it.toDomain() } }
     }
 }

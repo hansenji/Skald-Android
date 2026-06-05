@@ -13,6 +13,7 @@ import dev.vikingsen.skald.core.model.ReadStatusFilter
 import dev.vikingsen.skald.core.model.SortOption
 import dev.vikingsen.skald.core.model.HomeShelf
 import dev.vikingsen.skald.core.model.Series
+import dev.vikingsen.skald.core.model.Author
 
 interface AudiobookshelfRepository {
     suspend fun login(url: String, user: String, pass: String): Result<LoggedUser>
@@ -49,5 +50,9 @@ interface AudiobookshelfRepository {
     suspend fun scanAndRelinkDownloads(): Result<Unit>
     suspend fun getOrphanedDownloadsSize(): Long
     suspend fun deleteOrphanedDownloads(): Result<Unit>
+    fun getAuthorsFlow(libraryId: String): Flow<List<Author>>
+    suspend fun syncLibraryAuthors(libraryId: String, forceRefresh: Boolean = false): Result<Unit>
+    suspend fun getAuthorDetails(authorId: String, forceRefresh: Boolean = false): Result<Author>
+    fun getBooksForAuthorFlow(authorId: String): Flow<List<BookWithProgress>>
 }
 

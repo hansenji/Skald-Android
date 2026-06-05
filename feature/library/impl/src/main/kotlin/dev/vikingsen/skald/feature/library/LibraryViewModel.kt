@@ -20,6 +20,10 @@ import dev.vikingsen.skald.domain.usecase.GetMiniPlayerStateUseCase
 import dev.vikingsen.skald.domain.usecase.SyncGlobalProgressUseCase
 import dev.vikingsen.skald.domain.usecase.GetSeriesUseCase
 import dev.vikingsen.skald.domain.usecase.SyncLibrarySeriesUseCase
+import dev.vikingsen.skald.domain.usecase.GetAuthorsUseCase
+import dev.vikingsen.skald.domain.usecase.SyncLibraryAuthorsUseCase
+import dev.vikingsen.skald.core.model.Author
+import dev.vikingsen.skald.core.model.AuthorsSortOption
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -87,6 +91,8 @@ class LibraryViewModel(
     private val syncLibraryBooksUseCase: SyncLibraryBooksUseCase,
     private val getSeriesUseCase: GetSeriesUseCase,
     private val syncLibrarySeriesUseCase: SyncLibrarySeriesUseCase,
+    private val getAuthorsUseCase: GetAuthorsUseCase,
+    private val syncLibraryAuthorsUseCase: SyncLibraryAuthorsUseCase,
     private val repository: AudiobookshelfRepository,
     private val fetchLibrariesUseCase: FetchLibrariesUseCase,
     private val logoutUseCase: LogoutUseCase,
@@ -129,12 +135,19 @@ class LibraryViewModel(
         selectedLibraryId.flatMapLatest { libraryId ->
             if (libraryId.isEmpty()) flowOf(0)
             else repository.getSeriesFlow(libraryId).map { it.size }
+        },
+        selectedLibraryId.flatMapLatest { libraryId ->
+            if (libraryId.isEmpty()) flowOf(0)
+            else repository.getAuthorsFlow(libraryId).map { it.size }
         }
-    ) { hideEmpty, seriesCount ->
+    ) { hideEmpty, seriesCount, authorsCount ->
         if (hideEmpty) {
             val tabs = mutableListOf(LibraryTab.BOOKS)
             if (seriesCount > 0) {
                 tabs.add(LibraryTab.SERIES)
+            }
+            if (authorsCount > 0) {
+                tabs.add(LibraryTab.AUTHORS)
             }
             tabs
         } else {
@@ -170,6 +183,42 @@ class LibraryViewModel(
         seriesSort.value = sort
         settingsRepository.saveSeriesSortOption(sort.name)
     }
+
+    val authorsSort = MutableStateFlow(
+        settingsRepository.getAuthorsSortOption()?.let {
+            runCatching { AuthorsSortOption.valueOf(it) }.getOrNull()
+        } ?: AuthorsSortOption.NAME_ASC
+    )
+
+    fun setAuthorsSort(sort: AuthorsSortOption) {
+        authorsSort.value = sort
+        settingsRepository.saveAuthorsSortOption(sort.name)
+    }
+
+    val authors: Flow<List<Author>> = selectedLibraryId
+        .flatMapLatest { libraryId ->
+            if (libraryId.isEmpty()) {
+                flowOf(emptyList())
+            } else {
+                combine(
+                    getAuthorsUseCase(libraryId),
+                    searchQuery,
+                    authorsSort
+                ) { authorsList, query, sort ->
+                    authorsList
+                        .filter { author ->
+                            query.isEmpty() || author.name.contains(query, ignoreCase = true)
+                        }
+                        .sortedWith { a, b ->
+                            when (sort) {
+                                AuthorsSortOption.NAME_ASC -> a.name.compareTo(b.name, ignoreCase = true)
+                                AuthorsSortOption.NAME_DESC -> b.name.compareTo(a.name, ignoreCase = true)
+                                AuthorsSortOption.BOOKS_COUNT_DESC -> b.bookCount.compareTo(a.bookCount)
+                            }
+                        }
+                }
+            }
+        }
 
     val series: Flow<List<SeriesCardUiModel>> = selectedLibraryId
         .flatMapLatest { libraryId ->
@@ -372,13 +421,15 @@ class LibraryViewModel(
             }
             
             if (libraryId.isNotEmpty()) {
-                // Sync books & series
+                // Sync books, series & authors
                 val result = syncLibraryBooksUseCase(libraryId, forceRefresh)
                 val seriesResult = syncLibrarySeriesUseCase(libraryId, forceRefresh)
+                val authorsResult = syncLibraryAuthorsUseCase(libraryId, forceRefresh)
                 val progressResult = syncGlobalProgressUseCase(forceRefresh)
-                if (result.isFailure || seriesResult.isFailure || progressResult.isFailure) {
+                if (result.isFailure || seriesResult.isFailure || authorsResult.isFailure || progressResult.isFailure) {
                     error.value = result.exceptionOrNull()?.message 
                         ?: seriesResult.exceptionOrNull()?.message
+                        ?: authorsResult.exceptionOrNull()?.message
                         ?: progressResult.exceptionOrNull()?.message 
                         ?: "Failed to sync library"
                 }
@@ -423,10 +474,12 @@ class LibraryViewModel(
                     error.value = null
                     val result = syncLibraryBooksUseCase(libraryId)
                     val seriesResult = syncLibrarySeriesUseCase(libraryId)
+                    val authorsResult = syncLibraryAuthorsUseCase(libraryId)
                     val progressResult = syncGlobalProgressUseCase()
-                    if (result.isFailure || seriesResult.isFailure || progressResult.isFailure) {
+                    if (result.isFailure || seriesResult.isFailure || authorsResult.isFailure || progressResult.isFailure) {
                         error.value = result.exceptionOrNull()?.message 
                             ?: seriesResult.exceptionOrNull()?.message
+                            ?: authorsResult.exceptionOrNull()?.message
                             ?: progressResult.exceptionOrNull()?.message 
                             ?: "Failed to sync library"
                     }

@@ -18,6 +18,10 @@ import dev.vikingsen.skald.core.model.PlaybackProgress
 import dev.vikingsen.skald.core.model.BookWithProgress
 import dev.vikingsen.skald.core.database.SeriesEntity
 import dev.vikingsen.skald.core.model.Series
+import dev.vikingsen.skald.core.database.AuthorEntity
+import dev.vikingsen.skald.core.model.Author
+import dev.vikingsen.skald.core.network.NetworkAuthorResponse
+import dev.vikingsen.skald.core.network.AuthorDetailsResponse
 
 fun LibraryResponse.toDomain(): Library = Library(
     id = id,
@@ -158,4 +162,24 @@ fun dev.vikingsen.skald.core.database.HomeShelfItemEntity.toDomain(): dev.viking
     subtitle = subtitle,
     imageUrl = imageUrl,
     additionalData = additionalData
+)
+
+fun AuthorEntity.toDomain(): Author = Author(
+    id = id,
+    libraryId = libraryId,
+    name = name,
+    description = description,
+    imagePath = imagePath,
+    bookCount = bookCount,
+    etag = etag
+)
+
+fun Author.toEntity(): AuthorEntity = AuthorEntity(
+    id = id,
+    libraryId = libraryId,
+    name = name,
+    description = description,
+    imagePath = imagePath,
+    bookCount = bookCount,
+    etag = etag
 )

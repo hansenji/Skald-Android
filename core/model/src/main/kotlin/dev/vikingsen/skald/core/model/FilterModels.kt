@@ -29,3 +29,9 @@ enum class SeriesSortOption {
     BOOKS_COUNT_DESC,
     RECENTLY_UPDATED
 }
+
+enum class AuthorsSortOption {
+    NAME_ASC,
+    NAME_DESC,
+    BOOKS_COUNT_DESC
+}

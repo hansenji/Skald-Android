@@ -104,6 +104,18 @@ class SettingsRepositoryImpl(
         preferencesManager.saveLibrarySeriesETag(libraryId, etag)
     }
 
+    override fun getLibraryAuthorsETag(libraryId: String): String? = preferencesManager.getLibraryAuthorsETag(libraryId)
+
+    override fun saveLibraryAuthorsETag(libraryId: String, etag: String) {
+        preferencesManager.saveLibraryAuthorsETag(libraryId, etag)
+    }
+
+    override fun getAuthorsSortOption(): String? = preferencesManager.getAuthorsSortOption()
+
+    override fun saveAuthorsSortOption(sort: String) {
+        preferencesManager.saveAuthorsSortOption(sort)
+    }
+
     override fun getSeriesFilter(): String? = preferencesManager.getSeriesFilter()
 
     override fun saveSeriesFilter(filter: String) {

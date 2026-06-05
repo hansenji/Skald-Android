@@ -28,9 +28,11 @@ import dev.vikingsen.skald.feature.login.api.Login
 import dev.vikingsen.skald.feature.library.LibraryScreen
 import dev.vikingsen.skald.feature.library.DetailScreen
 import dev.vikingsen.skald.feature.library.SeriesDetailScreen
+import dev.vikingsen.skald.feature.library.AuthorDetailScreen
 import dev.vikingsen.skald.feature.library.api.Library
 import dev.vikingsen.skald.feature.library.api.Detail
 import dev.vikingsen.skald.feature.library.api.SeriesDetail
+import dev.vikingsen.skald.feature.library.api.AuthorDetail
 import dev.vikingsen.skald.feature.home.HomeScreen
 import dev.vikingsen.skald.feature.home.api.Home
 import dev.vikingsen.skald.feature.settings.SettingsScreen
@@ -140,6 +142,9 @@ fun MainNavigation() {
                             },
                             onSeriesClick = { seriesId ->
                                 backStack.add(SeriesDetail(seriesId))
+                            },
+                            onAuthorClick = { authorId ->
+                                backStack.add(AuthorDetail(authorId))
                             }
                         )
                     }
@@ -165,6 +170,17 @@ fun MainNavigation() {
                     entry<SeriesDetail> { key ->
                         SeriesDetailScreen(
                             seriesId = key.seriesId,
+                            onBackClick = {
+                                backStack.removeLastOrNull()
+                            },
+                            onBookClick = { bookId ->
+                                backStack.add(Detail(bookId))
+                            }
+                        )
+                    }
+                    entry<AuthorDetail> { key ->
+                        AuthorDetailScreen(
+                            authorId = key.authorId,
                             onBackClick = {
                                 backStack.removeLastOrNull()
                             },

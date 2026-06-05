@@ -35,6 +35,10 @@ interface SettingsRepository {
     fun saveLibraryETag(libraryId: String, etag: String)
     fun getLibrarySeriesETag(libraryId: String): String?
     fun saveLibrarySeriesETag(libraryId: String, etag: String)
+    fun getLibraryAuthorsETag(libraryId: String): String?
+    fun saveLibraryAuthorsETag(libraryId: String, etag: String)
+    fun getAuthorsSortOption(): String?
+    fun saveAuthorsSortOption(sort: String)
     fun getSeriesFilter(): String?
     fun saveSeriesFilter(filter: String)
     fun getSeriesSortOption(): String?

@@ -11,3 +11,6 @@ data class Detail(val bookId: String) : NavKey
 
 @Serializable
 data class SeriesDetail(val seriesId: String) : NavKey
+
+@Serializable
+data class AuthorDetail(val authorId: String) : NavKey

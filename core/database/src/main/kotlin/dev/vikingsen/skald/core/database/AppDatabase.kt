@@ -95,6 +95,18 @@ interface BookDao {
         WHERE b.seriesId = :seriesId
     """)
     fun getBooksForSeriesWithProgressFlow(seriesId: String): Flow<List<BookWithProgressEntity>>
+
+    @Transaction
+    @Query("""
+        SELECT b.*, 
+        p.bookId AS progress_bookId, p.currentTime AS progress_currentTime, 
+        p.progress AS progress_progress, p.isFinished AS progress_isFinished, 
+        p.lastUpdated AS progress_lastUpdated 
+        FROM books b LEFT JOIN playback_progress p ON b.id = p.bookId 
+        INNER JOIN author_books ab ON b.id = ab.bookId
+        WHERE ab.authorId = :authorId
+    """)
+    fun getBooksForAuthorWithProgressFlow(authorId: String): Flow<List<BookWithProgressEntity>>
 }
 
 @Dao
@@ -118,6 +130,42 @@ interface SeriesDao {
     suspend fun replaceSeriesForLibrary(libraryId: String, seriesList: List<SeriesEntity>) {
         deleteSeriesForLibrary(libraryId)
         insertAll(seriesList)
+    }
+}
+
+@Dao
+interface AuthorDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(authorsList: List<AuthorEntity>)
+
+    @Query("SELECT * FROM authors WHERE libraryId = :libraryId")
+    fun getAuthorsFlow(libraryId: String): Flow<List<AuthorEntity>>
+
+    @Query("SELECT * FROM authors WHERE id = :authorId")
+    suspend fun getAuthorById(authorId: String): AuthorEntity?
+
+    @Query("SELECT COUNT(*) FROM authors WHERE libraryId = :libraryId")
+    fun getAuthorsCountFlow(libraryId: String): Flow<Int>
+
+    @Query("DELETE FROM authors WHERE libraryId = :libraryId")
+    suspend fun deleteAuthorsForLibrary(libraryId: String)
+
+    @Transaction
+    suspend fun replaceAuthorsForLibrary(libraryId: String, authorsList: List<AuthorEntity>) {
+        deleteAuthorsForLibrary(libraryId)
+        insertAll(authorsList)
+    }
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAuthorBookCrossRefs(crossRefs: List<AuthorBookCrossRef>)
+
+    @Query("DELETE FROM author_books WHERE authorId = :authorId")
+    suspend fun deleteAuthorBookCrossRefsForAuthor(authorId: String)
+
+    @Transaction
+    suspend fun replaceAuthorBookCrossRefsForAuthor(authorId: String, crossRefs: List<AuthorBookCrossRef>) {
+        deleteAuthorBookCrossRefsForAuthor(authorId)
+        insertAuthorBookCrossRefs(crossRefs)
     }
 }
 
@@ -182,9 +230,11 @@ interface HomeShelfDao {
         LibraryEntity::class,
         HomeShelfEntity::class,
         HomeShelfItemEntity::class,
-        SeriesEntity::class
+        SeriesEntity::class,
+        AuthorEntity::class,
+        AuthorBookCrossRef::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -194,6 +244,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun libraryDao(): LibraryDao
     abstract fun homeShelfDao(): HomeShelfDao
     abstract fun seriesDao(): SeriesDao
+    abstract fun authorDao(): AuthorDao
 
     companion object {
         private const val DB_NAME = "skald_db"
