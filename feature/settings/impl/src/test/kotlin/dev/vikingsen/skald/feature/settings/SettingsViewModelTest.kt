@@ -176,4 +176,22 @@ class SettingsViewModelTest {
         assertTrue(completed)
         coVerify { logoutUseCase.invoke() }
     }
+
+    @Test
+    fun testCalculateOrphanedSize() = runTest(testDispatcher) {
+        coEvery { audiobookshelfRepository.getOrphanedDownloadsSize() } returns 52428800L // 50 MB
+        
+        viewModel.calculateOrphanedSize()
+        testDispatcher.scheduler.advanceUntilIdle()
+        
+        assertEquals("50.00 MB", viewModel.orphanedSize.value)
+    }
+
+    @Test
+    fun testDeleteOrphanedDownloads() = runTest(testDispatcher) {
+        viewModel.deleteOrphanedDownloads()
+        testDispatcher.scheduler.advanceUntilIdle()
+        
+        coVerify { audiobookshelfRepository.deleteOrphanedDownloads() }
+    }
 }

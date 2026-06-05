@@ -31,3 +31,37 @@ The client must download audio files from the server to enable offline listening
 ### D. Background Continuity
 1. **Background Resiliency**: Once started, downloads must continue in the background even if the screen is off or the application is not actively in use (minimized or backgrounded).
 2. **Platform Integration**: Utilize Android's system `DownloadManager` service to delegate download scheduling, notifications, and background download persistence.
+
+---
+
+## 3. Download Maintenance & Relinking
+
+To ensure the local relational database (`books` table) remains fully reconciled with the physical files stored in app-specific external storage, a background maintenance task must run regularly to perform disk-to-database reconciliation.
+
+### A. Execution Scenarios
+The reconciliation process must run:
+1. **On Application Startup**: Triggered in `ABSApplication.onCreate()` inside a background coroutine scope.
+2. **On Periodic Sync**: Triggered automatically when the periodic library sync runs (aligned with `library_sync_interval_hours`).
+
+### B. Reconciliation and Relinking Logic
+1. **Directory Traversal**:
+   - The scanner resolves the downloads directory: `context.getExternalFilesDir(null)/downloads`.
+   - It lists all subdirectories. Each subdirectory name represents a `bookId`.
+2. **Entity Reconciliation**:
+   - For each subdirectory (`bookId`):
+     - Query the local database for a matching `BookEntity` by ID.
+     - **If a corresponding book is found**:
+       - **Detail Enrichment**: If the book's `audioFiles` array is empty, the system must trigger a fetch of the book details from the server to enrich the database record with the files list and inodes before scanning.
+       - Traverse files within the `downloads/{bookId}` directory.
+       - Match found files (named as `{ino}.{extension}`) against the list of `LocalAudioFile` entries stored in the book's `audioFiles` array.
+       - If a matching file exists on disk:
+         - Update its `downloadStatus` to `"COMPLETED"`.
+         - Update its `localPath` to the file's absolute path on disk.
+       - If a file in the database is marked as downloaded/completed but is missing on disk:
+         - Reset its `downloadStatus` to `"NOT_DOWNLOADED"` and `localPath` to `null`.
+       - Recalculate whether all audio files of the book are `"COMPLETED"`. Set `isDownloaded` to `true` if all are complete, else `false`.
+       - If any properties of the `BookEntity` changed, save/upsert the updated entity back to the database.
+     - **If no corresponding book is found**:
+       - Do not delete the directory immediately.
+       - Mark the directory as an **orphaned download folder** to be presented to the user for settings-based cleanup.
+

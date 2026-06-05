@@ -10,6 +10,7 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
+import kotlinx.coroutines.launch
 
 class ABSApplication : Application(), SingletonImageLoader.Factory {
     override fun onCreate() {
@@ -18,6 +19,11 @@ class ABSApplication : Application(), SingletonImageLoader.Factory {
             androidLogger()
             androidContext(this@ABSApplication)
             modules(appModule)
+        }
+
+        val repository = org.koin.core.context.GlobalContext.get().get<dev.vikingsen.skald.domain.repository.AudiobookshelfRepository>()
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            repository.scanAndRelinkDownloads()
         }
     }
 

@@ -46,4 +46,8 @@ interface AudiobookshelfRepository {
         sortBy: SortOption
     ): Flow<PagingData<BookWithProgress>>
     suspend fun getCachedLibraries(): List<Library>
+    suspend fun scanAndRelinkDownloads(): Result<Unit>
+    suspend fun getOrphanedDownloadsSize(): Long
+    suspend fun deleteOrphanedDownloads(): Result<Unit>
 }
+

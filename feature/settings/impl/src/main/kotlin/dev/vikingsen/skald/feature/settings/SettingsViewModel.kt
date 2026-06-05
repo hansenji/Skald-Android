@@ -57,6 +57,9 @@ class SettingsViewModel(
     private val _cacheSize = MutableStateFlow("0 B")
     val cacheSize: StateFlow<String> = _cacheSize.asStateFlow()
 
+    private val _orphanedSize = MutableStateFlow("0 B")
+    val orphanedSize: StateFlow<String> = _orphanedSize.asStateFlow()
+
     private val _isSyncing = MutableStateFlow(false)
     val isSyncing: StateFlow<Boolean> = _isSyncing.asStateFlow()
 
@@ -66,6 +69,7 @@ class SettingsViewModel(
     init {
         loadSettings()
         calculateCacheSize()
+        calculateOrphanedSize()
         checkOfflineStatus()
     }
 
@@ -157,6 +161,7 @@ class SettingsViewModel(
                 audiobookshelfRepository.clearLocalData()
                 
                 calculateCacheSize()
+                calculateOrphanedSize()
                 loadSettings()
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -172,6 +177,21 @@ class SettingsViewModel(
             val dbSize = if (dbFile.exists()) dbFile.length() else 0L
             val totalSize = downloadsSize + dbSize
             _cacheSize.value = formatSize(totalSize)
+        }
+    }
+
+    fun calculateOrphanedSize() {
+        viewModelScope.launch(ioDispatcher) {
+            val totalSize = audiobookshelfRepository.getOrphanedDownloadsSize()
+            _orphanedSize.value = formatSize(totalSize)
+        }
+    }
+
+    fun deleteOrphanedDownloads() {
+        viewModelScope.launch(ioDispatcher) {
+            audiobookshelfRepository.deleteOrphanedDownloads()
+            calculateOrphanedSize()
+            calculateCacheSize()
         }
     }
 

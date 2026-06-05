@@ -36,6 +36,12 @@
     <string name="settings_clear_cache_dialog_title">Clear Cached Data?</string>
     <string name="settings_clear_cache_dialog_message">This will delete all offline downloaded audiobook tracks and database caches, but preserves your active login session and preferences. Do you want to proceed?</string>
     
+    <!-- Orphaned Downloads -->
+    <string name="settings_orphaned_downloads_label">Orphaned Downloads</string>
+    <string name="settings_clean_orphans">Clean</string>
+    <string name="settings_clean_orphans_dialog_title">Delete Orphaned Downloads?</string>
+    <string name="settings_clean_orphans_dialog_message">This will permanently delete downloaded audiobook files that are no longer part of your library. This action cannot be undone.</string>
+    
     <!-- Hide Empty Tabs Settings -->
     <string name="settings_hide_empty_tabs_label">Hide Empty Tabs</string>
     <string name="settings_hide_empty_tabs_desc">Hide secondary tabs (Series, Collections, etc.) if they have no items</string>

@@ -1,6 +1,7 @@
 package dev.vikingsen.skald.data.repository
 
 import android.content.Context
+import android.util.Log
 import dev.vikingsen.skald.core.preferences.PreferencesManager
 import dev.vikingsen.skald.core.database.AppDatabaseProvider
 import dev.vikingsen.skald.core.database.BookEntity
@@ -204,6 +205,8 @@ class AudiobookshelfRepositoryImpl(
             }
             bookDao.insertAll(books)
             preferencesManager.saveLibraryLastSyncTimestamp(System.currentTimeMillis())
+            runCatching { scanAndRelinkDownloads() }
+            Unit
         }
     }
 
@@ -940,5 +943,107 @@ class AudiobookshelfRepositoryImpl(
 
     override fun getBooksWithProgressForLibraryFlow(libraryId: String): Flow<List<BookWithProgress>> {
         return bookDao.getBooksWithProgressForLibraryFlow(libraryId).map { list -> list.map { it.toDomain() } }
+    }
+
+    override suspend fun scanAndRelinkDownloads(): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val downloadsFolder = File(context.getExternalFilesDir(null), "downloads")
+            if (!downloadsFolder.exists() || !downloadsFolder.isDirectory) {
+                return@runCatching
+            }
+
+            val bookDirs = downloadsFolder.listFiles { file -> file.isDirectory } ?: return@runCatching
+            for (bookDir in bookDirs) {
+                val bookId = bookDir.name
+                var book = bookDao.getBookById(bookId)
+                
+                // If the book details are not yet populated (empty audioFiles list), fetch them from the server first
+                if (book != null && book.audioFiles.isEmpty()) {
+                    runCatching { fetchBookDetails(bookId, forceRefresh = true) }
+                    book = bookDao.getBookById(bookId)
+                }
+
+                if (book != null && book.audioFiles.isNotEmpty()) {
+                    val filesOnDisk = bookDir.listFiles { file -> file.isFile } ?: continue
+                    val diskInos = filesOnDisk.map { it.name.substringBeforeLast('.') }.toSet()
+                    
+                    var updated = false
+                    val updatedFiles = book.audioFiles.map { file ->
+                        if (diskInos.contains(file.ino)) {
+                            val matchingFile = filesOnDisk.first { it.name.substringBeforeLast('.') == file.ino }
+                            val absolutePath = matchingFile.absolutePath
+                            if (file.downloadStatus != "COMPLETED" || file.localPath != absolutePath) {
+                                updated = true
+                                file.copy(localPath = absolutePath, downloadStatus = "COMPLETED")
+                            } else {
+                                file
+                            }
+                        } else {
+                            if (file.downloadStatus == "COMPLETED" || file.localPath != null) {
+                                updated = true
+                                file.copy(localPath = null, downloadStatus = "NOT_DOWNLOADED")
+                            } else {
+                                file
+                            }
+                        }
+                    }
+
+                    if (updated) {
+                        val isAllDownloaded = updatedFiles.all { it.downloadStatus == "COMPLETED" }
+                        bookDao.insertBook(book.copy(audioFiles = updatedFiles, isDownloaded = isAllDownloaded))
+                        Log.d("DownloadMaintenance", "Reconciled and updated book $bookId download status in database")
+                    }
+                }
+            }
+        }
+    }
+
+    override suspend fun getOrphanedDownloadsSize(): Long = withContext(Dispatchers.IO) {
+        val downloadsFolder = File(context.getExternalFilesDir(null), "downloads")
+        if (!downloadsFolder.exists() || !downloadsFolder.isDirectory) {
+            return@withContext 0L
+        }
+
+        val bookDirs = downloadsFolder.listFiles { file -> file.isDirectory } ?: return@withContext 0L
+        var totalSize = 0L
+        for (bookDir in bookDirs) {
+            val bookId = bookDir.name
+            val book = bookDao.getBookById(bookId)
+            if (book == null) {
+                totalSize += getDirSize(bookDir)
+            }
+        }
+        totalSize
+    }
+
+    override suspend fun deleteOrphanedDownloads(): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val downloadsFolder = File(context.getExternalFilesDir(null), "downloads")
+            if (!downloadsFolder.exists() || !downloadsFolder.isDirectory) {
+                return@runCatching
+            }
+
+            val bookDirs = downloadsFolder.listFiles { file -> file.isDirectory } ?: return@runCatching
+            for (bookDir in bookDirs) {
+                val bookId = bookDir.name
+                val book = bookDao.getBookById(bookId)
+                if (book == null) {
+                    bookDir.deleteRecursively()
+                    Log.d("DownloadMaintenance", "Deleted orphaned downloads folder: $bookId")
+                }
+            }
+        }
+    }
+
+    private fun getDirSize(dir: File): Long {
+        var size = 0L
+        if (dir.exists() && dir.isDirectory) {
+            dir.listFiles()?.forEach { file ->
+                size += if (file.isDirectory) getDirSize(file) else file.length()
+            }
+        } else if (dir.exists()) {
+            size += dir.length()
+        }
+        return size
     }
 }

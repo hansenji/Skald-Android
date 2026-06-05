@@ -112,6 +112,16 @@ The UI is organized vertically into grouped categories using `Card` containers o
 - **Storage Metrics & Clear Cache**:
   - Displays the total size occupied by offline downloaded tracks (sum of files under `downloads/` directory) and cached database records across all tabs.
   - **Clear Cache Button**: Outlined button that deletes downloaded audiobook tracks, clears search indices, and wipes DB caches for all library categories (Books, Series, Collections, Authors, Playlists). Retains active login session credentials.
+- **Orphaned Downloads Clean-up**:
+  - Displays the total size occupied by offline files under the `downloads/` directory that do not have a matching book ID in the local database `books` table.
+  - **Delete Button**: Outlined or text button with `MaterialTheme.colorScheme.error` container/color, enabled only when the size of orphaned downloads is greater than 0.
+  - **Behavior**: Clicking the action displays a **Confirmation Dialog**:
+    - *Title*: "Delete Orphaned Downloads?"
+    - *Message*: "This will permanently delete downloaded audiobook files that are no longer part of your library. This action cannot be undone."
+    - *Confirm*: "Delete" (Destructive red)
+    - *Dismiss*: "Cancel"
+  - **Execution**: Recursively deletes any subdirectory under `downloads/` that has no matching book record in the `books` table. Recalculates both the active cache size and orphaned download metrics.
+
 
 ---
 
@@ -178,6 +188,8 @@ To verify that the settings configurations behave correctly and update adjacent 
    - Verify `logout()` delegates to `LogoutUseCase` and executes the navigation callback.
    - Verify `calculateCacheSize()` correctly formats and combines database file size and downloads directory size.
    - Verify `checkOfflineStatus()` updates the `isOffline` flow using `ConnectivityManager` active network capabilities.
+   - Verify `calculateOrphanedDownloadsSize()` calculates the total size of downloads directories that do not match any book ID in the local database.
+   - Verify `deleteOrphanedDownloads()` removes only the subfolders under `downloads/` whose IDs are missing from the `books` database table, leaving valid downloaded books completely intact.
 
 ### Manual Verification
 1. **Android Auto Sync Verification**:
@@ -188,3 +200,8 @@ To verify that the settings configurations behave correctly and update adjacent 
    - Verify that the app-specific `downloads/` directory is completely empty and no books from the prior user remain in the library grid.
 3. **Periodic Sync Interval Modification**:
    - Verify using Android's command line tool that the scheduled `WorkManager` periodicity matches the chosen settings interval.
+4. **Orphaned Downloads Detection and Clean-up**:
+   - Create a dummy folder under `getExternalFilesDir(null)/downloads/dummy_book_id` containing a large temporary file (e.g. 50 MB).
+   - Navigate to Settings and verify that the "Orphaned Downloads" section displays the computed size (e.g., "50.00 MB") and enabling the "Clean" button.
+   - Verify that clicking "Clean" and confirming in the dialog deletes the `dummy_book_id` folder while valid downloaded books remain in place.
+

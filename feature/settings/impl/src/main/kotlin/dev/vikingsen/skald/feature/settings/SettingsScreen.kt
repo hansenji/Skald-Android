@@ -43,6 +43,7 @@ fun SettingsScreen(
     val lastSyncTimestamp by viewModel.lastSyncTimestamp.collectAsState()
 
     val cacheSize by viewModel.cacheSize.collectAsState()
+    val orphanedSize by viewModel.orphanedSize.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
     val isOffline by viewModel.isOffline.collectAsState()
 
@@ -54,10 +55,12 @@ fun SettingsScreen(
     var showSyncIntervalDialog by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showClearCacheDialog by remember { mutableStateOf(false) }
+    var showCleanOrphansDialog by remember { mutableStateOf(false) }
 
     // Trigger size calculation on compose resume
     LaunchedEffect(Unit) {
         viewModel.calculateCacheSize()
+        viewModel.calculateOrphanedSize()
         viewModel.loadSettings()
         viewModel.checkOfflineStatus()
     }
@@ -306,6 +309,44 @@ fun SettingsScreen(
                     }
                 }
                 HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.settings_orphaned_downloads_label),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = orphanedSize,
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    val hasOrphans = orphanedSize != "0 B" && orphanedSize != "0.00 B" && orphanedSize != "0.00 bytes" && orphanedSize != "0 bytes"
+                    OutlinedButton(
+                        onClick = { showCleanOrphansDialog = true },
+                        enabled = hasOrphans,
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = null,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = stringResource(R.string.settings_clean_orphans))
+                    }
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.1f))
                 SettingsToggleItem(
                     title = stringResource(R.string.settings_hide_empty_tabs_label),
                     subtitle = stringResource(R.string.settings_hide_empty_tabs_desc),
@@ -472,6 +513,30 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showClearCacheDialog = false }) {
+                    Text(stringResource(R.string.dialog_action_cancel))
+                }
+            }
+        )
+    }
+
+    if (showCleanOrphansDialog) {
+        AlertDialog(
+            onDismissRequest = { showCleanOrphansDialog = false },
+            title = { Text(stringResource(R.string.settings_clean_orphans_dialog_title)) },
+            text = { Text(stringResource(R.string.settings_clean_orphans_dialog_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showCleanOrphansDialog = false
+                        viewModel.deleteOrphanedDownloads()
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text(stringResource(R.string.settings_clean_orphans))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCleanOrphansDialog = false }) {
                     Text(stringResource(R.string.dialog_action_cancel))
                 }
             }
