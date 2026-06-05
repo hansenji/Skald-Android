@@ -55,3 +55,9 @@ It depends on:
   - `NAME_ASC` / `NAME_DESC`: Alphabetical by collection name.
   - `BOOKS_COUNT_DESC`: By collection size.
   - `LAST_MODIFIED`: By server's collection update timestamp.
+
+---
+
+## 4. UI States & Offline Resilience
+
+- **Scrollable Empty State**: If no collections are found in the active library, the Collections tab renders a scrollable empty state (via `LibraryEmptyState` supporting vertical scroll). This ensures that swipe-to-refresh gestures propagate properly, and renders a manual "Sync Now" button to trigger a database refresh.

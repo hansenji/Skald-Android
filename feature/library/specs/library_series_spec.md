@@ -61,3 +61,9 @@ It depends on:
   - `NAME_ASC` / `NAME_DESC`: Alphabetical by series name.
   - `BOOKS_COUNT_DESC`: By number of books (largest to smallest).
   - `RECENTLY_UPDATED`: By the last played timestamp of any book within the series.
+
+---
+
+## 4. UI States & Offline Resilience
+
+- **Scrollable Empty State**: If no series are found in the active library, the Series tab renders a scrollable empty state (via `LibraryEmptyState` supporting vertical scroll). This ensures that swipe-to-refresh gestures propagate properly, and renders a manual "Sync Now" button to trigger a database refresh.

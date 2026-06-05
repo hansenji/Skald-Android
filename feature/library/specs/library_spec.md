@@ -31,7 +31,7 @@ Data and event propagation flow through the following layers:
    - Stores the new library ID.
    - Clears the active memory of the current view.
    - Triggers a full synchronization flow across all tabs (Books, Series, Collections, Authors, and Playlists) to ensure all data is immediately aligned for the new library.
-3. If no library is selected or preferences are cleared, the screen displays a friendly message prompting the user to select a library.
+3. If no library is selected or preferences are cleared, the screen displays a friendly, scrollable empty state prompting the user to select a library, including a "Refresh Libraries" button to re-fetch libraries from the server (which operates even without an active library selection).
 
 ### C. Library List Caching
 1. The libraries list returned from `GET /api/libraries` is cached in the Room local database (`libraries` table) to support offline picker loading.
@@ -46,7 +46,7 @@ Data and event propagation flow through the following layers:
 3. **Caching**: Uses ETag checks (`If-None-Match`) for each endpoint during periodic syncs to minimize bandwidth. The manual "Sync Now" option bypasses ETag checks (omits `If-None-Match`) for all endpoints.
 
 ### B. Swipe-To-Refresh Sync
-1. Pulling to refresh within the library container triggers an immediate force synchronization (bypassing ETag checks / omitting `If-None-Match` header) for all library tabs (Books, Series, Collections, Authors, and Playlists) concurrently or sequentially.
+1. Pulling to refresh within the library container triggers an immediate force synchronization (bypassing ETag checks / omitting `If-None-Match` header) for all library tabs (Books, Series, Collections, Authors, and Playlists) concurrently or sequentially. If no library is active yet, pull-to-refresh will fetch the list of available libraries.
 2. The UI displays an active refresh indicator/spinner until all tab synchronizations have completed or failed.
 
 ---
@@ -93,6 +93,10 @@ The library container screen is laid out according to the [Design Specification]
 2. As the user types, the query string is delegated to the currently active tab:
    - The query filter is passed down to the active tab's ViewModel.
    - Each tab performs its own scoped search query against its respective database tables (e.g. searching authors, series names, book titles).
+
+### D. Empty & Error State Rendering
+1. **Scrolling Support**: All empty and error state layouts (no library selected, book loading error, empty books list, empty series list) must use vertical scrolling (via `Modifier.verticalScroll(rememberScrollState())`) to ensure that swipe-to-refresh gestures correctly propagate up to the container's parent `PullToRefreshBox`.
+2. **Direct Action Buttons**: Empty and error states must render a direct action button (e.g. "Sync Now" or "Refresh Libraries") to allow manual synchronization/recovery.
 
 ---
 

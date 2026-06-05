@@ -33,9 +33,13 @@ import coil3.request.crossfade
 import org.koin.androidx.compose.koinViewModel
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Sort
+import androidx.compose.material.icons.filled.Error
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.ui.text.style.TextAlign
 import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemContentType
@@ -425,15 +429,13 @@ fun LibraryScreen(
                     val refreshLoadState = lazyBookCards.loadState.refresh
 
                     if (selectedLibraryId.isEmpty()) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "No library selected. Please select a library.",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        LibraryEmptyState(
+                            icon = Icons.Default.Folder,
+                            title = "No Library Selected",
+                            description = "Please select a library or refresh to load available libraries.",
+                            buttonText = "Refresh Libraries",
+                            onButtonClick = { viewModel.refresh(forceRefresh = true) }
+                        )
                     } else if (refreshLoadState is LoadState.Loading && lazyBookCards.itemCount == 0) {
                         Box(
                             modifier = Modifier.fillMaxSize(),
@@ -442,25 +444,22 @@ fun LibraryScreen(
                             CircularProgressIndicator()
                         }
                     } else if (refreshLoadState is LoadState.Error && lazyBookCards.itemCount == 0) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Error loading books: ${(refreshLoadState as LoadState.Error).error.message}",
-                                color = MaterialTheme.colorScheme.error
-                            )
-                        }
+                        val loadError = refreshLoadState.error
+                        LibraryEmptyState(
+                            icon = Icons.Default.Error,
+                            title = "Error Loading Books",
+                            description = loadError.message ?: "Unknown error occurred.",
+                            buttonText = "Sync Now",
+                            onButtonClick = { viewModel.refresh(forceRefresh = true) }
+                        )
                     } else if (lazyBookCards.itemCount == 0) {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "No books found.",
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        LibraryEmptyState(
+                            icon = Icons.Default.Folder,
+                            title = "No Books Found",
+                            description = "There are no books in this library, or sync is required.",
+                            buttonText = "Sync Now",
+                            onButtonClick = { viewModel.refresh(forceRefresh = true) }
+                        )
                     } else {
                         LazyVerticalGrid(
                             columns = GridCells.Adaptive(minSize = 140.dp),
@@ -656,15 +655,13 @@ fun SeriesTabContent(
         }
 
         if (seriesList.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "No series found.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            LibraryEmptyState(
+                icon = Icons.Default.List,
+                title = "No Series Found",
+                description = "There are no series in this library, or sync is required.",
+                buttonText = "Sync Now",
+                onButtonClick = { viewModel.refresh(forceRefresh = true) }
+            )
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = 140.dp),
@@ -1150,6 +1147,59 @@ fun NorseStubTabContent(tab: LibraryTab) {
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
                     lineHeight = 20.sp
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun LibraryEmptyState(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    description: String,
+    buttonText: String? = null,
+    onButtonClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier.fillMaxSize()
+) {
+    Box(
+        modifier = modifier.verticalScroll(rememberScrollState()),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(24.dp)
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(64.dp)
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = title,
+                fontWeight = FontWeight.Bold,
+                fontSize = 18.sp,
+                color = MaterialTheme.colorScheme.onBackground,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = description,
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
+            if (buttonText != null && onButtonClick != null) {
+                Spacer(modifier = Modifier.height(24.dp))
+                Button(
+                    onClick = onButtonClick,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Icon(Icons.Default.Refresh, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(buttonText)
+                }
             }
         }
     }

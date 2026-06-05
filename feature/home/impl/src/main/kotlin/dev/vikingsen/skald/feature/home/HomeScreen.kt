@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -188,7 +190,7 @@ fun HomeScreen(
                         onRetry = { viewModel.refresh(forceRefresh = true) }
                     )
                 } else if (uiState.shelves.isEmpty()) {
-                    EmptyScreen()
+                    EmptyScreen(onRefresh = { viewModel.refresh(forceRefresh = true) })
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
@@ -723,7 +725,9 @@ fun FatalErrorScreen(
     onRetry: () -> Unit
 ) {
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -764,9 +768,13 @@ fun FatalErrorScreen(
 }
 
 @Composable
-fun EmptyScreen() {
+fun EmptyScreen(
+    onRefresh: (() -> Unit)? = null
+) {
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -793,6 +801,17 @@ fun EmptyScreen() {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center
             )
+            if (onRefresh != null) {
+                Spacer(modifier = Modifier.height(24.dp))
+                Button(
+                    onClick = onRefresh,
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Icon(Icons.Default.Refresh, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Sync Now")
+                }
+            }
         }
     }
 }

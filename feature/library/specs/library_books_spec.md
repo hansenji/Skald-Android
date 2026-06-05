@@ -93,3 +93,4 @@ Sort preferences are persisted in `PreferencesManager` and restored on initializ
 
 1. **Cached Data source**: Room's `books` table is the offline source of truth. When offline, Paging 3 automatically feeds the cached books grid.
 2. **Graceful Failures**: Network failures during sync show transient error messages (e.g. Snackbars) and do not disrupt access to cached book metadata.
+3. **Scrollable Empty and Error States**: When there are no books or a sync error occurs on initial load, a scrollable empty/error state is rendered (via `LibraryEmptyState` supporting vertical scroll). This ensures that swipe-to-refresh gestures propagate properly, and displays a manual "Sync Now" button.

@@ -61,3 +61,9 @@ Playlists are presented in a list layout:
   - `NAME_ASC` / `NAME_DESC`: Alphabetical by name.
   - `TRACKS_COUNT_DESC`: By number of tracks in the playlist.
   - `DURATION_DESC`: By total running duration.
+
+---
+
+## 4. UI States & Offline Resilience
+
+- **Scrollable Empty State**: If no playlists are found, the Playlists tab renders a scrollable empty state (via `LibraryEmptyState` supporting vertical scroll). This ensures that swipe-to-refresh gestures propagate properly, and renders a manual "Sync Now" button to trigger a database refresh.

@@ -56,3 +56,9 @@ Unlike books and series, authors are displayed in a highly readable **vertical l
 - **Sorting**:
   - `NAME_ASC` / `NAME_DESC` (default: `NAME_ASC`): Alphabetical by name.
   - `BOOKS_COUNT_DESC`: Rank authors by how many of their books are in the library.
+
+---
+
+## 4. UI States & Offline Resilience
+
+- **Scrollable Empty State**: If no authors are found in the active library, the Authors tab renders a scrollable empty state (via `LibraryEmptyState` supporting vertical scroll). This ensures that swipe-to-refresh gestures propagate properly, and renders a manual "Sync Now" button to trigger a database refresh.

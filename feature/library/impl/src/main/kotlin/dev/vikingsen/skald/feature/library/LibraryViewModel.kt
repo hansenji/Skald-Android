@@ -354,29 +354,36 @@ class LibraryViewModel(
 
     fun refresh(forceRefresh: Boolean = false) {
         val libraryId = selectedLibraryId.value
-        if (libraryId.isEmpty()) {
-            error.value = "No library selected"
-            return
-        }
-
         isRefreshing.value = true
         error.value = null
         viewModelScope.launch {
             // Also refresh library list
             val libsResult = fetchLibrariesUseCase()
             if (libsResult.isSuccess) {
-                libraries.value = libsResult.getOrThrow().map { LibraryUiModel(it.id, it.name) }
+                val libs = libsResult.getOrThrow()
+                libraries.value = libs.map { LibraryUiModel(it.id, it.name) }
+                // Auto-selection on first load if none selected
+                if (selectedLibraryId.value.isEmpty()) {
+                    val audiobookLib = libs.find { it.type == "audiobook" } ?: libs.firstOrNull()
+                    if (audiobookLib != null) {
+                        setLibraryId(audiobookLib.id)
+                    }
+                }
             }
             
-            // Sync books & series
-            val result = syncLibraryBooksUseCase(libraryId, forceRefresh)
-            val seriesResult = syncLibrarySeriesUseCase(libraryId, forceRefresh)
-            val progressResult = syncGlobalProgressUseCase(forceRefresh)
-            if (result.isFailure || seriesResult.isFailure || progressResult.isFailure) {
-                error.value = result.exceptionOrNull()?.message 
-                    ?: seriesResult.exceptionOrNull()?.message
-                    ?: progressResult.exceptionOrNull()?.message 
-                    ?: "Failed to sync library"
+            if (libraryId.isNotEmpty()) {
+                // Sync books & series
+                val result = syncLibraryBooksUseCase(libraryId, forceRefresh)
+                val seriesResult = syncLibrarySeriesUseCase(libraryId, forceRefresh)
+                val progressResult = syncGlobalProgressUseCase(forceRefresh)
+                if (result.isFailure || seriesResult.isFailure || progressResult.isFailure) {
+                    error.value = result.exceptionOrNull()?.message 
+                        ?: seriesResult.exceptionOrNull()?.message
+                        ?: progressResult.exceptionOrNull()?.message 
+                        ?: "Failed to sync library"
+                }
+            } else if (libsResult.isFailure) {
+                error.value = libsResult.exceptionOrNull()?.message ?: "Failed to fetch libraries"
             }
             isRefreshing.value = false
         }

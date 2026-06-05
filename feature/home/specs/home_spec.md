@@ -275,7 +275,8 @@ data class HomeUiState(
 2. **Stale Render (DB Cached, Refreshing)**: `isRefreshing = true, shelves = cachedShelves`. UI instantly renders the cached shelves and displays a subtle top-screen refresh progress bar or spinner.
 3. **Load Completed (DB Fresh, Idling)**: `isRefreshing = false, shelves = freshShelves`. UI renders the fresh shelves, removing all loading indicators.
 4. **Revalidation Failure (DB Cached, Idle)**: `isRefreshing = false, shelves = cachedShelves, errorMessage = "Failed to sync"`. UI retains the stale content on screen and broadcasts the error via a transient `Snackbar` or message banner (no full-screen error blocking).
-5. **Fatal Error (DB Empty, Idle)**: `isLoading = false, shelves = empty, errorMessage = "Connection failed"`. UI renders a full-screen error screen with a "Retry" button.
+5. **Fatal Error (DB Empty, Idle)**: `isLoading = false, shelves = empty, errorMessage = "Connection failed"`. UI renders a full-screen error screen with a "Retry Connection" button. The error screen container supports vertical scrolling to ensure swipe-to-refresh gestures propagate properly.
+6. **Empty State (DB Empty, Idle, No Error)**: `isLoading = false, shelves = empty, errorMessage = null`. UI renders a full-screen welcome screen (`EmptyScreen`). To support user recovery, this screen is scrollable (enabling swipe-to-refresh gestures) and includes a "Sync Now" button that triggers a manual force refresh.
 
 ### B. Main Layout & Swipe to Refresh
 The main layout is enclosed within a Material 3 **`PullToRefreshBox`** (or the modifier-based `pullToRefresh` container) to support manual swipe-to-refresh:
