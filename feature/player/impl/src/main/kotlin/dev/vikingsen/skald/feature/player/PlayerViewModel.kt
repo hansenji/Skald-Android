@@ -3,6 +3,7 @@ package dev.vikingsen.skald.feature.player
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.vikingsen.skald.core.model.Book
+import dev.vikingsen.skald.core.model.PlaybackConstants
 import dev.vikingsen.skald.core.model.Chapter
 import dev.vikingsen.skald.core.model.formatDuration
 import dev.vikingsen.skald.core.model.formatPosition
@@ -153,7 +154,7 @@ class PlayerViewModel(
     }
 
     fun cyclePlaybackSpeed() {
-        val speeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
+        val speeds = PlaybackConstants.PLAYBACK_SPEEDS
         val currentSpeed = playerManager.playbackSpeed.value
         val currentIndex = speeds.indexOfFirst { kotlin.math.abs(it - currentSpeed) < 0.01f }
         val nextSpeed = if (currentIndex != -1 && currentIndex < speeds.lastIndex) {

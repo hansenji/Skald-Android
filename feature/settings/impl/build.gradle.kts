@@ -22,6 +22,7 @@ android {
 dependencies {
     implementation(project(":feature:settings:api"))
     implementation(project(":domain"))
+    implementation(project(":core:model"))
     implementation(project(":core:preferences"))
 
     val composeBom = platform(libs.androidx.compose.bom)
@@ -34,4 +35,8 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.activity.compose)
     implementation(libs.koin.androidx.compose)
+
+    testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.kotlinx.coroutines.test)
 }

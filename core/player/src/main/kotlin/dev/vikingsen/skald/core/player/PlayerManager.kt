@@ -223,6 +223,10 @@ class PlayerManager(
     }
 
     fun play() {
+        if (settingsRepository.getGoBackOnInterrupt() && _currentPosition.value > 0.0) {
+            val target = (_currentPosition.value - 5.0).coerceAtLeast(0.0)
+            seekTo(target)
+        }
         exoPlayer.play()
         runCatching {
             val intent = android.content.Intent(context, AudiobookPlayerService::class.java)

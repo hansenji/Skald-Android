@@ -143,6 +143,11 @@ class PreferencesManager(context: Context) {
         prefs.edit().putFloat("playback_speed", speed).apply()
     }
 
+    fun getGoBackOnInterrupt(): Boolean = prefs.getBoolean("go_back_on_interrupt", true)
+    fun saveGoBackOnInterrupt(enabled: Boolean) {
+        prefs.edit().putBoolean("go_back_on_interrupt", enabled).apply()
+    }
+
     fun isLoggedIn(): Boolean = !getToken().isNullOrEmpty() && !getServerUrl().isNullOrEmpty()
 
     fun getLibrarySyncIntervalHours(): Int = prefs.getInt("library_sync_interval_hours", 24)

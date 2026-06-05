@@ -15,6 +15,7 @@ import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.SettableFuture
 import dev.vikingsen.skald.core.model.Book
+import dev.vikingsen.skald.core.model.PlaybackConstants
 import dev.vikingsen.skald.domain.repository.SettingsRepository
 import dev.vikingsen.skald.domain.usecase.GetBooksUseCase
 import dev.vikingsen.skald.domain.usecase.GetPlaybackProgressUseCase
@@ -212,7 +213,7 @@ class AudiobookSessionCallback(
                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
             COMMAND_CYCLE_SPEED -> {
-                val speeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f)
+                val speeds = PlaybackConstants.PLAYBACK_SPEEDS
                 val currentSpeed = playerManager.playbackSpeed.value
                 // Find next speed in the cycle. Default to 1.0f if not found.
                 val currentIndex = speeds.indexOfFirst { Math.abs(it - currentSpeed) < 0.01f }

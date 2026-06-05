@@ -30,6 +30,7 @@ import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import org.koin.androidx.compose.koinViewModel
+import dev.vikingsen.skald.core.model.PlaybackConstants
 import androidx.compose.ui.graphics.vector.ImageVector
 import dev.vikingsen.skald.feature.player.icons.*
 
@@ -429,7 +430,7 @@ fun PlayerScreen(
                 title = { Text("Playback Speed") },
                 text = {
                     Column {
-                        listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f).forEach { speed ->
+                        PlaybackConstants.PLAYBACK_SPEEDS.forEach { speed ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()

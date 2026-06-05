@@ -23,6 +23,8 @@ interface SettingsRepository {
     fun saveSkipBackwardDuration(duration: Int)
     fun getPlaybackSpeed(): Float
     fun savePlaybackSpeed(speed: Float)
+    fun getGoBackOnInterrupt(): Boolean
+    fun saveGoBackOnInterrupt(enabled: Boolean)
 
     fun getLibrarySyncIntervalHours(): Int
     fun saveLibrarySyncIntervalHours(hours: Int)

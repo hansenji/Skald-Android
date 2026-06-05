@@ -73,6 +73,12 @@ class SettingsRepositoryImpl(
         preferencesManager.savePlaybackSpeed(speed)
     }
 
+    override fun getGoBackOnInterrupt(): Boolean = preferencesManager.getGoBackOnInterrupt()
+
+    override fun saveGoBackOnInterrupt(enabled: Boolean) {
+        preferencesManager.saveGoBackOnInterrupt(enabled)
+    }
+
     override fun getLibrarySyncIntervalHours(): Int = preferencesManager.getLibrarySyncIntervalHours()
 
     override fun saveLibrarySyncIntervalHours(hours: Int) {
