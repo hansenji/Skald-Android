@@ -18,3 +18,6 @@ data class AuthorDetail(val authorId: String) : NavKey
 @Serializable
 data class CollectionDetail(val collectionId: String) : NavKey
 
+@Serializable
+data class PlaylistDetail(val playlistId: String) : NavKey
+

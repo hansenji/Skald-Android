@@ -142,5 +142,36 @@ data class CollectionBookCoverInfo(
     val coverPath: String?
 )
 
+@Entity(tableName = "playlists")
+data class PlaylistEntity(
+    @PrimaryKey val id: String,
+    val name: String,
+    val description: String?,
+    val duration: Double,
+    val itemCount: Int,
+    val lastUpdated: Long
+)
+
+@Entity(
+    tableName = "playlist_items",
+    foreignKeys = [
+        ForeignKey(
+            entity = PlaylistEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["playlistId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ]
+)
+data class PlaylistItemEntity(
+    @PrimaryKey val id: String,
+    val playlistId: String,
+    val libraryItemId: String,
+    val sequence: Int,
+    val title: String,
+    val duration: Double
+)
+
+
 
 

@@ -30,11 +30,13 @@ import dev.vikingsen.skald.feature.library.DetailScreen
 import dev.vikingsen.skald.feature.library.SeriesDetailScreen
 import dev.vikingsen.skald.feature.library.AuthorDetailScreen
 import dev.vikingsen.skald.feature.library.CollectionDetailScreen
+import dev.vikingsen.skald.feature.library.PlaylistDetailScreen
 import dev.vikingsen.skald.feature.library.api.Library
 import dev.vikingsen.skald.feature.library.api.Detail
 import dev.vikingsen.skald.feature.library.api.SeriesDetail
 import dev.vikingsen.skald.feature.library.api.AuthorDetail
 import dev.vikingsen.skald.feature.library.api.CollectionDetail
+import dev.vikingsen.skald.feature.library.api.PlaylistDetail
 import dev.vikingsen.skald.feature.home.HomeScreen
 import dev.vikingsen.skald.feature.home.api.Home
 import dev.vikingsen.skald.feature.settings.SettingsScreen
@@ -150,6 +152,12 @@ fun MainNavigation() {
                             },
                             onCollectionClick = { collectionId ->
                                 backStack.add(CollectionDetail(collectionId))
+                            },
+                            onPlaylistClick = { playlistId ->
+                                backStack.add(PlaylistDetail(playlistId))
+                            },
+                            onPlayClick = {
+                                backStack.add(Player)
                             }
                         )
                     }
@@ -202,6 +210,20 @@ fun MainNavigation() {
                             },
                             onBookClick = { bookId ->
                                 backStack.add(Detail(bookId))
+                            }
+                        )
+                    }
+                    entry<PlaylistDetail> { key ->
+                        PlaylistDetailScreen(
+                            playlistId = key.playlistId,
+                            onBackClick = {
+                                backStack.removeLastOrNull()
+                            },
+                            onBookClick = { bookId ->
+                                backStack.add(Detail(bookId))
+                            },
+                            onPlayClick = {
+                                backStack.add(Player)
                             }
                         )
                     }

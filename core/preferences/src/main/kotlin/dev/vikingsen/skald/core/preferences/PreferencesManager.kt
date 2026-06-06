@@ -219,4 +219,14 @@ class PreferencesManager(context: Context) {
     fun saveCollectionsSortOption(sort: String) {
         prefs.edit().putString("sort_collections_option", sort).apply()
     }
+
+    fun getPlaylistsETag(): String? = prefs.getString("etag_playlists", null)
+    fun savePlaylistsETag(etag: String) {
+        prefs.edit().putString("etag_playlists", etag).apply()
+    }
+
+    fun getPlaylistsSortOption(): String? = prefs.getString("sort_playlists_option", null)
+    fun savePlaylistsSortOption(sort: String) {
+        prefs.edit().putString("sort_playlists_option", sort).apply()
+    }
 }

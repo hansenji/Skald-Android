@@ -60,6 +60,11 @@ import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.automirrored.filled.PlaylistPlay
+import androidx.compose.material.icons.filled.PlayArrow
+import dev.vikingsen.skald.core.model.Playlist
+import dev.vikingsen.skald.core.model.PlaylistsSortOption
+import dev.vikingsen.skald.core.model.formatDuration
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -68,6 +73,8 @@ fun LibraryScreen(
     onSeriesClick: (String) -> Unit,
     onAuthorClick: (String) -> Unit,
     onCollectionClick: (String) -> Unit,
+    onPlaylistClick: (String) -> Unit,
+    onPlayClick: () -> Unit,
     viewModel: LibraryViewModel = koinViewModel()
 ) {
     val lazyBookCards = viewModel.books.collectAsLazyPagingItems()
@@ -509,6 +516,13 @@ fun LibraryScreen(
                 LibraryTab.AUTHORS -> {
                     AuthorsTabContent(
                         onAuthorClick = onAuthorClick,
+                        viewModel = viewModel
+                    )
+                }
+                LibraryTab.PLAYLISTS -> {
+                    PlaylistsTabContent(
+                        onPlaylistClick = onPlaylistClick,
+                        onPlayClick = onPlayClick,
                         viewModel = viewModel
                     )
                 }
@@ -1672,4 +1686,213 @@ fun CollectionCard(
         }
     }
 }
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PlaylistsTabContent(
+    onPlaylistClick: (String) -> Unit,
+    onPlayClick: () -> Unit,
+    viewModel: LibraryViewModel
+) {
+    val playlistsList by viewModel.playlists.collectAsState(initial = emptyList())
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    val sort by viewModel.playlistsSort.collectAsState()
+    val showMiniPlayer by viewModel.showMiniPlayer.collectAsState()
+
+    var sortMenuExpanded by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Search Bar
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { viewModel.searchQuery.value = it },
+            placeholder = { Text("Search playlists by name or description...") },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+            singleLine = true,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            shape = RoundedCornerShape(12.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = Color(0x33FFFFFF)
+            )
+        )
+
+        // Filter & Sort Row
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "${playlistsList.size} Playlists",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            // Sort Dropdown Button
+            Box {
+                IconButton(
+                    onClick = { sortMenuExpanded = true },
+                    modifier = Modifier
+                        .background(Color(0x1AFFFFFF), RoundedCornerShape(12.dp))
+                        .size(40.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Sort,
+                        contentDescription = "Sort Playlists",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = sortMenuExpanded,
+                    onDismissRequest = { sortMenuExpanded = false },
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                ) {
+                    PlaylistsSortOption.entries.forEach { sortOption ->
+                        val label = when (sortOption) {
+                            PlaylistsSortOption.NAME_ASC -> "Name (A-Z)"
+                            PlaylistsSortOption.NAME_DESC -> "Name (Z-A)"
+                            PlaylistsSortOption.TRACKS_COUNT_DESC -> "Tracks Count"
+                            PlaylistsSortOption.DURATION_DESC -> "Total Duration"
+                        }
+                        DropdownMenuItem(
+                            text = { Text(label) },
+                            onClick = {
+                                viewModel.setPlaylistsSort(sortOption)
+                                sortMenuExpanded = false
+                            },
+                            trailingIcon = if (sort == sortOption) {
+                                { Icon(Icons.Default.Check, contentDescription = null) }
+                            } else null
+                        )
+                    }
+                }
+            }
+        }
+
+        if (playlistsList.isEmpty()) {
+            LibraryEmptyState(
+                icon = Icons.Default.Folder,
+                title = "No Playlists Found",
+                description = "There are no playlists in this library, or sync is required.",
+                buttonText = "Sync Now",
+                onButtonClick = { viewModel.refresh(forceRefresh = true) }
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = if (showMiniPlayer) 80.dp else 16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(playlistsList, key = { it.id }) { playlist ->
+                    PlaylistRowItem(
+                        playlist = playlist,
+                        onClick = { onPlaylistClick(playlist.id) },
+                        onPlayPlaylistClick = {
+                            viewModel.playPlaylist(playlist)
+                            onPlayClick()
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun PlaylistRowItem(
+    playlist: Playlist,
+    onClick: () -> Unit,
+    onPlayPlaylistClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { onClick() },
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Thumbnail: rounded square, generic playlist icon with cyan accent
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Color(0xFF2C2C2C)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.PlaylistPlay,
+                    contentDescription = null,
+                    tint = Color(0xFF03DAC6), // CyanAccent
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            // Details
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = playlist.name,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                val description = playlist.description
+                if (!description.isNullOrBlank()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = description,
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Spacer(modifier = Modifier.height(2.dp))
+                val trackText = if (playlist.itemCount == 1) "1 track" else "${playlist.itemCount} tracks"
+                Text(
+                    text = "$trackText • ${formatDuration(playlist.duration)}",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
+            // Play button
+            IconButton(
+                onClick = onPlayPlaylistClick,
+                colors = IconButtonDefaults.iconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                ),
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.PlayArrow,
+                    contentDescription = "Play Playlist",
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+    }
+}
+
 

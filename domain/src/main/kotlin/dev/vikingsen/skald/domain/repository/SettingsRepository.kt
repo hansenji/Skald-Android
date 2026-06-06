@@ -52,4 +52,6 @@ interface SettingsRepository {
     fun saveLibraryCollectionsETag(libraryId: String, etag: String)
     fun getCollectionsSortOption(): String?
     fun saveCollectionsSortOption(sort: String)
+    fun getPlaylistsSortOption(): String?
+    fun savePlaylistsSortOption(sort: String)
 }

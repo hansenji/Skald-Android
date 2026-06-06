@@ -8,9 +8,15 @@ import dev.vikingsen.skald.core.database.BookEntity
 import dev.vikingsen.skald.core.database.LocalAudioFile
 import dev.vikingsen.skald.core.database.LocalChapter
 import dev.vikingsen.skald.core.database.PlaybackProgressEntity
-import dev.vikingsen.skald.data.mapper.toDomain
-import dev.vikingsen.skald.data.mapper.toEntity
+import dev.vikingsen.skald.data.mapper.*
+import dev.vikingsen.skald.core.database.PlaylistEntity
+import dev.vikingsen.skald.core.database.PlaylistItemEntity
+import dev.vikingsen.skald.core.model.Playlist
+import dev.vikingsen.skald.core.model.PlaylistItem
+import dev.vikingsen.skald.core.network.PlaylistUpdatePayload
+import dev.vikingsen.skald.core.network.PlaylistUpdateItem
 import dev.vikingsen.skald.core.network.AudiobookshelfRemoteDataSource
+import dev.vikingsen.skald.core.network.NetworkResult
 import dev.vikingsen.skald.core.model.AudioFile
 import dev.vikingsen.skald.core.model.Book
 import dev.vikingsen.skald.core.model.DownloadStatusState
@@ -61,7 +67,6 @@ import dev.vikingsen.skald.core.model.SortOption
 import dev.vikingsen.skald.core.network.LibraryItemsResponse
 import dev.vikingsen.skald.core.network.LibraryItem
 import dev.vikingsen.skald.core.network.BookResponse
-import dev.vikingsen.skald.core.network.NetworkResult
 import dev.vikingsen.skald.core.network.UserProgressResponse
 import dev.vikingsen.skald.core.network.NetworkMediaProgress
 import java.io.File
@@ -1266,6 +1271,137 @@ class AudiobookshelfRepositoryImpl(
 
     override fun getBooksForCollectionFlow(collectionId: String): Flow<List<BookWithProgress>> {
         return bookDao.getBooksForCollectionWithProgressFlow(collectionId).map { list -> list.map { it.toDomain() } }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override fun getPlaylistsFlow(): Flow<List<Playlist>> {
+        val serverUrl = preferencesManager.getServerUrl() ?: ""
+        return db.playlistDao().getPlaylistsFlow().flatMapLatest { playlists ->
+            if (playlists.isEmpty()) return@flatMapLatest flowOf(emptyList())
+            val flows = playlists.map { entity ->
+                db.playlistDao().getPlaylistItemsFlow(entity.id).map { itemEntities ->
+                    val items = itemEntities.map { item ->
+                        val book = bookDao.getBookById(item.libraryItemId)
+                        val coverPath = book?.coverPath.takeIf { !it.isNullOrEmpty() }
+                            ?: "${serverUrl.trimEnd('/')}/api/items/${item.libraryItemId}/cover"
+                        item.toDomain(coverPath)
+                    }
+                    entity.toDomain(items)
+                }
+            }
+            combine(flows) { it.toList() }
+        }
+    }
+
+    override suspend fun syncPlaylists(forceRefresh: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val storedEtag = if (forceRefresh) null else preferencesManager.getPlaylistsETag()
+            val result = remoteDataSource.fetchPlaylists(storedEtag)
+            when (result) {
+                is NetworkResult.NotModified -> {
+                    return@runCatching
+                }
+                is NetworkResult.Error -> {
+                    throw Exception(result.message)
+                }
+                is NetworkResult.Success -> {
+                    val newEtag = result.etag
+                    if (!newEtag.isNullOrEmpty()) {
+                        preferencesManager.savePlaylistsETag(newEtag)
+                    }
+                    val playlistsResponseList = result.data
+                    val entities = playlistsResponseList.map { it.toEntity(System.currentTimeMillis()) }
+                    val itemEntities = playlistsResponseList.flatMap { playlistDto ->
+                        playlistDto.items.mapIndexed { index, itemDto ->
+                            itemDto.toEntity(playlistDto.id, index)
+                        }
+                    }
+                    db.playlistDao().replacePlaylists(entities, itemEntities)
+                }
+            }
+        }
+    }
+
+    override suspend fun getPlaylistDetails(playlistId: String, forceRefresh: Boolean): Result<Playlist> = withContext(Dispatchers.IO) {
+        runCatching {
+            val local = db.playlistDao().getPlaylistById(playlistId)
+            val serverUrl = preferencesManager.getServerUrl() ?: ""
+            if (local != null && !forceRefresh) {
+                val itemEntities = db.playlistDao().getPlaylistItems(playlistId)
+                val items = itemEntities.map { item ->
+                    val book = bookDao.getBookById(item.libraryItemId)
+                    val coverPath = book?.coverPath.takeIf { !it.isNullOrEmpty() }
+                        ?: "${serverUrl.trimEnd('/')}/api/items/${item.libraryItemId}/cover"
+                    item.toDomain(coverPath)
+                }
+                return@runCatching local.toDomain(items)
+            }
+            val result = remoteDataSource.fetchPlaylistDetails(playlistId)
+            when (result) {
+                is NetworkResult.NotModified -> {
+                    val itemEntities = db.playlistDao().getPlaylistItems(playlistId)
+                    val items = itemEntities.map { item ->
+                        val book = bookDao.getBookById(item.libraryItemId)
+                        val coverPath = book?.coverPath.takeIf { !it.isNullOrEmpty() }
+                            ?: "${serverUrl.trimEnd('/')}/api/items/${item.libraryItemId}/cover"
+                        item.toDomain(coverPath)
+                    }
+                    local?.toDomain(items) ?: throw Exception("Playlist not found")
+                }
+                is NetworkResult.Error -> throw Exception(result.message)
+                is NetworkResult.Success -> {
+                    val detail = result.data
+                    val entity = detail.toEntity(System.currentTimeMillis())
+                    val itemEntities = detail.items.mapIndexed { index, itemDto ->
+                        itemDto.toEntity(detail.id, index)
+                    }
+                    db.playlistDao().insertPlaylist(entity)
+                    db.playlistDao().replacePlaylistItems(detail.id, itemEntities)
+                    
+                    val items = itemEntities.map { item ->
+                        val book = bookDao.getBookById(item.libraryItemId)
+                        val coverPath = book?.coverPath.takeIf { !it.isNullOrEmpty() }
+                            ?: "${serverUrl.trimEnd('/')}/api/items/${item.libraryItemId}/cover"
+                        item.toDomain(coverPath)
+                    }
+                    entity.toDomain(items)
+                }
+            }
+        }
+    }
+
+    override suspend fun updatePlaylistItems(playlistId: String, items: List<PlaylistItem>): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val localPlaylist = db.playlistDao().getPlaylistById(playlistId) ?: throw Exception("Playlist not found")
+            val newDuration = items.sumOf { it.duration }
+            val itemEntities = items.mapIndexed { index, item ->
+                PlaylistItemEntity(
+                    id = item.id,
+                    playlistId = playlistId,
+                    libraryItemId = item.libraryItemId,
+                    sequence = index,
+                    title = item.title,
+                    duration = item.duration
+                )
+            }
+            db.playlistDao().replacePlaylistItems(playlistId, itemEntities)
+            db.playlistDao().updatePlaylistStats(
+                playlistId = playlistId,
+                duration = newDuration,
+                itemCount = items.size,
+                lastUpdated = System.currentTimeMillis()
+            )
+
+            val updatePayload = PlaylistUpdatePayload(
+                name = localPlaylist.name,
+                description = localPlaylist.description,
+                items = items.map { PlaylistUpdateItem(it.libraryItemId, null) }
+            )
+            val result = remoteDataSource.updatePlaylist(playlistId, updatePayload)
+            if (result is NetworkResult.Error) {
+                throw Exception(result.message)
+            }
+        }
     }
 }
 

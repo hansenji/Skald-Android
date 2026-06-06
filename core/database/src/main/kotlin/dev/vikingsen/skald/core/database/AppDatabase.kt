@@ -247,9 +247,11 @@ interface HomeShelfDao {
         AuthorEntity::class,
         AuthorBookCrossRef::class,
         CollectionEntity::class,
-        CollectionBookCrossRef::class
+        CollectionBookCrossRef::class,
+        PlaylistEntity::class,
+        PlaylistItemEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -261,6 +263,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun seriesDao(): SeriesDao
     abstract fun authorDao(): AuthorDao
     abstract fun collectionDao(): CollectionDao
+    abstract fun playlistDao(): PlaylistDao
 
 
     companion object {

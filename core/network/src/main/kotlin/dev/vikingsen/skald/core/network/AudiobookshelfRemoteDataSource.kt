@@ -14,6 +14,7 @@ import io.ktor.client.plugins.logging.Logging
 import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.prepareGet
+import io.ktor.client.request.patch
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpStatement
 import io.ktor.http.ContentType
@@ -53,6 +54,9 @@ interface AudiobookshelfRemoteDataSource {
     suspend fun fetchAuthorDetails(authorId: String): NetworkResult<AuthorDetailsResponse>
     suspend fun fetchLibraryCollections(libraryId: String, etag: String? = null): NetworkResult<List<NetworkCollectionResponse>>
     suspend fun fetchCollectionDetails(collectionId: String): NetworkResult<NetworkCollectionResponse>
+    suspend fun fetchPlaylists(etag: String? = null): NetworkResult<List<NetworkPlaylistResponse>>
+    suspend fun fetchPlaylistDetails(playlistId: String): NetworkResult<NetworkPlaylistResponse>
+    suspend fun updatePlaylist(playlistId: String, payload: PlaylistUpdatePayload): NetworkResult<NetworkPlaylistResponse>
     fun downloadFile(bookId: String, ino: String, destinationFile: File, totalBytes: Long): Flow<Float>
 }
 
@@ -345,6 +349,60 @@ class AudiobookshelfRemoteDataSourceImpl(
                 NetworkResult.Error("Failed to fetch collection details: Status ${response.status.value}")
             } else {
                 val data = response.body<NetworkCollectionResponse>()
+                val responseEtag = response.headers["ETag"]
+                NetworkResult.Success(data, responseEtag)
+            }
+        }.getOrElse {
+            NetworkResult.Error(it.message ?: "Unknown error")
+        }
+    }
+
+    override suspend fun fetchPlaylists(etag: String?): NetworkResult<List<NetworkPlaylistResponse>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val response = client.get("api/playlists") {
+                if (!etag.isNullOrEmpty()) {
+                    headers["If-None-Match"] = etag
+                }
+            }
+            if (response.status.value == 304) {
+                NetworkResult.NotModified
+            } else if (response.status.value >= 400) {
+                NetworkResult.Error("Failed to fetch playlists: Status ${response.status.value}")
+            } else {
+                val data = response.body<PlaylistsResponse>()
+                val responseEtag = response.headers["ETag"]
+                NetworkResult.Success(data.playlists, responseEtag)
+            }
+        }.getOrElse {
+            NetworkResult.Error(it.message ?: "Unknown error")
+        }
+    }
+
+    override suspend fun fetchPlaylistDetails(playlistId: String): NetworkResult<NetworkPlaylistResponse> = withContext(Dispatchers.IO) {
+        runCatching {
+            val response = client.get("api/playlists/$playlistId")
+            if (response.status.value >= 400) {
+                NetworkResult.Error("Failed to fetch playlist details: Status ${response.status.value}")
+            } else {
+                val data = response.body<NetworkPlaylistResponse>()
+                val responseEtag = response.headers["ETag"]
+                NetworkResult.Success(data, responseEtag)
+            }
+        }.getOrElse {
+            NetworkResult.Error(it.message ?: "Unknown error")
+        }
+    }
+
+    override suspend fun updatePlaylist(playlistId: String, payload: PlaylistUpdatePayload): NetworkResult<NetworkPlaylistResponse> = withContext(Dispatchers.IO) {
+        runCatching {
+            val response = client.patch("api/playlists/$playlistId") {
+                contentType(ContentType.Application.Json)
+                setBody(payload)
+            }
+            if (response.status.value >= 400) {
+                NetworkResult.Error("Failed to update playlist: Status ${response.status.value}")
+            } else {
+                val data = response.body<NetworkPlaylistResponse>()
                 val responseEtag = response.headers["ETag"]
                 NetworkResult.Success(data, responseEtag)
             }

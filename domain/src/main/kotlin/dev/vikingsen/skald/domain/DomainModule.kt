@@ -30,5 +30,8 @@ val domainModule = module {
     single<GetCollectionsUseCase>()
     single<SyncLibraryCollectionsUseCase>()
     single<GetCollectionDetailsUseCase>()
+    single<GetPlaylistsUseCase>()
+    single<SyncPlaylistsUseCase>()
+    single<PlayPlaylistUseCase>()
 }
 

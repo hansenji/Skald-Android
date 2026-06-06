@@ -15,6 +15,8 @@ import dev.vikingsen.skald.core.model.HomeShelf
 import dev.vikingsen.skald.core.model.Series
 import dev.vikingsen.skald.core.model.Author
 import dev.vikingsen.skald.core.model.BookCollection
+import dev.vikingsen.skald.core.model.Playlist
+import dev.vikingsen.skald.core.model.PlaylistItem
 
 interface AudiobookshelfRepository {
     suspend fun login(url: String, user: String, pass: String): Result<LoggedUser>
@@ -59,5 +61,9 @@ interface AudiobookshelfRepository {
     suspend fun syncLibraryCollections(libraryId: String, forceRefresh: Boolean = false): Result<Unit>
     suspend fun getCollectionDetails(collectionId: String, forceRefresh: Boolean = false): Result<BookCollection>
     fun getBooksForCollectionFlow(collectionId: String): Flow<List<BookWithProgress>>
+    fun getPlaylistsFlow(): Flow<List<Playlist>>
+    suspend fun syncPlaylists(forceRefresh: Boolean = false): Result<Unit>
+    suspend fun getPlaylistDetails(playlistId: String, forceRefresh: Boolean = false): Result<Playlist>
+    suspend fun updatePlaylistItems(playlistId: String, items: List<PlaylistItem>): Result<Unit>
 }
 

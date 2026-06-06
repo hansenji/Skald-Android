@@ -28,6 +28,11 @@ import dev.vikingsen.skald.core.model.Author
 import dev.vikingsen.skald.core.model.AuthorsSortOption
 import dev.vikingsen.skald.core.model.BookCollection
 import dev.vikingsen.skald.core.model.CollectionsSortOption
+import dev.vikingsen.skald.core.model.Playlist
+import dev.vikingsen.skald.core.model.PlaylistsSortOption
+import dev.vikingsen.skald.domain.usecase.GetPlaylistsUseCase
+import dev.vikingsen.skald.domain.usecase.SyncPlaylistsUseCase
+import dev.vikingsen.skald.domain.usecase.PlayPlaylistUseCase
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -104,7 +109,10 @@ class LibraryViewModel(
     private val logoutUseCase: LogoutUseCase,
     private val settingsRepository: SettingsRepository,
     private val getMiniPlayerStateUseCase: GetMiniPlayerStateUseCase,
-    private val syncGlobalProgressUseCase: SyncGlobalProgressUseCase
+    private val syncGlobalProgressUseCase: SyncGlobalProgressUseCase,
+    private val getPlaylistsUseCase: GetPlaylistsUseCase,
+    private val syncPlaylistsUseCase: SyncPlaylistsUseCase,
+    private val playPlaylistUseCase: PlayPlaylistUseCase
 ) : ViewModel() {
 
     val showMiniPlayer: StateFlow<Boolean> = getMiniPlayerStateUseCase()
@@ -149,8 +157,9 @@ class LibraryViewModel(
         selectedLibraryId.flatMapLatest { libraryId ->
             if (libraryId.isEmpty()) flowOf(0)
             else getCollectionsUseCase(libraryId).map { it.size }
-        }
-    ) { hideEmpty, seriesCount, authorsCount, collectionsCount ->
+        },
+        getPlaylistsUseCase().map { it.size }
+    ) { hideEmpty, seriesCount, authorsCount, collectionsCount, playlistsCount ->
         if (hideEmpty) {
             val tabs = mutableListOf(LibraryTab.BOOKS)
             if (seriesCount > 0) {
@@ -161,6 +170,9 @@ class LibraryViewModel(
             }
             if (authorsCount > 0) {
                 tabs.add(LibraryTab.AUTHORS)
+            }
+            if (playlistsCount > 0) {
+                tabs.add(LibraryTab.PLAYLISTS)
             }
             tabs
         } else {
@@ -269,6 +281,41 @@ class LibraryViewModel(
                 }
             }
         }
+
+    val playlistsSort = MutableStateFlow(
+        settingsRepository.getPlaylistsSortOption()?.let {
+            runCatching { PlaylistsSortOption.valueOf(it) }.getOrNull()
+        } ?: PlaylistsSortOption.NAME_ASC
+    )
+
+    fun setPlaylistsSort(sort: PlaylistsSortOption) {
+        playlistsSort.value = sort
+        settingsRepository.savePlaylistsSortOption(sort.name)
+    }
+
+    val playlists: Flow<List<Playlist>> = combine(
+        getPlaylistsUseCase(),
+        searchQuery,
+        playlistsSort
+    ) { playlistsList, query, sort ->
+        playlistsList
+            .filter { playlist ->
+                query.isEmpty() || playlist.name.contains(query, ignoreCase = true) ||
+                        (playlist.description?.contains(query, ignoreCase = true) == true)
+            }
+            .sortedWith { a, b ->
+                when (sort) {
+                    PlaylistsSortOption.NAME_ASC -> a.name.compareTo(b.name, ignoreCase = true)
+                    PlaylistsSortOption.NAME_DESC -> b.name.compareTo(a.name, ignoreCase = true)
+                    PlaylistsSortOption.TRACKS_COUNT_DESC -> b.itemCount.compareTo(a.itemCount)
+                    PlaylistsSortOption.DURATION_DESC -> b.duration.compareTo(a.duration)
+                }
+            }
+    }
+
+    fun playPlaylist(playlist: Playlist) {
+        playPlaylistUseCase(playlist, startIndex = 0)
+    }
 
 
     val series: Flow<List<SeriesCardUiModel>> = selectedLibraryId
@@ -477,12 +524,14 @@ class LibraryViewModel(
                 val seriesResult = syncLibrarySeriesUseCase(libraryId, forceRefresh)
                 val authorsResult = syncLibraryAuthorsUseCase(libraryId, forceRefresh)
                 val collectionsResult = syncLibraryCollectionsUseCase(libraryId, forceRefresh)
+                val playlistsResult = syncPlaylistsUseCase(forceRefresh)
                 val progressResult = syncGlobalProgressUseCase(forceRefresh)
-                if (result.isFailure || seriesResult.isFailure || authorsResult.isFailure || collectionsResult.isFailure || progressResult.isFailure) {
+                if (result.isFailure || seriesResult.isFailure || authorsResult.isFailure || collectionsResult.isFailure || playlistsResult.isFailure || progressResult.isFailure) {
                     error.value = result.exceptionOrNull()?.message 
                         ?: seriesResult.exceptionOrNull()?.message
                         ?: authorsResult.exceptionOrNull()?.message
                         ?: collectionsResult.exceptionOrNull()?.message
+                        ?: playlistsResult.exceptionOrNull()?.message
                         ?: progressResult.exceptionOrNull()?.message 
                         ?: "Failed to sync library"
                 }
@@ -529,12 +578,14 @@ class LibraryViewModel(
                     val seriesResult = syncLibrarySeriesUseCase(libraryId)
                     val authorsResult = syncLibraryAuthorsUseCase(libraryId)
                     val collectionsResult = syncLibraryCollectionsUseCase(libraryId)
+                    val playlistsResult = syncPlaylistsUseCase()
                     val progressResult = syncGlobalProgressUseCase()
-                    if (result.isFailure || seriesResult.isFailure || authorsResult.isFailure || collectionsResult.isFailure || progressResult.isFailure) {
+                    if (result.isFailure || seriesResult.isFailure || authorsResult.isFailure || collectionsResult.isFailure || playlistsResult.isFailure || progressResult.isFailure) {
                         error.value = result.exceptionOrNull()?.message 
                             ?: seriesResult.exceptionOrNull()?.message
                             ?: authorsResult.exceptionOrNull()?.message
                             ?: collectionsResult.exceptionOrNull()?.message
+                            ?: playlistsResult.exceptionOrNull()?.message
                             ?: progressResult.exceptionOrNull()?.message 
                             ?: "Failed to sync library"
                     }

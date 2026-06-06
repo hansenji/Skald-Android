@@ -14,6 +14,9 @@ import dev.vikingsen.skald.domain.repository.SettingsRepository
 import dev.vikingsen.skald.domain.repository.PlaybackStateProvider
 import dev.vikingsen.skald.domain.usecase.SaveProgressUseCase
 import dev.vikingsen.skald.domain.usecase.StartPlaybackSessionUseCase
+import dev.vikingsen.skald.domain.usecase.FetchBookDetailsUseCase
+import dev.vikingsen.skald.core.model.Playlist
+import dev.vikingsen.skald.domain.repository.PlaylistPlayer
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,8 +33,9 @@ class PlayerManager(
     private val exoPlayerProvider: ExoPlayerProvider,
     private val settingsRepository: SettingsRepository,
     private val saveProgressUseCase: SaveProgressUseCase,
-    private val startPlaybackSessionUseCase: StartPlaybackSessionUseCase
-) : PlaybackStateProvider {
+    private val startPlaybackSessionUseCase: StartPlaybackSessionUseCase,
+    private val fetchBookDetailsUseCase: FetchBookDetailsUseCase
+) : PlaybackStateProvider, PlaylistPlayer {
     private val exoPlayer: ExoPlayer get() = exoPlayerProvider.exoPlayer
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var positionUpdateJob: Job? = null
@@ -110,6 +114,9 @@ class PlayerManager(
 
             override fun onPlaybackStateChanged(playbackState: Int) {
                 _isLoading.value = playbackState == Player.STATE_BUFFERING
+                if (playbackState == Player.STATE_ENDED) {
+                    playNextPlaylistItem()
+                }
             }
         })
 
@@ -248,10 +255,44 @@ class PlayerManager(
         stopTrackingPosition()
         sessionId = null
         accumulatedTimeListened = 0.0
+        currentPlaylist = null
+        currentPlaylistItemIndex = -1
         
         runCatching {
             val intent = android.content.Intent(context, AudiobookPlayerService::class.java)
             context.stopService(intent)
+        }
+    }
+
+    private var currentPlaylist: Playlist? = null
+    private var currentPlaylistItemIndex: Int = -1
+
+    override fun playPlaylist(playlist: Playlist, startIndex: Int, startPosition: Double) {
+        currentPlaylist = playlist
+        playPlaylistItem(playlist, startIndex, startPosition)
+    }
+
+    private fun playPlaylistItem(playlist: Playlist, index: Int, startPosition: Double) {
+        currentPlaylistItemIndex = index
+        val item = playlist.items.getOrNull(index) ?: return
+        scope.launch {
+            _isLoading.value = true
+            val bookResult = fetchBookDetailsUseCase(item.libraryItemId, forceRefresh = false)
+            if (bookResult.isSuccess) {
+                playBook(bookResult.getOrThrow(), startPosition)
+            } else {
+                playNextPlaylistItem()
+            }
+        }
+    }
+
+    private fun playNextPlaylistItem() {
+        val playlist = currentPlaylist ?: return
+        val nextIndex = currentPlaylistItemIndex + 1
+        if (nextIndex in playlist.items.indices) {
+            playPlaylistItem(playlist, nextIndex, 0.0)
+        } else {
+            stop()
         }
     }
 

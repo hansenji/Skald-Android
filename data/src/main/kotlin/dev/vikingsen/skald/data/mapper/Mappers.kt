@@ -26,6 +26,12 @@ import dev.vikingsen.skald.core.database.CollectionEntity
 import dev.vikingsen.skald.core.database.CollectionBookCrossRef
 import dev.vikingsen.skald.core.model.BookCollection
 import dev.vikingsen.skald.core.network.NetworkCollectionResponse
+import dev.vikingsen.skald.core.database.PlaylistEntity
+import dev.vikingsen.skald.core.database.PlaylistItemEntity
+import dev.vikingsen.skald.core.model.Playlist
+import dev.vikingsen.skald.core.model.PlaylistItem
+import dev.vikingsen.skald.core.network.NetworkPlaylistResponse
+import dev.vikingsen.skald.core.network.NetworkPlaylistItemResponse
 
 fun LibraryResponse.toDomain(): Library = Library(
     id = id,
@@ -204,5 +210,43 @@ fun NetworkCollectionResponse.toEntity(libId: String, timestamp: Long): Collecti
     name = name,
     description = description,
     lastUpdated = lastUpdate ?: timestamp
+)
+
+fun PlaylistEntity.toDomain(items: List<PlaylistItem>): Playlist = Playlist(
+    id = id,
+    name = name,
+    description = description,
+    duration = duration,
+    itemCount = itemCount,
+    items = items,
+    lastUpdated = lastUpdated
+)
+
+fun PlaylistItemEntity.toDomain(coverPath: String?): PlaylistItem = PlaylistItem(
+    id = id,
+    playlistId = playlistId,
+    libraryItemId = libraryItemId,
+    sequence = sequence,
+    title = title,
+    duration = duration,
+    coverPath = coverPath
+)
+
+fun NetworkPlaylistResponse.toEntity(timestamp: Long): PlaylistEntity = PlaylistEntity(
+    id = id,
+    name = name,
+    description = description,
+    duration = totalDuration,
+    itemCount = items.size,
+    lastUpdated = lastUpdate ?: timestamp
+)
+
+fun NetworkPlaylistItemResponse.toEntity(playlistId: String, idx: Int): PlaylistItemEntity = PlaylistItemEntity(
+    id = id ?: "${playlistId}_${libraryItemId}_${idx}",
+    playlistId = playlistId,
+    libraryItemId = libraryItemId,
+    sequence = sequence ?: idx,
+    title = episode?.title ?: libraryItem?.media?.metadata?.title ?: "Unknown Title",
+    duration = episode?.duration ?: libraryItem?.media?.duration ?: 0.0
 )
 

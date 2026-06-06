@@ -155,4 +155,10 @@ class SettingsRepositoryImpl(
     override fun saveCollectionsSortOption(sort: String) {
         preferencesManager.saveCollectionsSortOption(sort)
     }
+
+    override fun getPlaylistsSortOption(): String? = preferencesManager.getPlaylistsSortOption()
+
+    override fun savePlaylistsSortOption(sort: String) {
+        preferencesManager.savePlaylistsSortOption(sort)
+    }
 }

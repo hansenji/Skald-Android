@@ -359,4 +359,69 @@ data class LibraryCollectionsResponse(
     val total: Int = 0
 )
 
+@Serializable
+data class NetworkPlaylistResponse(
+    val id: String,
+    val name: String,
+    val description: String? = null,
+    val userId: String? = null,
+    val coverPath: String? = null,
+    val totalDuration: Double = 0.0,
+    val items: List<NetworkPlaylistItemResponse> = emptyList(),
+    val lastUpdate: Long? = null
+)
+
+@Serializable
+data class NetworkPlaylistItemResponse(
+    val id: String? = null,
+    val libraryItemId: String,
+    val episodeId: String? = null,
+    val sequence: Int? = null,
+    val libraryItem: NetworkPlaylistLibraryItem? = null,
+    val episode: NetworkPlaylistEpisode? = null
+)
+
+@Serializable
+data class NetworkPlaylistLibraryItem(
+    val id: String,
+    val media: NetworkPlaylistMedia? = null
+)
+
+@Serializable
+data class NetworkPlaylistMedia(
+    val metadata: NetworkPlaylistMetadata? = null,
+    val duration: Double = 0.0
+)
+
+@Serializable
+data class NetworkPlaylistMetadata(
+    val title: String? = null,
+    val authorName: String? = null
+)
+
+@Serializable
+data class NetworkPlaylistEpisode(
+    val id: String,
+    val title: String? = null,
+    val duration: Double = 0.0
+)
+
+@Serializable
+data class PlaylistUpdatePayload(
+    val name: String,
+    val description: String? = null,
+    val items: List<PlaylistUpdateItem>
+)
+
+@Serializable
+data class PlaylistUpdateItem(
+    val libraryItemId: String,
+    val episodeId: String? = null
+)
+
+@Serializable
+data class PlaylistsResponse(
+    val playlists: List<NetworkPlaylistResponse>
+)
+
 

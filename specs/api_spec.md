@@ -472,3 +472,149 @@ Used to cache audio tracks locally for offline-first support.
 *   **Response**: 
     *   `Content-Type: audio/mpeg` (or other audio MIME type)
     *   `Content-Length: <file_size_bytes>`
+
+---
+
+## 5. Playlists
+
+Playlists represent user-constructed lists of audio tracks or library items that can be played sequentially. Playlists are stored globally for the user account.
+
+### A. Fetch Playlists
+
+Retrieves the list of all playlists defined on the server for the authorized user.
+
+*   **Endpoint**: `GET /api/playlists`
+
+#### Headers
+*   **Request**:
+    *   `Authorization: Bearer <jwt_token>`
+    *   `If-None-Match: <etag>` (Optional, for caching)
+*   **Response**:
+    *   `ETag: <etag>` (Returned with `200 OK`)
+    *   *Status Code: `304 Not Modified` is returned if matching ETag is sent*
+
+#### Response Schema (Merged DTO)
+
+The server returns a JSON object wrapper rather than a raw array:
+
+```json
+{
+  "playlists": [
+    {
+      "id": "playlist_uuid",
+      "name": "My Playlist",
+      "description": "Playlist description",
+      "userId": "user_uuid",
+      "coverPath": "/api/playlists/playlist_uuid/cover",
+      "totalDuration": 7200.0,
+      "items": [
+        {
+          "id": "playlist_item_uuid", // Optional/nullable, see warning below
+          "libraryItemId": "item_uuid",
+          "episodeId": null,
+          "sequence": 1,
+          "libraryItem": {
+            "id": "item_uuid",
+            "media": {
+              "metadata": {
+                "title": "Book Title",
+                "authorName": "Author Name"
+              },
+              "duration": 3600.0
+            }
+          }
+        }
+      ],
+      "lastUpdate": 1716945600000
+    }
+  ]
+}
+```
+
+> [!WARNING]
+> **Playlist Item ID Fallback**: Playlist items returned in the `items` list may lack a unique `id` field from the server. To avoid deserialization errors and maintain database primary key integrity:
+> 1. The client-side DTO models the playlist item `id` as optional and nullable (`val id: String? = null`).
+> 2. If the `id` field is missing, the client must generate a fallback unique identifier locally using the structure: `"${playlistId}_${libraryItemId}_${sequence}"` to insert into the local database.
+
+---
+
+### B. Fetch Playlist Details
+
+Retrieves detailed information for a single playlist.
+
+*   **Endpoint**: `GET /api/playlists/{playlistId}`
+
+#### Headers
+*   **Request**:
+    *   `Authorization: Bearer <jwt_token>`
+*   **Response**: None
+
+#### Response Schema
+
+Returns a single playlist object directly:
+
+```json
+{
+  "id": "playlist_uuid",
+  "name": "My Playlist",
+  "description": "Playlist description",
+  "userId": "user_uuid",
+  "coverPath": "/api/playlists/playlist_uuid/cover",
+  "totalDuration": 7200.0,
+  "items": [
+    {
+      "id": null,
+      "libraryItemId": "item_uuid",
+      "sequence": 1,
+      "libraryItem": {
+        "id": "item_uuid",
+        "media": {
+          "metadata": {
+            "title": "Book Title",
+            "authorName": "Author Name"
+          },
+          "duration": 3600.0
+        }
+      }
+    }
+  ],
+  "lastUpdate": 1716945600000
+}
+```
+
+---
+
+### C. Update Playlist (Reordering/Deletion)
+
+Updates the metadata and ordered list of items in a playlist. Used for adding, reordering, and deleting items.
+
+*   **Endpoint**: `PATCH /api/playlists/{playlistId}`
+
+#### Headers
+*   **Request**:
+    *   `Authorization: Bearer <jwt_token>`
+    *   `Content-Type: application/json`
+*   **Response**: None
+
+#### Request Schema
+
+```json
+{
+  "name": "My Updated Playlist",
+  "description": "New description details",
+  "items": [
+    {
+      "libraryItemId": "item_uuid_1",
+      "episodeId": null
+    },
+    {
+      "libraryItemId": "item_uuid_2",
+      "episodeId": null
+    }
+  ]
+}
+```
+
+#### Response Schema
+
+Returns the updated playlist object in the same format as **Fetch Playlist Details**.

@@ -20,17 +20,19 @@ It depends on:
 
 ### A. API Endpoints
 - **List All Playlists**: `GET /api/playlists`
-  - *Returns*: An array of playlists containing playlist ID, name, description, user ID, cover/image url, total duration, and list of items.
+  - *Returns*: A JSON object containing a `playlists` array of playlist objects: `{"playlists": [NetworkPlaylistResponse]}`. Each playlist contains ID, name, description, user ID, cover path, total duration, and items.
 - **Get Playlist Details**: `GET /api/playlists/{playlistId}`
+- **Update Playlist (Reordering/Deletion)**: `PATCH /api/playlists/{playlistId}`
 
 ### B. Sync Strategy & Caching
 1. **Trigger**: Synchronizes when:
    - The Playlists Tab is loaded (stale cache check).
    - Swipe-to-refresh is executed on any library tab (triggers global force sync).
 2. **ETag Check & Force Sync**: Uses standard HTTP ETag checks via `If-None-Match`. If `304 Not Modified` is returned, the local cache is retained. A global swipe-to-refresh bypasses the ETag check (omits `If-None-Match`) to force update all playlists data.
-3. **Database Schema**:
+3. **Database Schema & Item Deserialization**:
    - `PlaylistEntity`: `id` (String, PK), `name` (String), `description` (String?), `duration` (Double), `itemCount` (Int), `lastUpdated` (Long).
    - `PlaylistItemEntity`: `id` (String, PK), `playlistId` (String, FK), `libraryItemId` (String), `sequence` (Int), `title` (String), `duration` (Double).
+   - *Playlist Item ID Fallback*: The server's playlist item objects might not return a unique `id` field. To prevent deserialization errors and maintain database primary key integrity, the `id` field is optional/nullable in the model. If missing from the server response, the client automatically generates a unique identifier locally using the structure `"${playlistId}_${libraryItemId}_${sequence}"` to populate `PlaylistItemEntity.id`.
 
 ---
 
