@@ -516,7 +516,7 @@ class AudiobookshelfRepositoryImpl(
             runCatching {
                 downloadManager.query(query).use { cursor ->
                     while (cursor.moveToNext()) {
-                        val uriColumn = cursor.getColumnIndex(DownloadManager.COLUMN_URI)
+                        val uriColumn = cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_URI)
                         val remoteUri = cursor.getString(uriColumn) ?: continue
 
                         val regex = Regex(".*/api/items/([^/]+)/file/([^/]+)/download.*")
@@ -525,8 +525,8 @@ class AudiobookshelfRepositoryImpl(
                         val itemIno = match.groupValues[2]
 
                         if (itemBookId == bookId) {
-                            val bytesDownloaded = cursor.getLong(cursor.getColumnIndex(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
-                            val bytesTotal = cursor.getLong(cursor.getColumnIndex(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
+                            val bytesDownloaded = cursor.getLong(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_BYTES_DOWNLOADED_SO_FAR))
+                            val bytesTotal = cursor.getLong(cursor.getColumnIndexOrThrow(DownloadManager.COLUMN_TOTAL_SIZE_BYTES))
                             if (bytesTotal > 0) {
                                 activeProgressSum += bytesDownloaded.toFloat() / bytesTotal
                             } else {

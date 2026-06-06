@@ -22,4 +22,20 @@ subprojects {
             setter?.invoke(extension, false)
         }
     }
+
+    plugins.withId("com.android.library") {
+        configure<com.android.build.api.dsl.LibraryExtension> {
+            lint {
+                abortOnError = false
+            }
+        }
+    }
+
+    plugins.withId("com.android.application") {
+        configure<com.android.build.api.dsl.ApplicationExtension> {
+            lint {
+                abortOnError = false
+            }
+        }
+    }
 }

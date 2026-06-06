@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
-class PreferencesManager(context: Context) {
+open class PreferencesManager(context: Context) {
     init {
         TinkConfig.register()
     }
@@ -75,12 +75,12 @@ class PreferencesManager(context: Context) {
         _isLoggedIn.value = isLoggedIn()
     }
 
-    suspend fun saveTokens(accessToken: String?, refreshToken: String?) {
+    open suspend fun saveTokens(accessToken: String?, refreshToken: String?) {
         saveTokensInternal(accessToken, refreshToken)
         _isLoggedIn.value = isLoggedIn()
     }
 
-    suspend fun clearTokens() {
+    open suspend fun clearTokens() {
         saveTokensInternal(null, null)
         _isLoggedIn.value = isLoggedIn()
     }
@@ -93,11 +93,11 @@ class PreferencesManager(context: Context) {
         }
     }
 
-    fun getServerUrl(): String? = prefs.getString("server_url", null)
+    open fun getServerUrl(): String? = prefs.getString("server_url", null)
     fun getUsername(): String? = prefs.getString("username", null)
     fun getUserId(): String? = prefs.getString("user_id", null)
-    fun getToken(): String? = cachedTokens.accessToken
-    fun getRefreshToken(): String? = cachedTokens.refreshToken
+    open fun getToken(): String? = cachedTokens.accessToken
+    open fun getRefreshToken(): String? = cachedTokens.refreshToken
 
     fun saveLibraryId(libraryId: String) {
         prefs.edit().putString("library_id", libraryId).apply()

@@ -27,8 +27,11 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
+import io.ktor.client.HttpClientConfig
+import io.ktor.client.engine.HttpClientEngine
 import org.koin.dsl.bind
 import org.koin.dsl.module
+
 
 private val refreshMutex = Mutex()
 
@@ -108,122 +111,133 @@ suspend fun performRefreshHandshake(
     }
 }
 
-val coreNetworkModule = module {
-    single<HttpClient> {
-        val preferencesManager = get<PreferencesManager>()
+fun createHttpClient(
+    preferencesManager: PreferencesManager,
+    engine: HttpClientEngine? = null
+): HttpClient {
+    val apiPlugin = createClientPlugin("AbsApiPlugin") {
+        onRequest { request, _ ->
+            val path = request.url.encodedPath
+            if (path.endsWith("/login") || path.endsWith("/auth/refresh")) {
+                return@onRequest
+            }
 
-        val apiPlugin = createClientPlugin("AbsApiPlugin") {
-            onRequest { request, _ ->
-                val path = request.url.encodedPath
-                if (path.endsWith("/login") || path.endsWith("/auth/refresh")) {
-                    return@onRequest
+            val serverUrl = preferencesManager.getServerUrl()
+            val host = request.url.host
+            val isRelative = host.isEmpty() || host == "localhost" || host == "127.0.0.1"
+
+            if (isRelative && !serverUrl.isNullOrEmpty()) {
+                val base = if (serverUrl.endsWith("/")) serverUrl else "$serverUrl/"
+                val relative = request.url.encodedPath.let { if (it.startsWith("/")) it.substring(1) else it }
+                request.url.takeFrom(base + relative)
+            }
+
+            // Proactive refresh (Layer 1)
+            val token = preferencesManager.getToken()
+            val refreshToken = preferencesManager.getRefreshToken()
+
+            if (isAccessTokenExpired(token)) {
+                if (isRefreshTokenExpired(refreshToken)) {
+                    preferencesManager.clearTokens()
+                } else {
+                    refreshMutex.withLock {
+                        val currentToken = preferencesManager.getToken()
+                        if (isAccessTokenExpired(currentToken)) {
+                            performRefreshHandshake(
+                                preferencesManager = preferencesManager,
+                                serverUrl = serverUrl,
+                                refreshToken = refreshToken
+                            )
+                        }
+                    }
                 }
+            }
 
+            val latestToken = preferencesManager.getToken()
+            if (!latestToken.isNullOrEmpty() && !request.headers.contains("Authorization")) {
+                request.headers["Authorization"] = "Bearer $latestToken"
+            }
+        }
+    }
+
+    val config: HttpClientConfig<*>.() -> Unit = {
+        install(ContentNegotiation) {
+            json(Json {
+                ignoreUnknownKeys = true
+                coerceInputValues = true
+            })
+        }
+        install(HttpTimeout) {
+            requestTimeoutMillis = 30000
+            connectTimeoutMillis = 10000
+            socketTimeoutMillis = 30000
+        }
+        install(Logging) {
+            logger = object : Logger {
+                override fun log(message: String) {
+                    Log.d("KtorClient", message)
+                }
+            }
+            level = LogLevel.ALL
+        }
+        install(apiPlugin)
+    }
+
+    val client = if (engine != null) {
+        HttpClient(engine, config)
+    } else {
+        HttpClient(config)
+    }
+
+    // Reactive refresh (Layer 2)
+    client.plugin(HttpSend).intercept { request ->
+        var call = execute(request)
+
+        if (call.response.status.value == 401) {
+            val path = request.url.encodedPath
+            if (!path.endsWith("/login") && !path.endsWith("/auth/refresh")) {
                 val serverUrl = preferencesManager.getServerUrl()
-                val host = request.url.host
-                val isRelative = host.isEmpty() || host == "localhost" || host == "127.0.0.1"
-
-                if (isRelative && !serverUrl.isNullOrEmpty()) {
-                    val base = if (serverUrl.endsWith("/")) serverUrl else "$serverUrl/"
-                    val relative = request.url.encodedPath.let { if (it.startsWith("/")) it.substring(1) else it }
-                    request.url.takeFrom(base + relative)
-                }
-
-                // Proactive refresh (Layer 1)
-                val token = preferencesManager.getToken()
                 val refreshToken = preferencesManager.getRefreshToken()
 
-                if (isAccessTokenExpired(token)) {
-                    if (isRefreshTokenExpired(refreshToken)) {
-                        preferencesManager.clearTokens()
+                val success = refreshMutex.withLock {
+                    val currentToken = preferencesManager.getToken()
+                    val requestToken = request.headers["Authorization"]?.removePrefix("Bearer ")
+
+                    if (requestToken != currentToken) {
+                        true
                     } else {
-                        refreshMutex.withLock {
-                            val currentToken = preferencesManager.getToken()
-                            if (isAccessTokenExpired(currentToken)) {
-                                performRefreshHandshake(
-                                    preferencesManager = preferencesManager,
-                                    serverUrl = serverUrl,
-                                    refreshToken = refreshToken
-                                )
-                            }
-                        }
-                    }
-                }
-
-                val latestToken = preferencesManager.getToken()
-                if (!latestToken.isNullOrEmpty() && !request.headers.contains("Authorization")) {
-                    request.headers["Authorization"] = "Bearer $latestToken"
-                }
-            }
-        }
-
-        val client = HttpClient {
-            install(ContentNegotiation) {
-                json(Json {
-                    ignoreUnknownKeys = true
-                    coerceInputValues = true
-                })
-            }
-            install(HttpTimeout) {
-                requestTimeoutMillis = 30000
-                connectTimeoutMillis = 10000
-                socketTimeoutMillis = 30000
-            }
-            install(Logging) {
-                logger = object : Logger {
-                    override fun log(message: String) {
-                        Log.d("KtorClient", message)
-                    }
-                }
-                level = LogLevel.ALL
-            }
-            install(apiPlugin)
-        }
-
-        // Reactive refresh (Layer 2)
-        client.plugin(HttpSend).intercept { request ->
-            var call = execute(request)
-
-            if (call.response.status.value == 401) {
-                val path = request.url.encodedPath
-                if (!path.endsWith("/login") && !path.endsWith("/auth/refresh")) {
-                    val serverUrl = preferencesManager.getServerUrl()
-                    val refreshToken = preferencesManager.getRefreshToken()
-
-                    val success = refreshMutex.withLock {
-                        val currentToken = preferencesManager.getToken()
-                        val requestToken = request.headers["Authorization"]?.removePrefix("Bearer ")
-
-                        if (requestToken != currentToken) {
-                            true
+                        if (isRefreshTokenExpired(refreshToken)) {
+                            preferencesManager.clearTokens()
+                            false
                         } else {
-                            if (isRefreshTokenExpired(refreshToken)) {
-                                preferencesManager.clearTokens()
-                                false
-                            } else {
-                                performRefreshHandshake(
-                                    preferencesManager = preferencesManager,
-                                    serverUrl = serverUrl,
-                                    refreshToken = refreshToken
-                                )
-                            }
+                            performRefreshHandshake(
+                                preferencesManager = preferencesManager,
+                                serverUrl = serverUrl,
+                                refreshToken = refreshToken
+                            )
                         }
-                    }
-
-                    if (success) {
-                        val newToken = preferencesManager.getToken()
-                        if (!newToken.isNullOrEmpty()) {
-                            request.headers["Authorization"] = "Bearer $newToken"
-                        }
-                        call = execute(request)
                     }
                 }
-            }
 
-            call
+                if (success) {
+                    val newToken = preferencesManager.getToken()
+                    if (!newToken.isNullOrEmpty()) {
+                        request.headers["Authorization"] = "Bearer $newToken"
+                    }
+                    call = execute(request)
+                }
+            }
         }
 
-        client
+        call
+    }
+
+    return client
+}
+
+val coreNetworkModule = module {
+    single<HttpClient> {
+        createHttpClient(get())
     }
 
     single<AudiobookshelfRemoteDataSource> {
