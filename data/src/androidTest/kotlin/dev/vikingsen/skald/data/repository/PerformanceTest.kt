@@ -38,14 +38,6 @@ class PerformanceTest {
 
     @Before
     fun setUp() {
-        mockkStatic(Log::class)
-        every { Log.d(any(), any()) } returns 0
-        every { Log.i(any(), any()) } returns 0
-        every { Log.w(any(), any<String>()) } returns 0
-        every { Log.w(any(), any<Throwable>()) } returns 0
-        every { Log.e(any(), any()) } returns 0
-        every { Log.e(any(), any(), any()) } returns 0
-
         context = InstrumentationRegistry.getInstrumentation().targetContext
         inMemoryDb = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
             .allowMainThreadQueries()
@@ -67,7 +59,9 @@ class PerformanceTest {
 
     @After
     fun tearDown() {
-        inMemoryDb.close()
+        if (this::inMemoryDb.isInitialized) {
+            inMemoryDb.close()
+        }
     }
 
     @Test
