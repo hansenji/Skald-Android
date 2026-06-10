@@ -65,6 +65,9 @@ import androidx.compose.material.icons.filled.PlayArrow
 import dev.vikingsen.skald.core.model.Playlist
 import dev.vikingsen.skald.core.model.PlaylistsSortOption
 import dev.vikingsen.skald.core.model.formatDuration
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material.icons.filled.MoreVert
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -96,6 +99,9 @@ fun LibraryScreen(
     var showSettingsDialog by remember { mutableStateOf(false) }
     
     val showMiniPlayer by viewModel.showMiniPlayer.collectAsState()
+
+    var activeBookForMenu by remember { mutableStateOf<BookCardUiModel?>(null) }
+    val playlists by viewModel.allPlaylists.collectAsState()
 
     if (showSettingsDialog) {
         SettingsDialog(
@@ -494,7 +500,9 @@ fun LibraryScreen(
                                 if (bookCard != null) {
                                     BookCard(
                                         book = bookCard,
-                                        onClick = { onBookClick(bookCard.id) }
+                                        onClick = { onBookClick(bookCard.id) },
+                                        onLongClick = { activeBookForMenu = bookCard },
+                                        onMenuClick = { activeBookForMenu = bookCard }
                                     )
                                 }
                             }
@@ -531,6 +539,39 @@ fun LibraryScreen(
                 }
             }
         }
+    }
+
+    if (activeBookForMenu != null) {
+        val book = activeBookForMenu!!
+        val bookDetail = BookDetailUiModel(
+            id = book.id,
+            title = book.title,
+            author = book.author,
+            narrator = book.narrator,
+            duration = book.duration,
+            durationText = formatDuration(book.duration),
+            coverUrl = book.coverUrl,
+            authorizationHeader = book.authorizationHeader,
+            isDownloaded = book.isDownloaded,
+            description = "",
+            chapters = emptyList(),
+            progress = book.progress,
+            progressLeftText = book.progress?.let {
+                val left = book.duration - it.currentTime
+                formatDuration(left)
+            }
+        )
+        ItemMoreMenuBottomSheet(
+            book = bookDetail,
+            serverUrl = viewModel.serverUrl,
+            playlists = playlists,
+            onDismiss = { activeBookForMenu = null },
+            onToggleFinished = { viewModel.toggleFinished(book) },
+            onDiscardProgress = { viewModel.discardProgress(book.id) },
+            onDeleteDownload = { viewModel.deleteDownloadedBook(book.id) },
+            onAddToPlaylist = { playlistId -> viewModel.addToPlaylist(playlistId, book.id) },
+            onCreatePlaylist = { name -> viewModel.createPlaylistAndAdd(name, selectedLibraryId, book.id) }
+        )
     }
 }
 }
@@ -906,15 +947,21 @@ fun AsyncCoverImage(
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun BookCard(
     book: BookCardUiModel,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+    onMenuClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -1011,25 +1058,43 @@ fun BookCard(
                 }
             }
 
-            Column(
-                modifier = Modifier.padding(12.dp)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 12.dp, top = 8.dp, bottom = 8.dp, end = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = book.title,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = book.author,
-                    fontSize = 12.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = book.title,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = book.author,
+                        fontSize = 12.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                IconButton(
+                    onClick = onMenuClick,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "Book Options",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
         }
     }

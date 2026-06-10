@@ -33,6 +33,7 @@ import dev.vikingsen.skald.core.model.PlaylistsSortOption
 import dev.vikingsen.skald.domain.usecase.GetPlaylistsUseCase
 import dev.vikingsen.skald.domain.usecase.SyncPlaylistsUseCase
 import dev.vikingsen.skald.domain.usecase.PlayPlaylistUseCase
+import dev.vikingsen.skald.domain.usecase.DeleteLocalBookFilesUseCase
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -112,12 +113,18 @@ class LibraryViewModel(
     private val syncGlobalProgressUseCase: SyncGlobalProgressUseCase,
     private val getPlaylistsUseCase: GetPlaylistsUseCase,
     private val syncPlaylistsUseCase: SyncPlaylistsUseCase,
-    private val playPlaylistUseCase: PlayPlaylistUseCase
+    private val playPlaylistUseCase: PlayPlaylistUseCase,
+    private val deleteLocalBookFilesUseCase: DeleteLocalBookFilesUseCase
 ) : ViewModel() {
 
     val showMiniPlayer: StateFlow<Boolean> = getMiniPlayerStateUseCase()
         .map { it != null }
         .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = false)
+
+    val serverUrl: String = settingsRepository.getServerUrl() ?: ""
+
+    val allPlaylists: StateFlow<List<Playlist>> = repository.getPlaylistsFlow()
+        .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = emptyList())
 
     private val initialFilterStatus = settingsRepository.getReadStatusFilter()?.let {
         runCatching { ReadStatusFilter.valueOf(it) }.getOrNull()
@@ -599,6 +606,62 @@ class LibraryViewModel(
         if (this == null) return Double.MAX_VALUE
         val cleaned = this.trim().takeWhile { it.isDigit() || it == '.' }
         return cleaned.toDoubleOrNull() ?: Double.MAX_VALUE
+    }
+
+    fun toggleFinished(book: BookCardUiModel) {
+        val isFinished = book.progress?.isFinished ?: false
+        viewModelScope.launch {
+            isRefreshing.value = true
+            val result = repository.updatePlaybackFinished(book.id, !isFinished)
+            if (result.isFailure) {
+                error.value = result.exceptionOrNull()?.message ?: "Failed to update finished status"
+            }
+            isRefreshing.value = false
+        }
+    }
+
+    fun discardProgress(bookId: String) {
+        viewModelScope.launch {
+            isRefreshing.value = true
+            val result = repository.discardProgress(bookId)
+            if (result.isFailure) {
+                error.value = result.exceptionOrNull()?.message ?: "Failed to discard progress"
+            }
+            isRefreshing.value = false
+        }
+    }
+
+    fun deleteDownloadedBook(bookId: String) {
+        viewModelScope.launch {
+            isRefreshing.value = true
+            val result = deleteLocalBookFilesUseCase(bookId)
+            if (result.isFailure) {
+                error.value = result.exceptionOrNull()?.message ?: "Failed to delete downloaded files"
+            }
+            isRefreshing.value = false
+        }
+    }
+
+    fun addToPlaylist(playlistId: String, bookId: String) {
+        viewModelScope.launch {
+            isRefreshing.value = true
+            val result = repository.addBookToPlaylist(playlistId, bookId)
+            if (result.isFailure) {
+                error.value = result.exceptionOrNull()?.message ?: "Failed to add book to playlist"
+            }
+            isRefreshing.value = false
+        }
+    }
+
+    fun createPlaylistAndAdd(name: String, libraryId: String, bookId: String) {
+        viewModelScope.launch {
+            isRefreshing.value = true
+            val result = repository.createPlaylistWithBook(name, libraryId, bookId)
+            if (result.isFailure) {
+                error.value = result.exceptionOrNull()?.message ?: "Failed to create playlist"
+            }
+            isRefreshing.value = false
+        }
     }
 
     fun logout(onComplete: () -> Unit) {
