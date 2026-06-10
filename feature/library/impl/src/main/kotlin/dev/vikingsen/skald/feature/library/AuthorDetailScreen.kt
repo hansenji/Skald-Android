@@ -30,6 +30,7 @@ import coil3.compose.SubcomposeAsyncImage
 import coil3.request.ImageRequest
 import coil3.request.crossfade
 import dev.vikingsen.skald.core.model.Author
+import dev.vikingsen.skald.core.model.formatDuration
 import org.koin.androidx.compose.koinViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,6 +50,9 @@ fun AuthorDetailScreen(
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val error by viewModel.error.collectAsState()
     val showMiniPlayer by viewModel.showMiniPlayer.collectAsState()
+    val playlists by viewModel.playlists.collectAsState()
+
+    var activeBookForMenu by remember { mutableStateOf<BookCardUiModel?>(null) }
 
     Scaffold(
         topBar = {
@@ -134,12 +138,47 @@ fun AuthorDetailScreen(
                     items(books, key = { it.id }) { book ->
                         BookRowItem(
                             book = book,
-                            onClick = { onBookClick(book.id) }
+                            onClick = { onBookClick(book.id) },
+                            onLongClick = { activeBookForMenu = book },
+                            onMenuClick = { activeBookForMenu = book }
                         )
                     }
                 }
             }
         }
+    }
+
+    if (activeBookForMenu != null) {
+        val book = activeBookForMenu!!
+        val bookDetail = BookDetailUiModel(
+            id = book.id,
+            title = book.title,
+            author = book.author,
+            narrator = book.narrator,
+            duration = book.duration,
+            durationText = formatDuration(book.duration),
+            coverUrl = book.coverUrl,
+            authorizationHeader = book.authorizationHeader,
+            isDownloaded = book.isDownloaded,
+            description = "",
+            chapters = emptyList(),
+            progress = book.progress,
+            progressLeftText = book.progress?.let {
+                val left = book.duration - it.currentTime
+                formatDuration(left)
+            }
+        )
+        ItemMoreMenuBottomSheet(
+            book = bookDetail,
+            serverUrl = viewModel.serverUrl,
+            playlists = playlists,
+            onDismiss = { activeBookForMenu = null },
+            onToggleFinished = { viewModel.toggleFinished(book) },
+            onDiscardProgress = { viewModel.discardProgress(book.id) },
+            onDeleteDownload = { viewModel.deleteDownloadedBook(book.id) },
+            onAddToPlaylist = { playlistId -> viewModel.addToPlaylist(playlistId, book.id) },
+            onCreatePlaylist = { name -> viewModel.createPlaylistAndAdd(name, book.id) }
+        )
     }
 }
 
