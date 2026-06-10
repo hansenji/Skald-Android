@@ -69,6 +69,7 @@ interface AudiobookshelfRepository {
     suspend fun discardProgress(bookId: String): Result<Unit>
     suspend fun addBookToPlaylist(playlistId: String, bookId: String): Result<Unit>
     suspend fun createPlaylistWithBook(name: String, libraryId: String, bookId: String): Result<Unit>
+    suspend fun removePlaylistItem(playlistId: String, bookId: String): Result<Unit>
 }
 
 

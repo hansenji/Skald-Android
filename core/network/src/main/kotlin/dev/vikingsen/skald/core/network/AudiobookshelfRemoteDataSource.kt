@@ -65,6 +65,7 @@ interface AudiobookshelfRemoteDataSource {
     suspend fun deleteProgressFromServer(progressId: String)
     suspend fun addItemsToPlaylist(playlistId: String, items: List<PlaylistUpdateItem>): NetworkResult<NetworkPlaylistResponse>
     suspend fun createPlaylist(name: String, libraryId: String, items: List<PlaylistUpdateItem>): NetworkResult<NetworkPlaylistResponse>
+    suspend fun removePlaylistItem(playlistId: String, bookId: String, episodeId: String? = null): NetworkResult<NetworkPlaylistResponse>
     fun downloadFile(bookId: String, ino: String, destinationFile: File, totalBytes: Long): Flow<Float>
 }
 
@@ -474,6 +475,26 @@ class AudiobookshelfRemoteDataSourceImpl(
             }
             if (response.status.value >= 400) {
                 NetworkResult.Error("Failed to create playlist: Status ${response.status.value}")
+            } else {
+                val data = response.body<NetworkPlaylistResponse>()
+                val responseEtag = response.headers["ETag"]
+                NetworkResult.Success(data, responseEtag)
+            }
+        }.getOrElse {
+            NetworkResult.Error(it.message ?: "Unknown error")
+        }
+    }
+
+    override suspend fun removePlaylistItem(
+        playlistId: String,
+        bookId: String,
+        episodeId: String?
+    ): NetworkResult<NetworkPlaylistResponse> = withContext(Dispatchers.IO) {
+        runCatching {
+            val urlPath = if (episodeId != null) "api/playlists/$playlistId/item/$bookId/$episodeId" else "api/playlists/$playlistId/item/$bookId"
+            val response = client.delete(urlPath)
+            if (response.status.value >= 400) {
+                NetworkResult.Error("Failed to remove item from playlist: Status ${response.status.value}")
             } else {
                 val data = response.body<NetworkPlaylistResponse>()
                 val responseEtag = response.headers["ETag"]

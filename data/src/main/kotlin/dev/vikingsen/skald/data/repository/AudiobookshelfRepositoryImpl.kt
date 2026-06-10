@@ -1496,6 +1496,19 @@ class AudiobookshelfRepositoryImpl(
             }
         }
     }
+
+    override suspend fun removePlaylistItem(playlistId: String, bookId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val result = remoteDataSource.removePlaylistItem(playlistId, bookId)
+            when (result) {
+                is NetworkResult.Success -> {
+                    updateLocalPlaylist(result.data)
+                }
+                is NetworkResult.Error -> throw Exception(result.message)
+                is NetworkResult.NotModified -> {}
+            }
+        }
+    }
 }
 
 

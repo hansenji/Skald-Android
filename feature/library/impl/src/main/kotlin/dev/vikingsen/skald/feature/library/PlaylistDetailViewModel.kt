@@ -4,18 +4,23 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.vikingsen.skald.core.model.Playlist
 import dev.vikingsen.skald.core.model.PlaylistItem
+import dev.vikingsen.skald.core.model.formatDuration
+import dev.vikingsen.skald.core.model.formatPosition
 import dev.vikingsen.skald.domain.repository.AudiobookshelfRepository
 import dev.vikingsen.skald.domain.repository.SettingsRepository
 import dev.vikingsen.skald.domain.usecase.GetMiniPlayerStateUseCase
 import dev.vikingsen.skald.domain.usecase.PlayPlaylistUseCase
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class PlaylistDetailViewModel(
     private val repository: AudiobookshelfRepository,
     private val playPlaylistUseCase: PlayPlaylistUseCase,
     private val settingsRepository: SettingsRepository,
-    private val getMiniPlayerStateUseCase: GetMiniPlayerStateUseCase
+    private val getMiniPlayerStateUseCase: GetMiniPlayerStateUseCase,
+    private val bookMenuActionUtil: BookMenuActionUtil
 ) : ViewModel() {
 
     private val _playlistId = MutableStateFlow<String?>(null)
@@ -40,6 +45,78 @@ class PlaylistDetailViewModel(
         .map { it != null }
         .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = false)
 
+    val serverUrl: String = settingsRepository.getServerUrl() ?: ""
+
+    val playlists: StateFlow<List<Playlist>> = repository.getPlaylistsFlow()
+        .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = emptyList())
+
+    private val _activeBookId = MutableStateFlow<String?>(null)
+    val activeBookId: StateFlow<String?> = _activeBookId.asStateFlow()
+
+    val activeBookDetail: StateFlow<BookDetailUiModel?> = _activeBookId
+        .flatMapLatest { id ->
+            if (id == null) flowOf(null)
+            else repository.getBookWithProgressFlow(id).map { pair ->
+                val book = pair.first ?: return@map null
+                val progress = pair.second
+                
+                val serverUrl = settingsRepository.getServerUrl() ?: ""
+                val token = settingsRepository.getToken() ?: ""
+                
+                val coverUrl = if (!book.coverPath.isNullOrEmpty()) book.coverPath!!
+                               else "${serverUrl.trimEnd('/')}/api/items/${book.id}/cover"
+                val authHeader = if (!book.coverPath.isNullOrEmpty()) null
+                                 else "Bearer $token"
+                                 
+                val progressLeftText = progress?.let {
+                    val left = book.duration - it.currentTime
+                    formatDuration(left)
+                }
+
+                BookDetailUiModel(
+                    id = book.id,
+                    title = book.title,
+                    author = book.author,
+                    narrator = book.narrator,
+                    duration = book.duration,
+                    durationText = formatDuration(book.duration),
+                    coverUrl = coverUrl,
+                    authorizationHeader = authHeader,
+                    isDownloaded = book.isDownloaded,
+                    description = book.description,
+                    chapters = book.chapters.mapIndexed { index, chapter ->
+                        ChapterUiModel(
+                            title = chapter.title.ifEmpty { "Chapter ${index + 1}" },
+                            start = chapter.start,
+                            end = chapter.end,
+                            startText = formatPosition(chapter.start),
+                            durationText = formatDuration(chapter.end - chapter.start)
+                        )
+                    },
+                    progress = progress?.let {
+                        PlaybackProgressUiModel(
+                            progress = it.progress,
+                            isFinished = it.isFinished,
+                            currentTime = it.currentTime,
+                            lastUpdated = it.lastUpdated
+                        )
+                    },
+                    progressLeftText = progressLeftText
+                )
+            }
+        }
+        .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = null)
+
+    init {
+        viewModelScope.launch {
+            repository.syncPlaylists()
+        }
+    }
+
+    fun selectBookForMenu(bookId: String?) {
+        _activeBookId.value = bookId
+    }
+
     fun setPlaylistId(id: String) {
         if (_playlistId.value == id) return
         _playlistId.value = id
@@ -62,7 +139,6 @@ class PlaylistDetailViewModel(
                 _playlistItems.value = p.items
             } else {
                 _error.value = result.exceptionOrNull()?.message ?: "Failed to load playlist details"
-                // Try to load cached version if we failed to forceRefresh
                 if (forceRefresh) {
                     val cachedResult = repository.getPlaylistDetails(id, forceRefresh = false)
                     if (cachedResult.isSuccess) {
@@ -121,5 +197,76 @@ class PlaylistDetailViewModel(
             itemCount = newItems.size,
             duration = totalDuration
         )
+    }
+
+    fun toggleFinished(bookId: String, isFinished: Boolean) {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            val result = bookMenuActionUtil.toggleFinished(bookId, isFinished)
+            if (result.isFailure) {
+                _error.value = result.exceptionOrNull()?.message ?: "Failed to update finished status"
+            }
+            _isRefreshing.value = false
+        }
+    }
+
+    fun discardProgress(bookId: String) {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            val result = bookMenuActionUtil.discardProgress(bookId)
+            if (result.isFailure) {
+                _error.value = result.exceptionOrNull()?.message ?: "Failed to discard progress"
+            }
+            _isRefreshing.value = false
+        }
+    }
+
+    fun deleteDownloadedBook(bookId: String) {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            val result = bookMenuActionUtil.deleteDownload(bookId)
+            if (result.isFailure) {
+                _error.value = result.exceptionOrNull()?.message ?: "Failed to delete downloaded files"
+            }
+            _isRefreshing.value = false
+        }
+    }
+
+    fun addToPlaylist(playlistId: String, bookId: String) {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            val result = bookMenuActionUtil.addToPlaylist(playlistId, bookId)
+            if (result.isFailure) {
+                _error.value = result.exceptionOrNull()?.message ?: "Failed to add book to playlist"
+            }
+            _isRefreshing.value = false
+        }
+    }
+
+    fun createPlaylistAndAdd(name: String, bookId: String) {
+        val libId = settingsRepository.getLibraryId() ?: ""
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            val result = bookMenuActionUtil.createPlaylistWithBook(name, libId, bookId)
+            if (result.isFailure) {
+                _error.value = result.exceptionOrNull()?.message ?: "Failed to create playlist"
+            }
+            _isRefreshing.value = false
+        }
+    }
+
+    fun removeFromPlaylist(bookId: String) {
+        val id = _playlistId.value ?: return
+        val items = _playlistItems.value.filter { it.libraryItemId != bookId }
+        updateLocalState(items)
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            val result = repository.removePlaylistItem(id, bookId)
+            if (result.isFailure) {
+                _error.value = result.exceptionOrNull()?.message ?: "Failed to remove item from playlist"
+                loadPlaylistDetails(id, forceRefresh = false)
+            }
+            _isRefreshing.value = false
+        }
     }
 }

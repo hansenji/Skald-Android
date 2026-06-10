@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -53,6 +54,8 @@ fun PlaylistDetailScreen(
     val error by viewModel.error.collectAsState()
     val showMiniPlayer by viewModel.showMiniPlayer.collectAsState()
     val authorizationHeader = viewModel.authorizationHeader
+    val activeBookDetail by viewModel.activeBookDetail.collectAsState()
+    val playlists by viewModel.playlists.collectAsState()
 
     Scaffold(
         topBar = {
@@ -153,6 +156,9 @@ fun PlaylistDetailScreen(
                             onDeleteClick = {
                                 viewModel.deleteItem(item)
                             },
+                            onMenuClick = {
+                                viewModel.selectBookForMenu(item.libraryItemId)
+                            },
                             modifier = Modifier
                                 .zIndex(if (isDragged) 10f else 1f)
                                 .graphicsLayer {
@@ -173,6 +179,22 @@ fun PlaylistDetailScreen(
                 Text(text = error!!, color = MaterialTheme.colorScheme.error)
             }
         }
+    }
+
+    if (activeBookDetail != null) {
+        ItemMoreMenuBottomSheet(
+            book = activeBookDetail!!,
+            serverUrl = viewModel.serverUrl,
+            playlists = playlists,
+            onDismiss = { viewModel.selectBookForMenu(null) },
+            onToggleFinished = { viewModel.toggleFinished(activeBookDetail!!.id, activeBookDetail!!.progress?.isFinished ?: false) },
+            onDiscardProgress = { viewModel.discardProgress(activeBookDetail!!.id) },
+            onDeleteDownload = { viewModel.deleteDownloadedBook(activeBookDetail!!.id) },
+            onAddToPlaylist = { playlistId -> viewModel.addToPlaylist(playlistId, activeBookDetail!!.id) },
+            onCreatePlaylist = { name -> viewModel.createPlaylistAndAdd(name, activeBookDetail!!.id) },
+            playlistId = playlistId,
+            onRemoveFromPlaylist = { viewModel.removeFromPlaylist(activeBookDetail!!.id) }
+        )
     }
 }
 
@@ -260,6 +282,7 @@ fun PlaylistItemRow(
     isDragged: Boolean,
     onClick: () -> Unit,
     onDeleteClick: () -> Unit,
+    onMenuClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val containerColor = if (isDragged) {
@@ -330,6 +353,17 @@ fun PlaylistItemRow(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "Remove item",
                     tint = MaterialTheme.colorScheme.error
+                )
+            }
+
+            // More options button
+            IconButton(
+                onClick = onMenuClick,
+                modifier = Modifier.size(40.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "More options"
                 )
             }
         }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.PlaylistAdd
@@ -32,7 +33,9 @@ fun ItemMoreMenuBottomSheet(
     onDiscardProgress: () -> Unit,
     onDeleteDownload: () -> Unit,
     onAddToPlaylist: (String) -> Unit,
-    onCreatePlaylist: (String) -> Unit
+    onCreatePlaylist: (String) -> Unit,
+    playlistId: String? = null,
+    onRemoveFromPlaylist: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     var showConfirmFinishedDialog by remember { mutableStateOf(false) }
@@ -94,6 +97,20 @@ fun ItemMoreMenuBottomSheet(
                     showPlaylistSelectionDialog = true
                 }
             )
+
+            // Remove from Playlist
+            if (playlistId != null && onRemoveFromPlaylist != null) {
+                ListItem(
+                    headlineContent = { Text("Remove from Playlist") },
+                    leadingContent = {
+                        Icon(Icons.Default.Close, contentDescription = null)
+                    },
+                    modifier = Modifier.clickable {
+                        onRemoveFromPlaylist()
+                        onDismiss()
+                    }
+                )
+            }
 
             // Delete Download (only if downloaded)
             if (book.isDownloaded) {
