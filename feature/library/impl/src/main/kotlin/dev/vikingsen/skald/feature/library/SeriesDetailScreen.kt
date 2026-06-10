@@ -1,7 +1,9 @@
 package dev.vikingsen.skald.feature.library
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,8 +12,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import dev.vikingsen.skald.core.model.formatDuration
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,6 +47,9 @@ fun SeriesDetailScreen(
     val series by viewModel.series.collectAsState()
     val books by viewModel.books.collectAsState()
     val showMiniPlayer by viewModel.showMiniPlayer.collectAsState()
+    val playlists by viewModel.playlists.collectAsState()
+
+    var activeBookForMenu by remember { mutableStateOf<BookCardUiModel?>(null) }
 
     Scaffold(
         topBar = {
@@ -91,11 +98,46 @@ fun SeriesDetailScreen(
                 items(books, key = { it.id }) { book ->
                     BookRowItem(
                         book = book,
-                        onClick = { onBookClick(book.id) }
+                        onClick = { onBookClick(book.id) },
+                        onLongClick = { activeBookForMenu = book },
+                        onMenuClick = { activeBookForMenu = book }
                     )
                 }
             }
         }
+    }
+
+    if (activeBookForMenu != null) {
+        val book = activeBookForMenu!!
+        val bookDetail = BookDetailUiModel(
+            id = book.id,
+            title = book.title,
+            author = book.author,
+            narrator = book.narrator,
+            duration = book.duration,
+            durationText = formatDuration(book.duration),
+            coverUrl = book.coverUrl,
+            authorizationHeader = book.authorizationHeader,
+            isDownloaded = book.isDownloaded,
+            description = "",
+            chapters = emptyList(),
+            progress = book.progress,
+            progressLeftText = book.progress?.let {
+                val left = book.duration - it.currentTime
+                formatDuration(left)
+            }
+        )
+        ItemMoreMenuBottomSheet(
+            book = bookDetail,
+            serverUrl = viewModel.serverUrl,
+            playlists = playlists,
+            onDismiss = { activeBookForMenu = null },
+            onToggleFinished = { viewModel.toggleFinished(book) },
+            onDiscardProgress = { viewModel.discardProgress(book.id) },
+            onDeleteDownload = { viewModel.deleteDownloadedBook(book.id) },
+            onAddToPlaylist = { playlistId -> viewModel.addToPlaylist(playlistId, book.id) },
+            onCreatePlaylist = { name -> viewModel.createPlaylistAndAdd(name, book.id) }
+        )
     }
 }
 
@@ -226,16 +268,22 @@ fun SeriesHeader(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun BookRowItem(
     book: BookCardUiModel,
     onClick: () -> Unit,
+    onLongClick: () -> Unit = {},
+    onMenuClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface
@@ -368,10 +416,10 @@ fun BookRowItem(
                 }
             }
 
-            IconButton(onClick = onClick) {
+            IconButton(onClick = onMenuClick) {
                 Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = "Details",
+                    imageVector = Icons.Default.MoreVert,
+                    contentDescription = "More Options",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
                 )
             }
