@@ -87,7 +87,7 @@ fun PlaylistDetailScreen(
                 DragDropState(
                     lazyListState = lazyListState,
                     onMove = { from, to -> viewModel.moveItem(from, to) },
-                    onDragEnd = { viewModel.syncReorder() }
+                    onDragCompleted = { viewModel.syncReorder() }
                 )
             }
 
@@ -339,7 +339,7 @@ fun PlaylistItemRow(
 class DragDropState(
     val lazyListState: LazyListState,
     val onMove: (Int, Int) -> Unit,
-    val onDragEnd: () -> Unit
+    val onDragCompleted: () -> Unit
 ) {
     var draggedIndex by mutableStateOf<Int?>(null)
         private set
@@ -381,7 +381,7 @@ class DragDropState(
 
     fun onDragEnd() {
         if (draggedIndex != null) {
-            onDragEnd()
+            onDragCompleted()
         }
         draggedIndex = null
         draggedOffset = 0f
