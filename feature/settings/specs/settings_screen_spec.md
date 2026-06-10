@@ -39,6 +39,9 @@ The UI is organized vertically into grouped categories using `Card` containers o
 |  | User: audio_listener_123                  |  |  <-- Read-only label
 |  | Active Library: Audiobooks                |  |  <-- Library indicator
 |  |                                           |  |
+|  | Account Details                       [ > ]|  |  <-- Clickable row to view profile info
+|  | Listening Stats                       [ > ]|  |  <-- Clickable row to navigate to stats
+|  |                                           |  |
 |  | [ LOG OUT ] (Red button / Error Container)|  |  <-- Clear session & cache confirmation
 |  +-------------------------------------------+  |
 |                                                 |
@@ -48,6 +51,7 @@ The UI is organized vertically into grouped categories using `Card` containers o
 |  | Skip Backward Duration           [ 10s > ]|  |  <-- Dialog selection list
 |  | Default Playback Speed           [ 1.0x >]|  |  <-- Slider or list picker
 |  | Go Back on Interrupt             [ Switch]|  |  <-- 5-second rewind on pause/call
+|  | Display Chapter Progress         [ Switch]|  |  <-- Toggle chapter vs total book track
 |  +-------------------------------------------+  |
 |                                                 |
 |  [ SYNC & STORAGE ]                             |
@@ -67,6 +71,12 @@ The UI is organized vertically into grouped categories using `Card` containers o
 - **Server URL**: Displays the active normalized server address (`server_url` from `PreferencesManager`). Includes a subtle icon to copy the URL to the clipboard.
 - **Logged User**: Displays the active username (`username` from `PreferencesManager`).
 - **Active Library**: Displays the name of the currently active library.
+- **Account Details**:
+  - Layout: A clickable menu item row.
+  - Action: Navigates to the Account Details Screen (which displays user profile info, account type/permissions, and account details).
+- **Listening Stats**:
+  - Layout: A clickable menu item row.
+  - Action: Navigates to the Listening Stats Screen (exposes detailed user listening history statistics, books finished, time spent listening, and session summaries).
 - **Log Out Button**:
   - Rendered as a prominent Material 3 `Button` with `MaterialTheme.colorScheme.error` container.
   - Tapping triggers a **Confirmation Dialog**:
@@ -93,6 +103,10 @@ The UI is organized vertically into grouped categories using `Card` containers o
   - Key: `go_back_on_interrupt` (Boolean, Default: `true`)
   - Layout: An M3 `Switch` toggle item.
   - Behavior: When enabled, resuming playback after an interruption (e.g., pausing, phone call, transient audio focus loss, or background service restarts) will automatically seek the player backward by **5 seconds** to restore listening context. If the playback position is less than 5 seconds, it seeks to `0`.
+- **Display Chapter Progress**:
+  - Key: `use_chapter_track` (Boolean, Default: `false`)
+  - Layout: An M3 `Switch` toggle item.
+  - Behavior: When enabled, the player scrubber bar displays and tracks progress through the current chapter only, rather than the entire audiobook. When disabled, the seek bar tracks progress across the entire audiobook.
 
 ### C. Sync & Storage Section
 - **Periodic Sync Interval**:
@@ -138,6 +152,7 @@ All configurations adjusted on this screen map directly to fields within the per
 | **Skip Backward** | `skip_backward_duration` | Integer | `10` | `PreferencesManager.saveSkipBackwardDuration()` |
 | **Playback Speed** | `playback_speed` | Float | `1.0f` | `PreferencesManager.savePlaybackSpeed()` |
 | **Go Back on Interrupt** | `go_back_on_interrupt` | Boolean | `true` | `PreferencesManager.saveGoBackOnInterrupt()` (to be added) |
+| **Display Chapter Progress** | `use_chapter_track` | Boolean | `false` | `PreferencesManager.saveUseChapterTrack()` (to be added) |
 | **Sync Interval** | `library_sync_interval_hours` | Integer | `24` | `PreferencesManager.saveLibrarySyncIntervalHours()` |
 | **Last Sync** | `library_last_sync_timestamp` | Long | `0L` | `PreferencesManager.getLibraryLastSyncTimestamp()` |
 | **Hide Empty Tabs** | `hide_empty_library_tabs` | Boolean | `false` | `PreferencesManager.saveHideEmptyLibraryTabs()` (to be added) |
@@ -166,6 +181,11 @@ When the **Periodic Sync Interval** is changed by the user:
 1. If set to `0` (Disabled), cancel any scheduled background synchronization workers.
 2. If set to a positive hour count (`1` to `72`), cancel the existing worker and schedule a new repeating work request with the new interval parameter.
 
+### D. Mini-Player Bottom Padding
+- To prevent the persistent Mini-Player banner from overlapping or obscuring the bottom-most settings items (such as the "Clear Cache" or "Delete Orphaned Downloads" buttons) when scrolling:
+  - The settings screen's scrollable container must apply a dynamic bottom content padding of **`80.dp`** (or the exact height of the mini-player + extra spacing) whenever a playback session is active and the Mini-Player is visible.
+  - When the player is inactive or closed, standard screen padding should be restored.
+
 ---
 
 ## 5. Verification & Quality Plan
@@ -182,7 +202,7 @@ To verify that the settings configurations behave correctly and update adjacent 
    - Mock a player interruption (e.g. pause command or audio focus transient loss) while `go_back_on_interrupt` is enabled.
    - Assert that the ExoPlayer seek action successfully rewinds by 5 seconds when resume is invoked.
 4. **SettingsViewModel Unit Test** (`SettingsViewModelTest`):
-   - Verify `updateSkipForwardDuration`, `updateSkipBackwardDuration`, `updatePlaybackSpeed`, `updateGoBackOnInterrupt`, and `updateSyncInterval` update the matching repository fields immediately.
+   - Verify `updateSkipForwardDuration`, `updateSkipBackwardDuration`, `updatePlaybackSpeed`, `updateGoBackOnInterrupt`, `updateUseChapterTrack`, and `updateSyncInterval` update the matching repository fields immediately.
    - Verify `syncNow()` invokes both library book sync and global progress sync with `forceRefresh = true`.
    - Verify `clearCache()` deletes all offline downloads recursively, calls `clearLocalData()` on the repository, and updates the formatted cache size flow.
    - Verify `logout()` delegates to `LogoutUseCase` and executes the navigation callback.

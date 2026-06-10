@@ -50,6 +50,7 @@ Unlike books and series, authors are displayed in a highly readable **vertical l
   - Header with large avatar, name, and biographical description (collapsible/expandable if long).
   - Grid layout of all books written by this author, using the standard `BookCard` component.
   - Tapping a book card navigates to the **Book Detail Screen**.
+  - **Contextual Action Menu**: Long-pressing a book card or tapping its overflow menu icon opens the `ItemMoreMenuBottomSheet` as defined in [book_detail_spec.md](book_detail_spec.md#e-contextual-action-menu).
 
 ### C. Search & Sorting
 - **Search**: Scopes search queries to author names (e.g. "Stephen King").

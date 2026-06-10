@@ -50,7 +50,7 @@ The mobile player UI must support cover art display, a progress scrubber bar, ch
 
 ## 3. UI Component Specifications
 
-- **Scrubber Bar**: Display current absolute position (formatted as `HH:MM:SS`) and total remaining/duration. The slider handles drag-to-seek, invoking `seekTo()` upon release.
+- **Scrubber Bar**: Displays the current playback position (formatted as `HH:MM:SS`) and remaining duration. The seek bar adapts to the configured **Player Progress Mode** (`use_chapter_track` setting). When chapter progress is enabled, the scrubber tracks the active chapter duration, and timestamp labels reflect the active chapter's elapsed and remaining times. The slider handles drag-to-seek, invoking `seekTo()` upon release.
 - **Chapters Sheet**: A bottom sheet lists all chapters with titles and start/end times. Selecting a chapter seeks directly to the chapter's start position.
 - **Speed Selector**: Tapping the speed label opens a dialog or cycles through the speed options, showing the active speed prominently.
 - **Settings Hook**: Quick settings inside the player screen let the user change the default skip durations (e.g., 10s, 30s, 60s) via dropdowns, persisting the choices to the preferences store.

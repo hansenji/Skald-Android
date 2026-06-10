@@ -120,6 +120,20 @@ Provides persistent playback controls when the user browses the library:
 *   **Backdrop**: Transparent blend using surface color with `0.85f` alpha opacity.
 *   **Progress Track**: A micro-sized `2.dp` reading progress indicator runs along the top edge of the mini-player banner.
 
+### D. Contextual Item Action Menu (`ItemMoreMenuBottomSheet`)
+
+Provides a unified contextual operations menu for audiobooks:
+*   **Container**: Uses a Material 3 `ModalBottomSheet` matching the obsidian design language.
+*   **Styling**:
+    *   *Background*: Deep slate surface (`DarkSurface`, `#151D30`).
+    *   *Border*: Subtle top border stroke (`1.dp`, `DarkSurfaceVariant`, `#222E4B`).
+    *   *Corners*: Rounded top corners at `24.dp` (`RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)`).
+*   **Menu Items**: Styled as clickable row items spanning full width:
+    *   *Row Height*: Minimum `48.dp` for comfortable tap targets.
+    *   *Icon*: Outlined vector glyphs using `TextSecondary` (`#94A3B8`) or brand color accents (`ElectricPurple`, `#BB86FC`).
+    *   *Label Text*: `TextPrimary` (`#F1F5F9`) using `BodyLarge` (16sp) typography.
+    *   *Destructive Actions* (e.g., *Discard Progress*, *Delete Download*): Use red/error highlights (`MaterialTheme.colorScheme.error` or `SoftPink`) on text and icons.
+
 ---
 
 ## 5. Adaptive Layouts & Form Factors

@@ -48,6 +48,7 @@ It depends on:
   - Grid or list of books inside the collection.
   - **Ordering**: Books must follow the specific order defined by the collection on the server (custom sort order), rather than standard alphabetical order.
   - Tapping a book card navigates to the **Book Detail Screen**.
+  - **Contextual Action Menu**: Long-pressing any book card in the grid/list or tapping its contextual overflow icon opens the `ItemMoreMenuBottomSheet` as defined in [book_detail_spec.md](book_detail_spec.md#e-contextual-action-menu).
 
 ### C. Search & Sorting
 - **Search**: Scopes search input to collection names.

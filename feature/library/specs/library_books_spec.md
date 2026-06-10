@@ -87,6 +87,10 @@ Sort preferences are persisted in `PreferencesManager` and restored on initializ
 - `DURATION_ASC` / `DURATION_DESC`
 - `LAST_PLAYED` (using `lastUpdated` timestamp descending; uses title alphabetical as a tiebreaker).
 
+### F. Contextual Action Menu
+1. **Trigger**: Long-pressing a book card in the grid or tapping the overflow menu icon on the card launches the `ItemMoreMenuBottomSheet`.
+2. **Behavior**: Offers quick actions on the selected book item, matching the options defined in [book_detail_spec.md](book_detail_spec.md#e-contextual-action-menu) (Mark Finished/Unfinished, Discard Progress, Add to Playlist, Delete Download, and Go to Web Client).
+
 ---
 
 ## 4. Offline Resilience

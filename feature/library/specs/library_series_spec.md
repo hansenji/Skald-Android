@@ -50,6 +50,7 @@ It depends on:
   - Scrollable list of books belonging to the series.
   - **Ordering**: Books must be sorted by their series sequence number (e.g. `1`, `2`, `2.5`, `3`) instead of alphabetical order.
   - Tapping any book in the list navigates to the **Book Detail Screen**.
+  - **Contextual Action Menu**: Long-pressing any book item in the list or tapping its contextual overflow icon opens the `ItemMoreMenuBottomSheet` offering quick operations (Mark Finished/Unfinished, Discard Progress, Add to Playlist, Delete Download, and Go to Web Client) as defined in [book_detail_spec.md](book_detail_spec.md#e-contextual-action-menu).
 
 ### C. Search, Filtering, and Sorting
 - **Search**: Scopes queries to the series name. Matches are fetched from database.

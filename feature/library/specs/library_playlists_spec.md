@@ -56,6 +56,7 @@ Playlists are presented in a list layout:
     - Supports **reordering** via drag-and-drop (updates sequence positions and syncs back to the server using a background sync task).
     - Each track row has a delete/remove button to remove that item from the playlist.
     - Tapping an item starts playback immediately from that specific index in the queue.
+    - **Contextual Action Menu**: Tapping the overflow menu button on a track row opens the `ItemMoreMenuBottomSheet` defined in [book_detail_spec.md](book_detail_spec.md#e-contextual-action-menu), featuring an additional **Remove from Playlist** option. Selecting this action triggers a call to `DELETE /api/playlists/{playlistId}/item/{bookId}` (with episode ID if applicable), updates the local cache, and removes the item from the display list.
 
 ### C. Search & Sorting
 - **Search**: Scopes search input to playlist names or descriptions.
