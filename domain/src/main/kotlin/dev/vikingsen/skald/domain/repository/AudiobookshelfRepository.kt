@@ -65,5 +65,10 @@ interface AudiobookshelfRepository {
     suspend fun syncPlaylists(forceRefresh: Boolean = false): Result<Unit>
     suspend fun getPlaylistDetails(playlistId: String, forceRefresh: Boolean = false): Result<Playlist>
     suspend fun updatePlaylistItems(playlistId: String, items: List<PlaylistItem>): Result<Unit>
+    suspend fun updatePlaybackFinished(bookId: String, isFinished: Boolean): Result<Unit>
+    suspend fun discardProgress(bookId: String): Result<Unit>
+    suspend fun addBookToPlaylist(playlistId: String, bookId: String): Result<Unit>
+    suspend fun createPlaylistWithBook(name: String, libraryId: String, bookId: String): Result<Unit>
 }
+
 

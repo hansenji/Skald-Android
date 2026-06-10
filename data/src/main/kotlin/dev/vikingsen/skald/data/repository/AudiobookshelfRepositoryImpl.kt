@@ -15,7 +15,9 @@ import dev.vikingsen.skald.core.model.Playlist
 import dev.vikingsen.skald.core.model.PlaylistItem
 import dev.vikingsen.skald.core.network.PlaylistUpdatePayload
 import dev.vikingsen.skald.core.network.PlaylistUpdateItem
+import dev.vikingsen.skald.core.network.NetworkPlaylistResponse
 import dev.vikingsen.skald.core.network.AudiobookshelfRemoteDataSource
+
 import dev.vikingsen.skald.core.network.NetworkResult
 import dev.vikingsen.skald.core.model.AudioFile
 import dev.vikingsen.skald.core.model.Book
@@ -1403,5 +1405,97 @@ class AudiobookshelfRepositoryImpl(
             }
         }
     }
+
+    override suspend fun updatePlaybackFinished(bookId: String, isFinished: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            // 1. Sync to server
+            remoteDataSource.updateProgressFinished(bookId, isFinished)
+
+            // 2. Update local DB
+            val book = bookDao.getBookById(bookId)
+            val duration = book?.duration ?: 0.0
+            val currentTime = if (isFinished) duration else 0.0
+            val progress = if (isFinished) 1.0f else 0.0f
+            
+            val currentProgress = progressDao.getProgressForBook(bookId)
+            if (currentProgress != null) {
+                progressDao.insertProgress(
+                    currentProgress.copy(
+                        currentTime = currentTime,
+                        progress = progress,
+                        isFinished = isFinished,
+                        lastUpdated = System.currentTimeMillis()
+                    )
+                )
+            } else {
+                progressDao.insertProgress(
+                    PlaybackProgressEntity(
+                        bookId = bookId,
+                        currentTime = currentTime,
+                        progress = progress,
+                        isFinished = isFinished,
+                        lastUpdated = System.currentTimeMillis()
+                    )
+                )
+            }
+        }
+    }
+
+    override suspend fun discardProgress(bookId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            // 1. Delete progress locally from database
+            progressDao.deleteProgressForBook(bookId)
+
+            // 2. Fetch server progress ID and delete from server
+            val result = remoteDataSource.fetchCurrentUserProgress()
+            if (result is NetworkResult.Success) {
+                val progressList = result.data.mediaProgress
+                val progressItem = progressList.find { it.libraryItemId == bookId }
+                if (progressItem != null) {
+                    remoteDataSource.deleteProgressFromServer(progressItem.id)
+                }
+            } else if (result is NetworkResult.Error) {
+                throw Exception(result.message)
+            }
+        }
+    }
+
+    private suspend fun updateLocalPlaylist(dto: NetworkPlaylistResponse) {
+        val entity = dto.toEntity(System.currentTimeMillis())
+        val itemEntities = dto.items.mapIndexed { index, itemDto ->
+            itemDto.toEntity(dto.id, index)
+        }
+        db.playlistDao().insertPlaylist(entity)
+        db.playlistDao().replacePlaylistItems(dto.id, itemEntities)
+    }
+
+    override suspend fun addBookToPlaylist(playlistId: String, bookId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val items = listOf(PlaylistUpdateItem(libraryItemId = bookId, episodeId = null))
+            val result = remoteDataSource.addItemsToPlaylist(playlistId, items)
+            when (result) {
+                is NetworkResult.Success -> {
+                    updateLocalPlaylist(result.data)
+                }
+                is NetworkResult.Error -> throw Exception(result.message)
+                is NetworkResult.NotModified -> {}
+            }
+        }
+    }
+
+    override suspend fun createPlaylistWithBook(name: String, libraryId: String, bookId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val items = listOf(PlaylistUpdateItem(libraryItemId = bookId, episodeId = null))
+            val result = remoteDataSource.createPlaylist(name, libraryId, items)
+            when (result) {
+                is NetworkResult.Success -> {
+                    updateLocalPlaylist(result.data)
+                }
+                is NetworkResult.Error -> throw Exception(result.message)
+                is NetworkResult.NotModified -> {}
+            }
+        }
+    }
 }
+
 

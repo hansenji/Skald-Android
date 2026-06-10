@@ -11,7 +11,9 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -55,6 +57,9 @@ fun DetailScreen(
     val downloadingFileName by viewModel.downloadingFileName.collectAsState()
     val downloadError by viewModel.downloadError.collectAsState()
     val showMiniPlayer by viewModel.showMiniPlayer.collectAsState()
+    val playlists by viewModel.playlists.collectAsState()
+
+    var showMenuBottomSheet by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -63,6 +68,11 @@ fun DetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showMenuBottomSheet = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "More Options")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -111,7 +121,22 @@ fun DetailScreen(
             }
         }
     }
+
+    if (showMenuBottomSheet && bookDetail != null) {
+        ItemMoreMenuBottomSheet(
+            book = bookDetail!!,
+            serverUrl = viewModel.serverUrl,
+            playlists = playlists,
+            onDismiss = { showMenuBottomSheet = false },
+            onToggleFinished = { viewModel.toggleFinished() },
+            onDiscardProgress = { viewModel.discardProgress() },
+            onDeleteDownload = { viewModel.deleteDownloadedBook() },
+            onAddToPlaylist = { playlistId -> viewModel.addToPlaylist(playlistId) },
+            onCreatePlaylist = { name -> viewModel.createPlaylistAndAdd(name) }
+        )
+    }
 }
+
 
 @Composable
 fun DetailContent(

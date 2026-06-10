@@ -15,7 +15,9 @@ import io.ktor.client.request.get
 import io.ktor.client.request.post
 import io.ktor.client.request.prepareGet
 import io.ktor.client.request.patch
+import io.ktor.client.request.delete
 import io.ktor.client.request.setBody
+
 import io.ktor.client.statement.HttpStatement
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
@@ -34,7 +36,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+
 import java.io.File
 import java.io.FileOutputStream
 
@@ -57,8 +61,13 @@ interface AudiobookshelfRemoteDataSource {
     suspend fun fetchPlaylists(etag: String? = null): NetworkResult<List<NetworkPlaylistResponse>>
     suspend fun fetchPlaylistDetails(playlistId: String): NetworkResult<NetworkPlaylistResponse>
     suspend fun updatePlaylist(playlistId: String, payload: PlaylistUpdatePayload): NetworkResult<NetworkPlaylistResponse>
+    suspend fun updateProgressFinished(bookId: String, isFinished: Boolean)
+    suspend fun deleteProgressFromServer(progressId: String)
+    suspend fun addItemsToPlaylist(playlistId: String, items: List<PlaylistUpdateItem>): NetworkResult<NetworkPlaylistResponse>
+    suspend fun createPlaylist(name: String, libraryId: String, items: List<PlaylistUpdateItem>): NetworkResult<NetworkPlaylistResponse>
     fun downloadFile(bookId: String, ino: String, destinationFile: File, totalBytes: Long): Flow<Float>
 }
+
 
 class AudiobookshelfRemoteDataSourceImpl(
     private val preferencesManager: PreferencesManager,
@@ -411,8 +420,72 @@ class AudiobookshelfRemoteDataSourceImpl(
         }
     }
 
+    override suspend fun updateProgressFinished(bookId: String, isFinished: Boolean): Unit = withContext(Dispatchers.IO) {
+        val httpResponse = client.patch("api/me/progress/$bookId") {
+            contentType(ContentType.Application.Json)
+            setBody(
+                buildJsonObject {
+                    put("isFinished", isFinished)
+                }
+            )
+        }
+        if (httpResponse.status.value >= 400) {
+            throw Exception("Failed to update progress: Status ${httpResponse.status.value}")
+        }
+    }
+
+    override suspend fun deleteProgressFromServer(progressId: String): Unit = withContext(Dispatchers.IO) {
+        val httpResponse = client.delete("api/me/progress/$progressId")
+        if (httpResponse.status.value >= 400) {
+            throw Exception("Failed to delete progress: Status ${httpResponse.status.value}")
+        }
+    }
+
+    override suspend fun addItemsToPlaylist(
+        playlistId: String,
+        items: List<PlaylistUpdateItem>
+    ): NetworkResult<NetworkPlaylistResponse> = withContext(Dispatchers.IO) {
+        runCatching {
+            val response = client.post("api/playlists/$playlistId/batch/add") {
+                contentType(ContentType.Application.Json)
+                setBody(AddToPlaylistPayload(items))
+            }
+            if (response.status.value >= 400) {
+                NetworkResult.Error("Failed to add items to playlist: Status ${response.status.value}")
+            } else {
+                val data = response.body<NetworkPlaylistResponse>()
+                val responseEtag = response.headers["ETag"]
+                NetworkResult.Success(data, responseEtag)
+            }
+        }.getOrElse {
+            NetworkResult.Error(it.message ?: "Unknown error")
+        }
+    }
+
+    override suspend fun createPlaylist(
+        name: String,
+        libraryId: String,
+        items: List<PlaylistUpdateItem>
+    ): NetworkResult<NetworkPlaylistResponse> = withContext(Dispatchers.IO) {
+        runCatching {
+            val response = client.post("api/playlists") {
+                contentType(ContentType.Application.Json)
+                setBody(CreatePlaylistPayload(name, libraryId, items))
+            }
+            if (response.status.value >= 400) {
+                NetworkResult.Error("Failed to create playlist: Status ${response.status.value}")
+            } else {
+                val data = response.body<NetworkPlaylistResponse>()
+                val responseEtag = response.headers["ETag"]
+                NetworkResult.Success(data, responseEtag)
+            }
+        }.getOrElse {
+            NetworkResult.Error(it.message ?: "Unknown error")
+        }
+    }
 
     override fun downloadFile(bookId: String, ino: String, destinationFile: File, totalBytes: Long): Flow<Float> = flow {
+
         val responseStatement: HttpStatement = client.prepareGet("api/items/$bookId/file/$ino/download")
         responseStatement.execute { httpResponse ->
             if (httpResponse.status.value >= 400) {

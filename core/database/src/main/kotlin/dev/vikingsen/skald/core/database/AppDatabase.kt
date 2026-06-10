@@ -195,6 +195,10 @@ interface PlaybackProgressDao {
 
     @Query("SELECT * FROM playback_progress")
     fun getAllProgressFlow(): Flow<List<PlaybackProgressEntity>>
+
+    @Query("DELETE FROM playback_progress WHERE bookId = :bookId")
+    suspend fun deleteProgressForBook(bookId: String)
+
 }
 
 @Dao

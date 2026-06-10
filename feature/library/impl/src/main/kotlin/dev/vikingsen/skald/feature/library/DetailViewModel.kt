@@ -3,7 +3,9 @@ package dev.vikingsen.skald.feature.library
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.vikingsen.skald.core.model.Book
+import dev.vikingsen.skald.core.model.Playlist
 import dev.vikingsen.skald.core.model.PlaybackProgress
+
 import dev.vikingsen.skald.core.model.DownloadStatus
 import dev.vikingsen.skald.core.model.DownloadStatusState
 import dev.vikingsen.skald.core.model.formatDuration
@@ -216,4 +218,70 @@ class DetailViewModel(
         val book = bookAndProgress.value?.first ?: return
         playerManager.playBook(book, startPosition)
     }
+
+    val serverUrl: String = settingsRepository.getServerUrl() ?: ""
+
+    val playlists: StateFlow<List<Playlist>> = repository.getPlaylistsFlow()
+        .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = emptyList())
+
+    init {
+        viewModelScope.launch {
+            repository.syncPlaylists()
+        }
+    }
+
+    fun toggleFinished() {
+        val pair = bookAndProgress.value ?: return
+        val book = pair.first ?: return
+        val progress = pair.second
+        val isFinished = progress?.isFinished ?: false
+        viewModelScope.launch {
+            isLoading.value = true
+            val result = repository.updatePlaybackFinished(book.id, !isFinished)
+            if (result.isFailure) {
+                error.value = result.exceptionOrNull()?.message ?: "Failed to update finished status"
+            }
+            isLoading.value = false
+        }
+    }
+
+    fun discardProgress() {
+        val pair = bookAndProgress.value ?: return
+        val book = pair.first ?: return
+        viewModelScope.launch {
+            isLoading.value = true
+            val result = repository.discardProgress(book.id)
+            if (result.isFailure) {
+                error.value = result.exceptionOrNull()?.message ?: "Failed to discard progress"
+            }
+            isLoading.value = false
+        }
+    }
+
+    fun addToPlaylist(playlistId: String) {
+        val pair = bookAndProgress.value ?: return
+        val book = pair.first ?: return
+        viewModelScope.launch {
+            isLoading.value = true
+            val result = repository.addBookToPlaylist(playlistId, book.id)
+            if (result.isFailure) {
+                error.value = result.exceptionOrNull()?.message ?: "Failed to add book to playlist"
+            }
+            isLoading.value = false
+        }
+    }
+
+    fun createPlaylistAndAdd(name: String) {
+        val pair = bookAndProgress.value ?: return
+        val book = pair.first ?: return
+        viewModelScope.launch {
+            isLoading.value = true
+            val result = repository.createPlaylistWithBook(name, book.libraryId, book.id)
+            if (result.isFailure) {
+                error.value = result.exceptionOrNull()?.message ?: "Failed to create playlist"
+            }
+            isLoading.value = false
+        }
+    }
 }
+

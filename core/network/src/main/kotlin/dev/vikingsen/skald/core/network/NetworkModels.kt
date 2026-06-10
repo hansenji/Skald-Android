@@ -424,4 +424,17 @@ data class PlaylistsResponse(
     val playlists: List<NetworkPlaylistResponse>
 )
 
+@Serializable
+data class AddToPlaylistPayload(
+    val items: List<PlaylistUpdateItem>
+)
+
+@Serializable
+data class CreatePlaylistPayload(
+    val name: String,
+    val libraryId: String,
+    val items: List<PlaylistUpdateItem>
+)
+
+
 
