@@ -26,7 +26,7 @@ class DetailViewModelTest {
     private val getBookWithProgressUseCase = mockk<GetBookWithProgressUseCase>(relaxed = true)
     private val fetchBookDetailsUseCase = mockk<FetchBookDetailsUseCase>(relaxed = true)
     private val downloadAudioFileUseCase = mockk<DownloadAudioFileUseCase>(relaxed = true)
-    private val deleteLocalBookFilesUseCase = mockk<DeleteLocalBookFilesUseCase>(relaxed = true)
+    private val bookMenuActionUtil = mockk<BookMenuActionUtil>(relaxed = true)
     private val repository = mockk<AudiobookshelfRepository>(relaxed = true)
     private val settingsRepository = mockk<SettingsRepository>(relaxed = true)
     private val playerManager = mockk<PlayerManager>(relaxed = true)
@@ -95,7 +95,7 @@ class DetailViewModelTest {
         viewModel.toggleFinished()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify { repository.updatePlaybackFinished("book-123", true) }
+        coVerify { bookMenuActionUtil.toggleFinished("book-123", false) }
         collectJob.cancel()
     }
 
@@ -112,7 +112,7 @@ class DetailViewModelTest {
         viewModel.toggleFinished()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify { repository.updatePlaybackFinished("book-123", false) }
+        coVerify { bookMenuActionUtil.toggleFinished("book-123", true) }
         collectJob.cancel()
     }
 
@@ -126,7 +126,7 @@ class DetailViewModelTest {
         viewModel.discardProgress()
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify { repository.discardProgress("book-123") }
+        coVerify { bookMenuActionUtil.discardProgress("book-123") }
         collectJob.cancel()
     }
 
@@ -140,7 +140,7 @@ class DetailViewModelTest {
         viewModel.addToPlaylist("playlist-789")
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify { repository.addBookToPlaylist("playlist-789", "book-123") }
+        coVerify { bookMenuActionUtil.addToPlaylist("playlist-789", "book-123") }
         collectJob.cancel()
     }
 
@@ -154,7 +154,21 @@ class DetailViewModelTest {
         viewModel.createPlaylistAndAdd("My Premium Playlist")
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify { repository.createPlaylistWithBook("My Premium Playlist", "lib-456", "book-123") }
+        coVerify { bookMenuActionUtil.createPlaylistWithBook("My Premium Playlist", "lib-456", "book-123") }
+        collectJob.cancel()
+    }
+
+    @Test
+    fun testDeleteDownloadedBook() = runTest(testDispatcher) {
+        val viewModel = createViewModel()
+        val collectJob = launch { viewModel.bookAndProgress.collect {} }
+        viewModel.setBookId("book-123")
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.deleteDownloadedBook()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        coVerify { bookMenuActionUtil.deleteDownload("book-123") }
         collectJob.cancel()
     }
 
@@ -163,7 +177,7 @@ class DetailViewModelTest {
         getBookWithProgressUseCase = getBookWithProgressUseCase,
         fetchBookDetailsUseCase = fetchBookDetailsUseCase,
         downloadAudioFileUseCase = downloadAudioFileUseCase,
-        deleteLocalBookFilesUseCase = deleteLocalBookFilesUseCase,
+        bookMenuActionUtil = bookMenuActionUtil,
         repository = repository,
         settingsRepository = settingsRepository,
         playerManager = playerManager,

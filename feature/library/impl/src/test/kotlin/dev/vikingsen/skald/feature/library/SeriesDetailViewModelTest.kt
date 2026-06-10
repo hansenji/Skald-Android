@@ -6,7 +6,6 @@ import dev.vikingsen.skald.core.model.PlaybackProgress
 import dev.vikingsen.skald.core.model.Series
 import dev.vikingsen.skald.domain.repository.AudiobookshelfRepository
 import dev.vikingsen.skald.domain.repository.SettingsRepository
-import dev.vikingsen.skald.domain.usecase.DeleteLocalBookFilesUseCase
 import dev.vikingsen.skald.domain.usecase.GetMiniPlayerStateUseCase
 import dev.vikingsen.skald.domain.usecase.GetSeriesDetailsUseCase
 import io.mockk.*
@@ -27,7 +26,7 @@ class SeriesDetailViewModelTest {
     private val settingsRepository = mockk<SettingsRepository>(relaxed = true)
     private val getMiniPlayerStateUseCase = mockk<GetMiniPlayerStateUseCase>(relaxed = true)
     private val repository = mockk<AudiobookshelfRepository>(relaxed = true)
-    private val deleteLocalBookFilesUseCase = mockk<DeleteLocalBookFilesUseCase>(relaxed = true)
+    private val bookMenuActionUtil = mockk<BookMenuActionUtil>(relaxed = true)
 
     private val testDispatcher = StandardTestDispatcher()
 
@@ -115,7 +114,7 @@ class SeriesDetailViewModelTest {
         viewModel.toggleFinished(bookCard)
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify { repository.updatePlaybackFinished("book-123", true) }
+        coVerify { bookMenuActionUtil.toggleFinished("book-123", false) }
         booksJob.cancel()
     }
 
@@ -135,7 +134,7 @@ class SeriesDetailViewModelTest {
         viewModel.toggleFinished(bookCard)
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify { repository.updatePlaybackFinished("book-123", false) }
+        coVerify { bookMenuActionUtil.toggleFinished("book-123", true) }
         booksJob.cancel()
     }
 
@@ -145,7 +144,7 @@ class SeriesDetailViewModelTest {
         viewModel.discardProgress("book-123")
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify { repository.discardProgress("book-123") }
+        coVerify { bookMenuActionUtil.discardProgress("book-123") }
     }
 
     @Test
@@ -154,7 +153,7 @@ class SeriesDetailViewModelTest {
         viewModel.deleteDownloadedBook("book-123")
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify { deleteLocalBookFilesUseCase("book-123") }
+        coVerify { bookMenuActionUtil.deleteDownload("book-123") }
     }
 
     @Test
@@ -163,7 +162,7 @@ class SeriesDetailViewModelTest {
         viewModel.addToPlaylist("playlist-789", "book-123")
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify { repository.addBookToPlaylist("playlist-789", "book-123") }
+        coVerify { bookMenuActionUtil.addToPlaylist("playlist-789", "book-123") }
     }
 
     @Test
@@ -176,7 +175,7 @@ class SeriesDetailViewModelTest {
         viewModel.createPlaylistAndAdd("My Premium Playlist", "book-123")
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify { repository.createPlaylistWithBook("My Premium Playlist", "lib-456", "book-123") }
+        coVerify { bookMenuActionUtil.createPlaylistWithBook("My Premium Playlist", "lib-456", "book-123") }
         seriesJob.cancel()
     }
 
@@ -185,6 +184,6 @@ class SeriesDetailViewModelTest {
         settingsRepository = settingsRepository,
         getMiniPlayerStateUseCase = getMiniPlayerStateUseCase,
         repository = repository,
-        deleteLocalBookFilesUseCase = deleteLocalBookFilesUseCase
+        bookMenuActionUtil = bookMenuActionUtil
     )
 }

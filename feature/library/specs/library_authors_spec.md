@@ -11,7 +11,7 @@ The Authors Tab displays a list of authors associated with media inside the sele
 It depends on:
 - **`:core:database`**: Local Room database caching using `authors` and `author_books` relationship tables.
 - **`:domain`**: Use cases `GetAuthorsUseCase`, `SyncLibraryAuthorsUseCase`, and `GetAuthorDetailsUseCase`.
-- **`:feature:library`**: The `AuthorsTabContent` list UI and `AuthorDetailScreen` views.
+- **`:feature:library`**: The `AuthorsTabContent` list UI, `AuthorDetailScreen` views, and `BookMenuActionUtil`.
 
 ---
 

@@ -11,7 +11,7 @@ The Series Tab lists the audiobooks grouped into their respective series collect
 It depends on:
 - **`:core:database`**: Local Room database caching using `series` and `series_books` association tables.
 - **`:domain`**: Use cases `GetSeriesUseCase`, `SyncLibrarySeriesUseCase`, and `GetSeriesDetailsUseCase`.
-- **`:feature:library`**: The `SeriesTabContent` and `SeriesDetailScreen` presentation layouts.
+- **`:feature:library`**: The `SeriesTabContent`, `SeriesDetailScreen` presentation layouts, and `BookMenuActionUtil`.
 
 ---
 

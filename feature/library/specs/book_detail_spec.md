@@ -12,8 +12,8 @@ Detail data flows through these layers:
 - **`:core:network`**: Fetches book details and server progress from the Audiobookshelf server via Ktor.
 - **`:core:database`**: Caches detailed book metadata locally in the `books` table and playback progress in `playback_progress` table (Room).
 - **`:data`**: Repository implementations coordinating detail fetches, progress synchronization, and download manager updates.
-- **`:domain`**: Use cases (`FetchBookDetailsUseCase`, `GetPlaybackProgressUseCase`, `UpdatePlaybackProgressUseCase`) exposing operations to ViewModels.
-- **`:feature:library`**: Presentation layer containing `DetailViewModel` and `DetailScreen`.
+- **`:domain`**: Use cases (`FetchBookDetailsUseCase`, `GetPlaybackProgressUseCase`) exposing operations to ViewModels.
+- **`:feature:library`**: Presentation layer containing `DetailViewModel`, `DetailScreen`, and `BookMenuActionUtil` (contextual menu actions utility).
 
 ---
 
@@ -73,9 +73,9 @@ Detail data flows through these layers:
 1. **Behavior**: The detail screen must support swipe-to-refresh gesture.
 2. **Force Refresh Integration**: Triggering swipe-to-refresh initiates a force refresh of the book detail network request, bypassing the ETag check and time-based threshold, forcing the database cache to be updated with fresh metadata from the server (as defined in §2.A.5).
 
-### E. Contextual Action Menu
+#### E. Contextual Action Menu
 1. **Trigger**: Tapping the "More Options" (`Icons.Default.MoreVert`) icon button in the top app bar of the detail screen.
-2. **Options**: Displays the `ItemMoreMenuBottomSheet` containing:
+2. **Behavior**: Delegated to `BookMenuActionUtil`. Offers quick actions on the selected book item:
    - **Mark as Finished / Mark as Unfinished**: Toggles the audiobook's completed status. If marking as finished while progress is under 100%, displays a confirmation dialog. Updates the progress to the server using `PATCH /api/me/progress/{bookId}` (or local DB if offline).
    - **Discard Progress**: Clears all playback progress. Displays a confirmation dialog: "Are you sure you want to discard progress?". On confirmation, removes progress from server (`DELETE /api/me/progress/{progressId}`) and local database, and updates the UI.
    - **Add to Playlist**: Opens a playlist selection dialog to add this book to an existing or new playlist.

@@ -16,7 +16,6 @@ import dev.vikingsen.skald.domain.repository.SettingsRepository
 import dev.vikingsen.skald.domain.usecase.GetBookWithProgressUseCase
 import dev.vikingsen.skald.domain.usecase.FetchBookDetailsUseCase
 import dev.vikingsen.skald.domain.usecase.DownloadAudioFileUseCase
-import dev.vikingsen.skald.domain.usecase.DeleteLocalBookFilesUseCase
 import dev.vikingsen.skald.domain.usecase.GetMiniPlayerStateUseCase
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
@@ -51,7 +50,7 @@ class DetailViewModel(
     private val getBookWithProgressUseCase: GetBookWithProgressUseCase,
     private val fetchBookDetailsUseCase: FetchBookDetailsUseCase,
     private val downloadAudioFileUseCase: DownloadAudioFileUseCase,
-    private val deleteLocalBookFilesUseCase: DeleteLocalBookFilesUseCase,
+    private val bookMenuActionUtil: BookMenuActionUtil,
     private val repository: AudiobookshelfRepository,
     private val settingsRepository: SettingsRepository,
     private val playerManager: PlayerManager,
@@ -206,7 +205,7 @@ class DetailViewModel(
         viewModelScope.launch {
             isLoading.value = true
             downloadError.value = null
-            val result = deleteLocalBookFilesUseCase(book.id)
+            val result = bookMenuActionUtil.deleteDownload(book.id)
             if (result.isFailure) {
                 downloadError.value = result.exceptionOrNull()?.message ?: "Failed to delete downloaded files"
             }
@@ -237,7 +236,7 @@ class DetailViewModel(
         val isFinished = progress?.isFinished ?: false
         viewModelScope.launch {
             isLoading.value = true
-            val result = repository.updatePlaybackFinished(book.id, !isFinished)
+            val result = bookMenuActionUtil.toggleFinished(book.id, isFinished)
             if (result.isFailure) {
                 error.value = result.exceptionOrNull()?.message ?: "Failed to update finished status"
             }
@@ -250,7 +249,7 @@ class DetailViewModel(
         val book = pair.first ?: return
         viewModelScope.launch {
             isLoading.value = true
-            val result = repository.discardProgress(book.id)
+            val result = bookMenuActionUtil.discardProgress(book.id)
             if (result.isFailure) {
                 error.value = result.exceptionOrNull()?.message ?: "Failed to discard progress"
             }
@@ -263,7 +262,7 @@ class DetailViewModel(
         val book = pair.first ?: return
         viewModelScope.launch {
             isLoading.value = true
-            val result = repository.addBookToPlaylist(playlistId, book.id)
+            val result = bookMenuActionUtil.addToPlaylist(playlistId, book.id)
             if (result.isFailure) {
                 error.value = result.exceptionOrNull()?.message ?: "Failed to add book to playlist"
             }
@@ -276,7 +275,7 @@ class DetailViewModel(
         val book = pair.first ?: return
         viewModelScope.launch {
             isLoading.value = true
-            val result = repository.createPlaylistWithBook(name, book.libraryId, book.id)
+            val result = bookMenuActionUtil.createPlaylistWithBook(name, book.libraryId, book.id)
             if (result.isFailure) {
                 error.value = result.exceptionOrNull()?.message ?: "Failed to create playlist"
             }

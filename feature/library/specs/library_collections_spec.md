@@ -11,7 +11,7 @@ The Collections Tab enables users to browse server-defined custom groups of audi
 It depends on:
 - **`:core:database`**: Local Room database caching using `collections` and `collection_books` mapping tables.
 - **`:domain`**: Use cases `GetCollectionsUseCase` and `SyncLibraryCollectionsUseCase`.
-- **`:feature:library`**: The `CollectionsTabContent` and `CollectionDetailScreen` layout views.
+- **`:feature:library`**: The `CollectionsTabContent` layout, `CollectionDetailScreen` layout, and `BookMenuActionUtil`.
 
 ---
 

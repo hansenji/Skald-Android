@@ -33,7 +33,6 @@ import dev.vikingsen.skald.core.model.PlaylistsSortOption
 import dev.vikingsen.skald.domain.usecase.GetPlaylistsUseCase
 import dev.vikingsen.skald.domain.usecase.SyncPlaylistsUseCase
 import dev.vikingsen.skald.domain.usecase.PlayPlaylistUseCase
-import dev.vikingsen.skald.domain.usecase.DeleteLocalBookFilesUseCase
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -114,7 +113,7 @@ class LibraryViewModel(
     private val getPlaylistsUseCase: GetPlaylistsUseCase,
     private val syncPlaylistsUseCase: SyncPlaylistsUseCase,
     private val playPlaylistUseCase: PlayPlaylistUseCase,
-    private val deleteLocalBookFilesUseCase: DeleteLocalBookFilesUseCase
+    private val bookMenuActionUtil: BookMenuActionUtil
 ) : ViewModel() {
 
     val showMiniPlayer: StateFlow<Boolean> = getMiniPlayerStateUseCase()
@@ -612,7 +611,7 @@ class LibraryViewModel(
         val isFinished = book.progress?.isFinished ?: false
         viewModelScope.launch {
             isRefreshing.value = true
-            val result = repository.updatePlaybackFinished(book.id, !isFinished)
+            val result = bookMenuActionUtil.toggleFinished(book.id, isFinished)
             if (result.isFailure) {
                 error.value = result.exceptionOrNull()?.message ?: "Failed to update finished status"
             }
@@ -623,7 +622,7 @@ class LibraryViewModel(
     fun discardProgress(bookId: String) {
         viewModelScope.launch {
             isRefreshing.value = true
-            val result = repository.discardProgress(bookId)
+            val result = bookMenuActionUtil.discardProgress(bookId)
             if (result.isFailure) {
                 error.value = result.exceptionOrNull()?.message ?: "Failed to discard progress"
             }
@@ -634,7 +633,7 @@ class LibraryViewModel(
     fun deleteDownloadedBook(bookId: String) {
         viewModelScope.launch {
             isRefreshing.value = true
-            val result = deleteLocalBookFilesUseCase(bookId)
+            val result = bookMenuActionUtil.deleteDownload(bookId)
             if (result.isFailure) {
                 error.value = result.exceptionOrNull()?.message ?: "Failed to delete downloaded files"
             }
@@ -645,7 +644,7 @@ class LibraryViewModel(
     fun addToPlaylist(playlistId: String, bookId: String) {
         viewModelScope.launch {
             isRefreshing.value = true
-            val result = repository.addBookToPlaylist(playlistId, bookId)
+            val result = bookMenuActionUtil.addToPlaylist(playlistId, bookId)
             if (result.isFailure) {
                 error.value = result.exceptionOrNull()?.message ?: "Failed to add book to playlist"
             }
@@ -656,7 +655,7 @@ class LibraryViewModel(
     fun createPlaylistAndAdd(name: String, libraryId: String, bookId: String) {
         viewModelScope.launch {
             isRefreshing.value = true
-            val result = repository.createPlaylistWithBook(name, libraryId, bookId)
+            val result = bookMenuActionUtil.createPlaylistWithBook(name, libraryId, bookId)
             if (result.isFailure) {
                 error.value = result.exceptionOrNull()?.message ?: "Failed to create playlist"
             }

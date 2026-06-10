@@ -11,7 +11,7 @@ Playlists represent user-constructed playback queues (ordered sequences of chapt
 It depends on:
 - **`:core:database`**: Local Room database caching using `playlists` and `playlist_items` tables.
 - **`:domain`**: Use cases `GetPlaylistsUseCase`, `SyncPlaylistsUseCase`, and `PlayPlaylistUseCase`.
-- **`:feature:library`**: The `PlaylistsTabContent` list UI and `PlaylistDetailScreen` views.
+- **`:feature:library`**: The `PlaylistsTabContent` list UI, `PlaylistDetailScreen` views, and `BookMenuActionUtil`.
 - **`:core:player`**: `PlayerManager` to handle sequential playback queue loading.
 
 ---

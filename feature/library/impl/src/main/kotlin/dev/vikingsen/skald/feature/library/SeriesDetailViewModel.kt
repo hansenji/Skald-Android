@@ -6,7 +6,6 @@ import dev.vikingsen.skald.core.model.Playlist
 import dev.vikingsen.skald.core.model.Series
 import dev.vikingsen.skald.domain.repository.AudiobookshelfRepository
 import dev.vikingsen.skald.domain.repository.SettingsRepository
-import dev.vikingsen.skald.domain.usecase.DeleteLocalBookFilesUseCase
 import dev.vikingsen.skald.domain.usecase.GetMiniPlayerStateUseCase
 import dev.vikingsen.skald.domain.usecase.GetSeriesDetailsUseCase
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -19,7 +18,7 @@ class SeriesDetailViewModel(
     private val settingsRepository: SettingsRepository,
     private val getMiniPlayerStateUseCase: GetMiniPlayerStateUseCase,
     private val repository: AudiobookshelfRepository,
-    private val deleteLocalBookFilesUseCase: DeleteLocalBookFilesUseCase
+    private val bookMenuActionUtil: BookMenuActionUtil
 ) : ViewModel() {
 
     val seriesId = MutableStateFlow<String?>(null)
@@ -90,7 +89,7 @@ class SeriesDetailViewModel(
         val isFinished = book.progress?.isFinished ?: false
         viewModelScope.launch {
             isRefreshing.value = true
-            val result = repository.updatePlaybackFinished(book.id, !isFinished)
+            val result = bookMenuActionUtil.toggleFinished(book.id, isFinished)
             if (result.isFailure) {
                 error.value = result.exceptionOrNull()?.message ?: "Failed to update finished status"
             }
@@ -101,7 +100,7 @@ class SeriesDetailViewModel(
     fun discardProgress(bookId: String) {
         viewModelScope.launch {
             isRefreshing.value = true
-            val result = repository.discardProgress(bookId)
+            val result = bookMenuActionUtil.discardProgress(bookId)
             if (result.isFailure) {
                 error.value = result.exceptionOrNull()?.message ?: "Failed to discard progress"
             }
@@ -112,7 +111,7 @@ class SeriesDetailViewModel(
     fun deleteDownloadedBook(bookId: String) {
         viewModelScope.launch {
             isRefreshing.value = true
-            val result = deleteLocalBookFilesUseCase(bookId)
+            val result = bookMenuActionUtil.deleteDownload(bookId)
             if (result.isFailure) {
                 error.value = result.exceptionOrNull()?.message ?: "Failed to delete downloaded files"
             }
@@ -123,7 +122,7 @@ class SeriesDetailViewModel(
     fun addToPlaylist(playlistId: String, bookId: String) {
         viewModelScope.launch {
             isRefreshing.value = true
-            val result = repository.addBookToPlaylist(playlistId, bookId)
+            val result = bookMenuActionUtil.addToPlaylist(playlistId, bookId)
             if (result.isFailure) {
                 error.value = result.exceptionOrNull()?.message ?: "Failed to add book to playlist"
             }
@@ -135,7 +134,7 @@ class SeriesDetailViewModel(
         val libId = series.value?.libraryId ?: settingsRepository.getLibraryId() ?: ""
         viewModelScope.launch {
             isRefreshing.value = true
-            val result = repository.createPlaylistWithBook(name, libId, bookId)
+            val result = bookMenuActionUtil.createPlaylistWithBook(name, libId, bookId)
             if (result.isFailure) {
                 error.value = result.exceptionOrNull()?.message ?: "Failed to create playlist"
             }

@@ -35,7 +35,7 @@ class LibraryViewModelTest {
     private val getPlaylistsUseCase = mockk<GetPlaylistsUseCase>(relaxed = true)
     private val syncPlaylistsUseCase = mockk<SyncPlaylistsUseCase>(relaxed = true)
     private val playPlaylistUseCase = mockk<PlayPlaylistUseCase>(relaxed = true)
-    private val deleteLocalBookFilesUseCase = mockk<DeleteLocalBookFilesUseCase>(relaxed = true)
+    private val bookMenuActionUtil = mockk<BookMenuActionUtil>(relaxed = true)
 
     private val testDispatcher = StandardTestDispatcher()
 
@@ -84,12 +84,11 @@ class LibraryViewModelTest {
         coEvery { syncLibraryCollectionsUseCase(any(), any()) } returns Result.success(Unit)
         coEvery { syncPlaylistsUseCase(any()) } returns Result.success(Unit)
         coEvery { syncGlobalProgressUseCase(any()) } returns Result.success(Unit)
-        coEvery { deleteLocalBookFilesUseCase(any()) } returns Result.success(Unit)
-
-        coEvery { repository.updatePlaybackFinished(any(), any()) } returns Result.success(Unit)
-        coEvery { repository.discardProgress(any()) } returns Result.success(Unit)
-        coEvery { repository.addBookToPlaylist(any(), any()) } returns Result.success(Unit)
-        coEvery { repository.createPlaylistWithBook(any(), any(), any()) } returns Result.success(Unit)
+        coEvery { bookMenuActionUtil.deleteDownload(any()) } returns Result.success(Unit)
+        coEvery { bookMenuActionUtil.toggleFinished(any(), any()) } returns Result.success(Unit)
+        coEvery { bookMenuActionUtil.discardProgress(any()) } returns Result.success(Unit)
+        coEvery { bookMenuActionUtil.addToPlaylist(any(), any()) } returns Result.success(Unit)
+        coEvery { bookMenuActionUtil.createPlaylistWithBook(any(), any(), any()) } returns Result.success(Unit)
     }
 
     @After
@@ -106,7 +105,7 @@ class LibraryViewModelTest {
         viewModel.toggleFinished(testBookCard)
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify { repository.updatePlaybackFinished("book-123", true) }
+        coVerify { bookMenuActionUtil.toggleFinished("book-123", false) }
     }
 
     @Test
@@ -120,7 +119,7 @@ class LibraryViewModelTest {
         viewModel.toggleFinished(finishedBook)
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify { repository.updatePlaybackFinished("book-123", false) }
+        coVerify { bookMenuActionUtil.toggleFinished("book-123", true) }
     }
 
     @Test
@@ -131,7 +130,7 @@ class LibraryViewModelTest {
         viewModel.discardProgress("book-123")
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify { repository.discardProgress("book-123") }
+        coVerify { bookMenuActionUtil.discardProgress("book-123") }
     }
 
     @Test
@@ -142,7 +141,7 @@ class LibraryViewModelTest {
         viewModel.deleteDownloadedBook("book-123")
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify { deleteLocalBookFilesUseCase("book-123") }
+        coVerify { bookMenuActionUtil.deleteDownload("book-123") }
     }
 
     @Test
@@ -153,7 +152,7 @@ class LibraryViewModelTest {
         viewModel.addToPlaylist("playlist-789", "book-123")
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify { repository.addBookToPlaylist("playlist-789", "book-123") }
+        coVerify { bookMenuActionUtil.addToPlaylist("playlist-789", "book-123") }
     }
 
     @Test
@@ -164,7 +163,7 @@ class LibraryViewModelTest {
         viewModel.createPlaylistAndAdd("New Playlist", "lib-456", "book-123")
         testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify { repository.createPlaylistWithBook("New Playlist", "lib-456", "book-123") }
+        coVerify { bookMenuActionUtil.createPlaylistWithBook("New Playlist", "lib-456", "book-123") }
     }
 
     private fun createViewModel() = LibraryViewModel(
@@ -185,6 +184,6 @@ class LibraryViewModelTest {
         getPlaylistsUseCase = getPlaylistsUseCase,
         syncPlaylistsUseCase = syncPlaylistsUseCase,
         playPlaylistUseCase = playPlaylistUseCase,
-        deleteLocalBookFilesUseCase = deleteLocalBookFilesUseCase
+        bookMenuActionUtil = bookMenuActionUtil
     )
 }

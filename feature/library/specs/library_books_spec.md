@@ -11,7 +11,7 @@ The Books Tab presents the user's audiobook collection. It handles paging throug
 It depends on:
 - **`:core:database`**: The local `books` table as the offline source of truth.
 - **`:domain`**: Use cases `GetBooksUseCase`, `SyncLibraryBooksUseCase`, and `GetPlaybackProgressUseCase`.
-- **`:feature:library`**: The `BooksTabContent` composable and corresponding ViewModel state.
+- **`:feature:library`**: The `BooksTabContent` composable, `BookMenuActionUtil`, and corresponding ViewModel state.
 
 ---
 
