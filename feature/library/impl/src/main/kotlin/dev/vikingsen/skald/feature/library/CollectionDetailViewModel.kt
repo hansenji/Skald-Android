@@ -3,6 +3,8 @@ package dev.vikingsen.skald.feature.library
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.vikingsen.skald.core.model.BookCollection
+import dev.vikingsen.skald.core.model.Playlist
+import dev.vikingsen.skald.domain.repository.AudiobookshelfRepository
 import dev.vikingsen.skald.domain.repository.SettingsRepository
 import dev.vikingsen.skald.domain.usecase.GetMiniPlayerStateUseCase
 import dev.vikingsen.skald.domain.usecase.GetCollectionDetailsUseCase
@@ -14,7 +16,9 @@ import kotlinx.coroutines.launch
 class CollectionDetailViewModel(
     private val getCollectionDetailsUseCase: GetCollectionDetailsUseCase,
     private val settingsRepository: SettingsRepository,
-    private val getMiniPlayerStateUseCase: GetMiniPlayerStateUseCase
+    private val getMiniPlayerStateUseCase: GetMiniPlayerStateUseCase,
+    private val repository: AudiobookshelfRepository,
+    private val bookMenuActionUtil: BookMenuActionUtil
 ) : ViewModel() {
 
     val collectionId = MutableStateFlow<String?>(null)
@@ -24,6 +28,11 @@ class CollectionDetailViewModel(
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
+
+    val serverUrl: String = settingsRepository.getServerUrl() ?: ""
+
+    val playlists: StateFlow<List<Playlist>> = repository.getPlaylistsFlow()
+        .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = emptyList())
 
     val collection: StateFlow<BookCollection?> = collectionId
         .filterNotNull()
@@ -102,6 +111,63 @@ class CollectionDetailViewModel(
             val result = getCollectionDetailsUseCase.getCollection(id, forceRefresh = true)
             if (result.isFailure) {
                 _error.value = result.exceptionOrNull()?.message ?: "Failed to refresh collection details"
+            }
+            _isRefreshing.value = false
+        }
+    }
+
+    fun toggleFinished(book: BookCardUiModel) {
+        val isFinished = book.progress?.isFinished ?: false
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            val result = bookMenuActionUtil.toggleFinished(book.id, isFinished)
+            if (result.isFailure) {
+                _error.value = result.exceptionOrNull()?.message ?: "Failed to update finished status"
+            }
+            _isRefreshing.value = false
+        }
+    }
+
+    fun discardProgress(bookId: String) {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            val result = bookMenuActionUtil.discardProgress(bookId)
+            if (result.isFailure) {
+                _error.value = result.exceptionOrNull()?.message ?: "Failed to discard progress"
+            }
+            _isRefreshing.value = false
+        }
+    }
+
+    fun deleteDownloadedBook(bookId: String) {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            val result = bookMenuActionUtil.deleteDownload(bookId)
+            if (result.isFailure) {
+                _error.value = result.exceptionOrNull()?.message ?: "Failed to delete downloaded files"
+            }
+            _isRefreshing.value = false
+        }
+    }
+
+    fun addToPlaylist(playlistId: String, bookId: String) {
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            val result = bookMenuActionUtil.addToPlaylist(playlistId, bookId)
+            if (result.isFailure) {
+                _error.value = result.exceptionOrNull()?.message ?: "Failed to add book to playlist"
+            }
+            _isRefreshing.value = false
+        }
+    }
+
+    fun createPlaylistAndAdd(name: String, bookId: String) {
+        val libId = collection.value?.libraryId ?: settingsRepository.getLibraryId() ?: ""
+        viewModelScope.launch {
+            _isRefreshing.value = true
+            val result = bookMenuActionUtil.createPlaylistWithBook(name, libId, bookId)
+            if (result.isFailure) {
+                _error.value = result.exceptionOrNull()?.message ?: "Failed to create playlist"
             }
             _isRefreshing.value = false
         }
