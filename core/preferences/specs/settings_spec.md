@@ -27,7 +27,7 @@ The table below lists all settings keys, types, default values, and description 
 | **`sort_option`** | String | `null` | Active sorting choice for lists/grids (e.g. "TITLE", "AUTHOR", "LAST_PLAYED"). |
 | **`skip_forward_duration`** | Integer | `30` | Duration (in seconds) to jump forward when tapping skip-forward. Configured in mobile settings. |
 | **`skip_backward_duration`** | Integer | `10` | Duration (in seconds) to jump backward when tapping skip-backward. Configured in mobile settings. |
-| **`playback_speed`** | Float | `1.0f` | Persisted playback speed multiplier, cycling from `0.5f` to `3.0f` in `0.25f` steps. Shared between mobile and Android Auto players. |
+| **`playback_speed`** | Float | `1.0f` | Persisted playback speed multiplier. Mobile player supports granular `0.1f` steps from `0.5f` to `2.0f`. Android Auto player continues to cycle from `0.5f` to `2.0f` in `0.25f` steps. |
 | **`use_chapter_track`** | Boolean | `false` | If `true`, the player progress seekbar displays progress relative to the current chapter. If `false`, it displays relative to the total book. |
 | **`library_sync_interval_hours`** | Integer | `24` | Configurable library synchronization interval (in hours). A value of `0` disables periodic sync. |
 | **`library_last_sync_timestamp`** | Long | `0L` | Timestamp of the last successful library synchronization, used to compute elapsed time against sync interval. |
@@ -44,6 +44,7 @@ The table below lists all settings keys, types, default values, and description 
 
 ### B. Speed Synchronization & Persistence
 - Whenever the user changes the playback speed (either on their phone via the player UI or in the car via Android Auto's speed selector), the value must be updated instantly in `PreferencesManager` and applied to the active `ExoPlayer` instance.
+- Since the mobile player supports granular speed controls (0.1f steps from 0.5f to 2.0f) while Android Auto only supports standard 0.25f steps (from 0.5f to 2.0f), the speed value is persisted as a float. If the persisted speed is not in the normal standard steps, Android Auto will play at that speed, but map the UI display/icon to the closest rounded down standard step. Additionally, Android Auto caps the maximum speed at 2.0f; if the persisted speed is higher than 2.0f, Android Auto will coerce and cap it to 2.0f.
 - Upon starting a new audiobook or resuming playback, the player must load and apply the persisted `playback_speed`.
 
 ### C. Clear & Logout Actions

@@ -313,4 +313,27 @@ class AudiobookSessionCallbackTest {
 
         unmockkConstructor(Bundle::class)
     }
+
+    @Test
+    fun testCycleSpeed_customGranularSpeed() {
+        every { playerManager.playbackSpeed } returns MutableStateFlow(1.1f)
+
+        val cmd = SessionCommand(AudiobookSessionCallback.COMMAND_CYCLE_SPEED, mockBundle)
+        val result = callback.onCustomCommand(mockSession, mockController, cmd, mockBundle).get()
+
+        assertEquals(SessionResult.RESULT_SUCCESS, result.resultCode)
+        verify { playerManager.setPlaybackSpeed(1.25f) }
+        verify { settingsRepository.savePlaybackSpeed(1.25f) }
+    }
+
+    @Test
+    fun testOnPostConnect_capsOverSpeed() {
+        every { playerManager.playbackSpeed } returns MutableStateFlow(2.5f)
+
+        // Trigger onPostConnect
+        callback.onPostConnect(mockSession, mockController)
+
+        verify { playerManager.setPlaybackSpeed(2.0f) }
+        verify { settingsRepository.savePlaybackSpeed(2.0f) }
+    }
 }

@@ -69,7 +69,7 @@ Android Auto uses the Media3 `MediaLibraryService` templates to render the playb
 
 #### 1. Controls Arrangement
 - **Primary Controls (Main Playback Row)**:
-  - **Playback Speed**: A custom action command button that cycles through playback speeds (`0.5x` to `2.0x` in `0.25x` steps). Positioned as the first button (leftmost). For the "icon" use the speedX value.
+  - **Playback Speed**: A custom action command button that cycles through playback speeds (`0.5x` to `2.0x` in `0.25x` steps). Positioned as the first button (leftmost). For the "icon" use the speedX value. Note: Granular speed controls (steps of `0.1x`) are not included on the Android Auto player, which remains restricted to the standard `0.25x` step cycling. If the active playback speed is not one of the standard steps, Android Auto will play at that speed, but display the closest rounded down standard step in the UI. Additionally, Android Auto caps the maximum speed at `2.0x`; if the persisted speed is higher than `2.0x`, it must be limited to `2.0x` on Android Auto.
   - **Skip Backward**: Seeks backward by the user-defined duration. Always maps to a custom action command button. Positioned as the second button (left-of-center). Use the Replay icon from Material Symbols.
   - **Play / Pause**: Standard play/pause toggling. Positioned in the center.
   - **Skip Forward**: Seeks forward by the user-defined duration. Always maps to a custom action command button. Positioned as the fourth button (right-of-center). Use the Forward Media icon from Material Symbols.

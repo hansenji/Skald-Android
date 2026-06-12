@@ -69,4 +69,23 @@ class AudiobookForwardingPlayerTest {
         verify { mockBuilder.remove(Player.COMMAND_SEEK_BACK) }
         verify { mockBuilder.remove(Player.COMMAND_SEEK_FORWARD) }
     }
+
+    @Test
+    fun testSetPlaybackSpeed_capsToTwo() {
+        forwardingPlayer.setPlaybackSpeed(2.5f)
+        verify { playerManager.setPlaybackSpeed(2.0f) }
+    }
+
+    @Test
+    fun testSetPlaybackSpeed_normalSpeed() {
+        forwardingPlayer.setPlaybackSpeed(1.2f)
+        verify { playerManager.setPlaybackSpeed(1.2f) }
+    }
+
+    @Test
+    fun testSetPlaybackParameters_capsToTwo() {
+        val params = androidx.media3.common.PlaybackParameters(2.5f)
+        forwardingPlayer.setPlaybackParameters(params)
+        verify { playerManager.setPlaybackSpeed(2.0f) }
+    }
 }

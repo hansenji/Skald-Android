@@ -151,7 +151,7 @@ The app uses `NavigationSuiteScaffold` to automatically switch between top-level
 A critical subset of the design language scales to the vehicle dashboard using standardized media session templates:
 *   **Background**: Dominated by system dark UI, utilizing standard driver-safe layouts.
 *   **Playback Slots Mapping**: Standardized Media3 command mappings ensure consistent layout structure:
-    *   **Slot 1 (Far Left)**: Playback speed indicator/selector.
+    *   **Slot 1 (Far Left)**: Playback speed indicator/selector. Note: The Android Auto interface is restricted to standard cycle speed (0.25x steps), whereas the mobile player supports more granular (0.1x steps) speed controls.
     *   **Slot 2 (Left of Center)**: Skip Backward (utilizes configured duration).
     *   **Center Play/Pause**: Primary status toggle button.
     *   **Slot 4 (Right of Center)**: Skip Forward (utilizes configured duration).
@@ -164,6 +164,7 @@ A critical subset of the design language scales to the vehicle dashboard using s
 For player speed indicators, Skald utilizes a custom set of vector speed dial icons located in `:feature:player` (`dev.vikingsen.skald.feature.player.icons`):
 
 *   **Speed States**: Custom drawings displaying `0.5x`, `0.7x`, `1x`, `1.2x`, `1.5x`, `1.7x`, and `2x` inside a standard speed-meter glyph.
+*   **Granular Speed Indicator (Mobile)**: Since the mobile player supports granular speed controls in `0.1x` steps (up to `2.0x`), a text label displaying the exact multiplier (e.g. `1.1x`, `1.3x`) must accompany the icon. The icon should map to the closest lower standard speed vector icon.
 *   **Control Actions**: Custom vector paths for skip and playback controls:
     *   `Replay.kt` (Skip Backward)
     *   `ForwardMedia.kt` (Skip Forward)

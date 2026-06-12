@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.koin.androidx.compose.koinViewModel
 import dev.vikingsen.skald.core.model.PlaybackConstants
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -195,13 +196,16 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = String.format("%.2fx", playbackSpeed),
+                        text = String.format("%.1fx", playbackSpeed),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.SemiBold
                     )
                     Slider(
                         value = playbackSpeed,
-                        onValueChange = { viewModel.updatePlaybackSpeed(it) },
+                        onValueChange = { value ->
+                            val rounded = (value * 10f).roundToInt() / 10f
+                            viewModel.updatePlaybackSpeed(rounded)
+                        },
                         valueRange = PlaybackConstants.SPEED_RANGE,
                         steps = PlaybackConstants.SPEED_SLIDER_STEPS
                     )
