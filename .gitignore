@@ -16,3 +16,5 @@ local.properties
 MY_NOTES.txt
 .env
 /.venv/
+/keystore.properties
+keystore.properties
