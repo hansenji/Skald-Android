@@ -74,8 +74,8 @@ fun ItemMoreMenuBottomSheet(
                 }
             )
 
-            // Discard Progress (only if there is progress)
-            if (book.progress != null) {
+            // Discard Progress (only if there is progress and the book is not finished)
+            if (book.progress != null && !isFinished) {
                 ListItem(
                     headlineContent = { Text("Discard Progress") },
                     leadingContent = {
