@@ -31,6 +31,7 @@ data class ChapterUiModel(
 
 data class BookDetailUiModel(
     val id: String,
+    val libraryId: String,
     val title: String,
     val author: String,
     val narrator: String,
@@ -84,6 +85,7 @@ class DetailViewModel(
 
             BookDetailUiModel(
                 id = book.id,
+                libraryId = book.libraryId,
                 title = book.title,
                 author = book.author,
                 narrator = book.narrator,
@@ -220,15 +222,6 @@ class DetailViewModel(
 
     val serverUrl: String = settingsRepository.getServerUrl() ?: ""
 
-    val playlists: StateFlow<List<Playlist>> = repository.getPlaylistsFlow()
-        .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = emptyList())
-
-    init {
-        viewModelScope.launch {
-            repository.syncPlaylists()
-        }
-    }
-
     fun toggleFinished() {
         val pair = bookAndProgress.value ?: return
         val book = pair.first ?: return
@@ -252,32 +245,6 @@ class DetailViewModel(
             val result = bookMenuActionUtil.discardProgress(book.id)
             if (result.isFailure) {
                 error.value = result.exceptionOrNull()?.message ?: "Failed to discard progress"
-            }
-            isLoading.value = false
-        }
-    }
-
-    fun addToPlaylist(playlistId: String) {
-        val pair = bookAndProgress.value ?: return
-        val book = pair.first ?: return
-        viewModelScope.launch {
-            isLoading.value = true
-            val result = bookMenuActionUtil.addToPlaylist(playlistId, book.id)
-            if (result.isFailure) {
-                error.value = result.exceptionOrNull()?.message ?: "Failed to add book to playlist"
-            }
-            isLoading.value = false
-        }
-    }
-
-    fun createPlaylistAndAdd(name: String) {
-        val pair = bookAndProgress.value ?: return
-        val book = pair.first ?: return
-        viewModelScope.launch {
-            isLoading.value = true
-            val result = bookMenuActionUtil.createPlaylistWithBook(name, book.libraryId, book.id)
-            if (result.isFailure) {
-                error.value = result.exceptionOrNull()?.message ?: "Failed to create playlist"
             }
             isLoading.value = false
         }

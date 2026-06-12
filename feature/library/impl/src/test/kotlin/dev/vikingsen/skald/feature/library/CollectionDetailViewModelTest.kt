@@ -25,7 +25,6 @@ class CollectionDetailViewModelTest {
     private val getCollectionDetailsUseCase = mockk<GetCollectionDetailsUseCase>(relaxed = true)
     private val settingsRepository = mockk<SettingsRepository>(relaxed = true)
     private val getMiniPlayerStateUseCase = mockk<GetMiniPlayerStateUseCase>(relaxed = true)
-    private val repository = mockk<AudiobookshelfRepository>(relaxed = true)
     private val bookMenuActionUtil = mockk<BookMenuActionUtil>(relaxed = true)
 
     private val testDispatcher = StandardTestDispatcher()
@@ -76,7 +75,6 @@ class CollectionDetailViewModelTest {
         every { settingsRepository.getLibraryId() } returns "lib-456"
         coEvery { getCollectionDetailsUseCase.getCollection("col-123", any()) } returns Result.success(testCollection)
         every { getCollectionDetailsUseCase.getBooks("col-123") } returns flowOf(listOf(testBookWithProgress))
-        every { repository.getPlaylistsFlow() } returns flowOf(emptyList())
         every { getMiniPlayerStateUseCase() } returns flowOf(null)
     }
 
@@ -158,34 +156,10 @@ class CollectionDetailViewModelTest {
         coVerify { bookMenuActionUtil.deleteDownload("book-123") }
     }
 
-    @Test
-    fun testAddToPlaylist() = runTest(testDispatcher) {
-        val viewModel = createViewModel()
-        viewModel.addToPlaylist("playlist-789", "book-123")
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify { bookMenuActionUtil.addToPlaylist("playlist-789", "book-123") }
-    }
-
-    @Test
-    fun testCreatePlaylistAndAdd() = runTest(testDispatcher) {
-        val viewModel = createViewModel()
-        val collectionJob = launch { viewModel.collection.collect {} }
-        viewModel.setCollectionId("col-123")
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        viewModel.createPlaylistAndAdd("My Premium Playlist", "book-123")
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify { bookMenuActionUtil.createPlaylistWithBook("My Premium Playlist", "lib-456", "book-123") }
-        collectionJob.cancel()
-    }
-
     private fun createViewModel() = CollectionDetailViewModel(
         getCollectionDetailsUseCase = getCollectionDetailsUseCase,
         settingsRepository = settingsRepository,
         getMiniPlayerStateUseCase = getMiniPlayerStateUseCase,
-        repository = repository,
         bookMenuActionUtil = bookMenuActionUtil
     )
 }

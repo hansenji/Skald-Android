@@ -57,7 +57,6 @@ fun DetailScreen(
     val downloadingFileName by viewModel.downloadingFileName.collectAsState()
     val downloadError by viewModel.downloadError.collectAsState()
     val showMiniPlayer by viewModel.showMiniPlayer.collectAsState()
-    val playlists by viewModel.playlists.collectAsState()
 
     var showMenuBottomSheet by remember { mutableStateOf(false) }
 
@@ -126,13 +125,10 @@ fun DetailScreen(
         ItemMoreMenuBottomSheet(
             book = bookDetail!!,
             serverUrl = viewModel.serverUrl,
-            playlists = playlists,
             onDismiss = { showMenuBottomSheet = false },
             onToggleFinished = { viewModel.toggleFinished() },
             onDiscardProgress = { viewModel.discardProgress() },
-            onDeleteDownload = { viewModel.deleteDownloadedBook() },
-            onAddToPlaylist = { playlistId -> viewModel.addToPlaylist(playlistId) },
-            onCreatePlaylist = { name -> viewModel.createPlaylistAndAdd(name) }
+            onDeleteDownload = { viewModel.deleteDownloadedBook() }
         )
     }
 }

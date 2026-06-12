@@ -27,21 +27,17 @@ import dev.vikingsen.skald.core.model.Playlist
 fun ItemMoreMenuBottomSheet(
     book: BookDetailUiModel,
     serverUrl: String,
-    playlists: List<Playlist>,
     onDismiss: () -> Unit,
     onToggleFinished: () -> Unit,
     onDiscardProgress: () -> Unit,
     onDeleteDownload: () -> Unit,
-    onAddToPlaylist: (String) -> Unit,
-    onCreatePlaylist: (String) -> Unit,
     playlistId: String? = null,
     onRemoveFromPlaylist: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     var showConfirmFinishedDialog by remember { mutableStateOf(false) }
     var showConfirmDiscardDialog by remember { mutableStateOf(false) }
-    var showPlaylistSelectionDialog by remember { mutableStateOf(false) }
-    var showCreatePlaylistDialog by remember { mutableStateOf(false) }
+    var showAddToPlaylistDialog by remember { mutableStateOf(false) }
 
     val isFinished = book.progress?.isFinished ?: false
     val progressPercent = book.progress?.progress ?: 0f
@@ -94,7 +90,7 @@ fun ItemMoreMenuBottomSheet(
                     Icon(Icons.Default.PlaylistAdd, contentDescription = null)
                 },
                 modifier = Modifier.clickable {
-                    showPlaylistSelectionDialog = true
+                    showAddToPlaylistDialog = true
                 }
             )
 
@@ -196,98 +192,15 @@ fun ItemMoreMenuBottomSheet(
         )
     }
 
-    // Dialog: Playlist Selection
-    if (showPlaylistSelectionDialog) {
-        AlertDialog(
-            onDismissRequest = { showPlaylistSelectionDialog = false },
-            title = { Text("Select Playlist") },
-            text = {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 300.dp)
-                ) {
-
-                    Button(
-                        onClick = {
-                            showPlaylistSelectionDialog = false
-                            showCreatePlaylistDialog = true
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 8.dp)
-                    ) {
-                        Text("Create New Playlist")
-                    }
-
-                    if (playlists.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("No playlists found", fontSize = 14.sp)
-                        }
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            items(playlists) { playlist ->
-                                ListItem(
-                                    headlineContent = { Text(playlist.name) },
-                                    modifier = Modifier.clickable {
-                                        onAddToPlaylist(playlist.id)
-                                        showPlaylistSelectionDialog = false
-                                        onDismiss()
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { showPlaylistSelectionDialog = false }) {
-                    Text("Close")
-                }
-            }
-        )
-    }
-
-    // Dialog: Create Playlist
-    if (showCreatePlaylistDialog) {
-        var newPlaylistName by remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = { showCreatePlaylistDialog = false },
-            title = { Text("New Playlist") },
-            text = {
-                OutlinedTextField(
-                    value = newPlaylistName,
-                    onValueChange = { newPlaylistName = it },
-                    label = { Text("Playlist Name") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (newPlaylistName.isNotBlank()) {
-                            onCreatePlaylist(newPlaylistName)
-                            showCreatePlaylistDialog = false
-                            onDismiss()
-                        }
-                    }
-                ) {
-                    Text("Create")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showCreatePlaylistDialog = false }) {
-                    Text("Cancel")
-                }
+    // Dialog: Add to Playlist
+    if (showAddToPlaylistDialog) {
+        AddToPlaylistDialog(
+            bookId = book.id,
+            libraryId = book.libraryId,
+            onDismiss = { showAddToPlaylistDialog = false },
+            onDismissAll = {
+                showAddToPlaylistDialog = false
+                onDismiss()
             }
         )
     }

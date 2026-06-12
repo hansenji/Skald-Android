@@ -55,7 +55,6 @@ fun PlaylistDetailScreen(
     val showMiniPlayer by viewModel.showMiniPlayer.collectAsState()
     val authorizationHeader = viewModel.authorizationHeader
     val activeBookDetail by viewModel.activeBookDetail.collectAsState()
-    val playlists by viewModel.playlists.collectAsState()
 
     Scaffold(
         topBar = {
@@ -185,13 +184,10 @@ fun PlaylistDetailScreen(
         ItemMoreMenuBottomSheet(
             book = activeBookDetail!!,
             serverUrl = viewModel.serverUrl,
-            playlists = playlists,
             onDismiss = { viewModel.selectBookForMenu(null) },
             onToggleFinished = { viewModel.toggleFinished(activeBookDetail!!.id, activeBookDetail!!.progress?.isFinished ?: false) },
             onDiscardProgress = { viewModel.discardProgress(activeBookDetail!!.id) },
             onDeleteDownload = { viewModel.deleteDownloadedBook(activeBookDetail!!.id) },
-            onAddToPlaylist = { playlistId -> viewModel.addToPlaylist(playlistId, activeBookDetail!!.id) },
-            onCreatePlaylist = { name -> viewModel.createPlaylistAndAdd(name, activeBookDetail!!.id) },
             playlistId = playlistId,
             onRemoveFromPlaylist = { viewModel.removeFromPlaylist(activeBookDetail!!.id) }
         )

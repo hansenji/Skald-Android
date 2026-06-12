@@ -63,7 +63,6 @@ class DetailViewModelTest {
         every { settingsRepository.getServerUrl() } returns "https://abs.example.com"
         every { settingsRepository.getToken() } returns "jwt-token-123"
         every { getBookWithProgressUseCase("book-123") } returns flowOf(testBook to testProgress)
-        every { repository.getPlaylistsFlow() } returns flowOf(emptyList())
         every { getMiniPlayerStateUseCase() } returns flowOf(null)
     }
 
@@ -130,33 +129,7 @@ class DetailViewModelTest {
         collectJob.cancel()
     }
 
-    @Test
-    fun testAddToPlaylist() = runTest(testDispatcher) {
-        val viewModel = createViewModel()
-        val collectJob = launch { viewModel.bookAndProgress.collect {} }
-        viewModel.setBookId("book-123")
-        testDispatcher.scheduler.advanceUntilIdle()
 
-        viewModel.addToPlaylist("playlist-789")
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify { bookMenuActionUtil.addToPlaylist("playlist-789", "book-123") }
-        collectJob.cancel()
-    }
-
-    @Test
-    fun testCreatePlaylistAndAdd() = runTest(testDispatcher) {
-        val viewModel = createViewModel()
-        val collectJob = launch { viewModel.bookAndProgress.collect {} }
-        viewModel.setBookId("book-123")
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        viewModel.createPlaylistAndAdd("My Premium Playlist")
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify { bookMenuActionUtil.createPlaylistWithBook("My Premium Playlist", "lib-456", "book-123") }
-        collectJob.cancel()
-    }
 
     @Test
     fun testDeleteDownloadedBook() = runTest(testDispatcher) {

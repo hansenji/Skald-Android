@@ -17,7 +17,6 @@ class AuthorDetailViewModel(
     private val getAuthorDetailsUseCase: GetAuthorDetailsUseCase,
     private val settingsRepository: SettingsRepository,
     private val getMiniPlayerStateUseCase: GetMiniPlayerStateUseCase,
-    private val repository: AudiobookshelfRepository,
     private val bookMenuActionUtil: BookMenuActionUtil
 ) : ViewModel() {
 
@@ -96,9 +95,6 @@ class AuthorDetailViewModel(
 
     val serverUrl: String = settingsRepository.getServerUrl() ?: ""
 
-    val playlists: StateFlow<List<Playlist>> = repository.getPlaylistsFlow()
-        .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = emptyList())
-
     fun setAuthorId(id: String) {
         authorId.value = id
     }
@@ -145,29 +141,6 @@ class AuthorDetailViewModel(
             val result = bookMenuActionUtil.deleteDownload(bookId)
             if (result.isFailure) {
                 _error.value = result.exceptionOrNull()?.message ?: "Failed to delete downloaded files"
-            }
-            _isRefreshing.value = false
-        }
-    }
-
-    fun addToPlaylist(playlistId: String, bookId: String) {
-        viewModelScope.launch {
-            _isRefreshing.value = true
-            val result = bookMenuActionUtil.addToPlaylist(playlistId, bookId)
-            if (result.isFailure) {
-                _error.value = result.exceptionOrNull()?.message ?: "Failed to add book to playlist"
-            }
-            _isRefreshing.value = false
-        }
-    }
-
-    fun createPlaylistAndAdd(name: String, bookId: String) {
-        val libId = author.value?.libraryId ?: settingsRepository.getLibraryId() ?: ""
-        viewModelScope.launch {
-            _isRefreshing.value = true
-            val result = bookMenuActionUtil.createPlaylistWithBook(name, libId, bookId)
-            if (result.isFailure) {
-                _error.value = result.exceptionOrNull()?.message ?: "Failed to create playlist"
             }
             _isRefreshing.value = false
         }

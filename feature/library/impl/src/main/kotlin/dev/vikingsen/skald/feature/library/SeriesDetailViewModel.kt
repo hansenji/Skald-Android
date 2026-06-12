@@ -17,7 +17,6 @@ class SeriesDetailViewModel(
     private val getSeriesDetailsUseCase: GetSeriesDetailsUseCase,
     private val settingsRepository: SettingsRepository,
     private val getMiniPlayerStateUseCase: GetMiniPlayerStateUseCase,
-    private val repository: AudiobookshelfRepository,
     private val bookMenuActionUtil: BookMenuActionUtil
 ) : ViewModel() {
 
@@ -72,11 +71,7 @@ class SeriesDetailViewModel(
     val showMiniPlayer: StateFlow<Boolean> = getMiniPlayerStateUseCase()
         .map { it != null }
         .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = false)
-
     val serverUrl: String = settingsRepository.getServerUrl() ?: ""
-
-    val playlists: StateFlow<List<Playlist>> = repository.getPlaylistsFlow()
-        .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = emptyList())
 
     val isRefreshing = MutableStateFlow(false)
     val error = MutableStateFlow<String?>(null)
@@ -114,29 +109,6 @@ class SeriesDetailViewModel(
             val result = bookMenuActionUtil.deleteDownload(bookId)
             if (result.isFailure) {
                 error.value = result.exceptionOrNull()?.message ?: "Failed to delete downloaded files"
-            }
-            isRefreshing.value = false
-        }
-    }
-
-    fun addToPlaylist(playlistId: String, bookId: String) {
-        viewModelScope.launch {
-            isRefreshing.value = true
-            val result = bookMenuActionUtil.addToPlaylist(playlistId, bookId)
-            if (result.isFailure) {
-                error.value = result.exceptionOrNull()?.message ?: "Failed to add book to playlist"
-            }
-            isRefreshing.value = false
-        }
-    }
-
-    fun createPlaylistAndAdd(name: String, bookId: String) {
-        val libId = series.value?.libraryId ?: settingsRepository.getLibraryId() ?: ""
-        viewModelScope.launch {
-            isRefreshing.value = true
-            val result = bookMenuActionUtil.createPlaylistWithBook(name, libId, bookId)
-            if (result.isFailure) {
-                error.value = result.exceptionOrNull()?.message ?: "Failed to create playlist"
             }
             isRefreshing.value = false
         }

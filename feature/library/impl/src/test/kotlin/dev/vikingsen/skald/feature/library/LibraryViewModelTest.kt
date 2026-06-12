@@ -87,8 +87,6 @@ class LibraryViewModelTest {
         coEvery { bookMenuActionUtil.deleteDownload(any()) } returns Result.success(Unit)
         coEvery { bookMenuActionUtil.toggleFinished(any(), any()) } returns Result.success(Unit)
         coEvery { bookMenuActionUtil.discardProgress(any()) } returns Result.success(Unit)
-        coEvery { bookMenuActionUtil.addToPlaylist(any(), any()) } returns Result.success(Unit)
-        coEvery { bookMenuActionUtil.createPlaylistWithBook(any(), any(), any()) } returns Result.success(Unit)
     }
 
     @After
@@ -144,27 +142,7 @@ class LibraryViewModelTest {
         coVerify { bookMenuActionUtil.deleteDownload("book-123") }
     }
 
-    @Test
-    fun testAddToPlaylist() = runTest(testDispatcher) {
-        val viewModel = createViewModel()
-        testDispatcher.scheduler.advanceUntilIdle()
 
-        viewModel.addToPlaylist("playlist-789", "book-123")
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify { bookMenuActionUtil.addToPlaylist("playlist-789", "book-123") }
-    }
-
-    @Test
-    fun testCreatePlaylistAndAdd() = runTest(testDispatcher) {
-        val viewModel = createViewModel()
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        viewModel.createPlaylistAndAdd("New Playlist", "lib-456", "book-123")
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify { bookMenuActionUtil.createPlaylistWithBook("New Playlist", "lib-456", "book-123") }
-    }
 
     private fun createViewModel() = LibraryViewModel(
         getBooksUseCase = getBooksUseCase,

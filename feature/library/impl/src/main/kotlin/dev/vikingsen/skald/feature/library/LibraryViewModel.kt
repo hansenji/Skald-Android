@@ -641,28 +641,6 @@ class LibraryViewModel(
         }
     }
 
-    fun addToPlaylist(playlistId: String, bookId: String) {
-        viewModelScope.launch {
-            isRefreshing.value = true
-            val result = bookMenuActionUtil.addToPlaylist(playlistId, bookId)
-            if (result.isFailure) {
-                error.value = result.exceptionOrNull()?.message ?: "Failed to add book to playlist"
-            }
-            isRefreshing.value = false
-        }
-    }
-
-    fun createPlaylistAndAdd(name: String, libraryId: String, bookId: String) {
-        viewModelScope.launch {
-            isRefreshing.value = true
-            val result = bookMenuActionUtil.createPlaylistWithBook(name, libraryId, bookId)
-            if (result.isFailure) {
-                error.value = result.exceptionOrNull()?.message ?: "Failed to create playlist"
-            }
-            isRefreshing.value = false
-        }
-    }
-
     fun logout(onComplete: () -> Unit) {
         viewModelScope.launch {
             logoutUseCase()

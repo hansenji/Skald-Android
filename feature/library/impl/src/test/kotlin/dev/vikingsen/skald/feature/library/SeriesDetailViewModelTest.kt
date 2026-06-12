@@ -25,7 +25,6 @@ class SeriesDetailViewModelTest {
     private val getSeriesDetailsUseCase = mockk<GetSeriesDetailsUseCase>(relaxed = true)
     private val settingsRepository = mockk<SettingsRepository>(relaxed = true)
     private val getMiniPlayerStateUseCase = mockk<GetMiniPlayerStateUseCase>(relaxed = true)
-    private val repository = mockk<AudiobookshelfRepository>(relaxed = true)
     private val bookMenuActionUtil = mockk<BookMenuActionUtil>(relaxed = true)
 
     private val testDispatcher = StandardTestDispatcher()
@@ -74,7 +73,6 @@ class SeriesDetailViewModelTest {
         every { settingsRepository.getLibraryId() } returns "lib-456"
         coEvery { getSeriesDetailsUseCase.getSeries("series-123") } returns testSeries
         every { getSeriesDetailsUseCase.getBooks("series-123") } returns flowOf(listOf(testBookWithProgress))
-        every { repository.getPlaylistsFlow() } returns flowOf(emptyList())
         every { getMiniPlayerStateUseCase() } returns flowOf(null)
     }
 
@@ -156,34 +154,10 @@ class SeriesDetailViewModelTest {
         coVerify { bookMenuActionUtil.deleteDownload("book-123") }
     }
 
-    @Test
-    fun testAddToPlaylist() = runTest(testDispatcher) {
-        val viewModel = createViewModel()
-        viewModel.addToPlaylist("playlist-789", "book-123")
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify { bookMenuActionUtil.addToPlaylist("playlist-789", "book-123") }
-    }
-
-    @Test
-    fun testCreatePlaylistAndAdd() = runTest(testDispatcher) {
-        val viewModel = createViewModel()
-        val seriesJob = launch { viewModel.series.collect {} }
-        viewModel.setSeriesId("series-123")
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        viewModel.createPlaylistAndAdd("My Premium Playlist", "book-123")
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify { bookMenuActionUtil.createPlaylistWithBook("My Premium Playlist", "lib-456", "book-123") }
-        seriesJob.cancel()
-    }
-
     private fun createViewModel() = SeriesDetailViewModel(
         getSeriesDetailsUseCase = getSeriesDetailsUseCase,
         settingsRepository = settingsRepository,
         getMiniPlayerStateUseCase = getMiniPlayerStateUseCase,
-        repository = repository,
         bookMenuActionUtil = bookMenuActionUtil
     )
 }

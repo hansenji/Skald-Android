@@ -50,7 +50,6 @@ fun AuthorDetailScreen(
     val isRefreshing by viewModel.isRefreshing.collectAsState()
     val error by viewModel.error.collectAsState()
     val showMiniPlayer by viewModel.showMiniPlayer.collectAsState()
-    val playlists by viewModel.playlists.collectAsState()
 
     var activeBookForMenu by remember { mutableStateOf<BookCardUiModel?>(null) }
 
@@ -152,6 +151,7 @@ fun AuthorDetailScreen(
         val book = activeBookForMenu!!
         val bookDetail = BookDetailUiModel(
             id = book.id,
+            libraryId = author?.libraryId ?: "",
             title = book.title,
             author = book.author,
             narrator = book.narrator,
@@ -171,13 +171,10 @@ fun AuthorDetailScreen(
         ItemMoreMenuBottomSheet(
             book = bookDetail,
             serverUrl = viewModel.serverUrl,
-            playlists = playlists,
             onDismiss = { activeBookForMenu = null },
             onToggleFinished = { viewModel.toggleFinished(book) },
             onDiscardProgress = { viewModel.discardProgress(book.id) },
-            onDeleteDownload = { viewModel.deleteDownloadedBook(book.id) },
-            onAddToPlaylist = { playlistId -> viewModel.addToPlaylist(playlistId, book.id) },
-            onCreatePlaylist = { name -> viewModel.createPlaylistAndAdd(name, book.id) }
+            onDeleteDownload = { viewModel.deleteDownloadedBook(book.id) }
         )
     }
 }

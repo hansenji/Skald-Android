@@ -47,9 +47,6 @@ class PlaylistDetailViewModel(
 
     val serverUrl: String = settingsRepository.getServerUrl() ?: ""
 
-    val playlists: StateFlow<List<Playlist>> = repository.getPlaylistsFlow()
-        .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = emptyList())
-
     private val _activeBookId = MutableStateFlow<String?>(null)
     val activeBookId: StateFlow<String?> = _activeBookId.asStateFlow()
 
@@ -75,6 +72,7 @@ class PlaylistDetailViewModel(
 
                 BookDetailUiModel(
                     id = book.id,
+                    libraryId = book.libraryId,
                     title = book.title,
                     author = book.author,
                     narrator = book.narrator,
@@ -107,11 +105,7 @@ class PlaylistDetailViewModel(
         }
         .stateIn(scope = viewModelScope, started = SharingStarted.WhileSubscribed(5_000), initialValue = null)
 
-    init {
-        viewModelScope.launch {
-            repository.syncPlaylists()
-        }
-    }
+
 
     fun selectBookForMenu(bookId: String?) {
         _activeBookId.value = bookId
@@ -227,29 +221,6 @@ class PlaylistDetailViewModel(
             val result = bookMenuActionUtil.deleteDownload(bookId)
             if (result.isFailure) {
                 _error.value = result.exceptionOrNull()?.message ?: "Failed to delete downloaded files"
-            }
-            _isRefreshing.value = false
-        }
-    }
-
-    fun addToPlaylist(playlistId: String, bookId: String) {
-        viewModelScope.launch {
-            _isRefreshing.value = true
-            val result = bookMenuActionUtil.addToPlaylist(playlistId, bookId)
-            if (result.isFailure) {
-                _error.value = result.exceptionOrNull()?.message ?: "Failed to add book to playlist"
-            }
-            _isRefreshing.value = false
-        }
-    }
-
-    fun createPlaylistAndAdd(name: String, bookId: String) {
-        val libId = settingsRepository.getLibraryId() ?: ""
-        viewModelScope.launch {
-            _isRefreshing.value = true
-            val result = bookMenuActionUtil.createPlaylistWithBook(name, libId, bookId)
-            if (result.isFailure) {
-                _error.value = result.exceptionOrNull()?.message ?: "Failed to create playlist"
             }
             _isRefreshing.value = false
         }

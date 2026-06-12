@@ -25,7 +25,6 @@ class AuthorDetailViewModelTest {
     private val getAuthorDetailsUseCase = mockk<GetAuthorDetailsUseCase>(relaxed = true)
     private val settingsRepository = mockk<SettingsRepository>(relaxed = true)
     private val getMiniPlayerStateUseCase = mockk<GetMiniPlayerStateUseCase>(relaxed = true)
-    private val repository = mockk<AudiobookshelfRepository>(relaxed = true)
     private val bookMenuActionUtil = mockk<BookMenuActionUtil>(relaxed = true)
 
     private val testDispatcher = StandardTestDispatcher()
@@ -75,7 +74,6 @@ class AuthorDetailViewModelTest {
         every { settingsRepository.getLibraryId() } returns "lib-456"
         coEvery { getAuthorDetailsUseCase.getAuthor("author-123", any()) } returns Result.success(testAuthor)
         every { getAuthorDetailsUseCase.getBooks("author-123") } returns flowOf(listOf(testBookWithProgress))
-        every { repository.getPlaylistsFlow() } returns flowOf(emptyList())
         every { getMiniPlayerStateUseCase() } returns flowOf(null)
     }
 
@@ -157,34 +155,10 @@ class AuthorDetailViewModelTest {
         coVerify { bookMenuActionUtil.deleteDownload("book-123") }
     }
 
-    @Test
-    fun testAddToPlaylist() = runTest(testDispatcher) {
-        val viewModel = createViewModel()
-        viewModel.addToPlaylist("playlist-789", "book-123")
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify { bookMenuActionUtil.addToPlaylist("playlist-789", "book-123") }
-    }
-
-    @Test
-    fun testCreatePlaylistAndAdd() = runTest(testDispatcher) {
-        val viewModel = createViewModel()
-        val authorJob = launch { viewModel.author.collect {} }
-        viewModel.setAuthorId("author-123")
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        viewModel.createPlaylistAndAdd("My Premium Playlist", "book-123")
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify { bookMenuActionUtil.createPlaylistWithBook("My Premium Playlist", "lib-456", "book-123") }
-        authorJob.cancel()
-    }
-
     private fun createViewModel() = AuthorDetailViewModel(
         getAuthorDetailsUseCase = getAuthorDetailsUseCase,
         settingsRepository = settingsRepository,
         getMiniPlayerStateUseCase = getMiniPlayerStateUseCase,
-        repository = repository,
         bookMenuActionUtil = bookMenuActionUtil
     )
 }

@@ -80,7 +80,6 @@ class PlaylistDetailViewModelTest {
         every { settingsRepository.getToken() } returns "jwt-token-123"
         every { settingsRepository.getLibraryId() } returns "lib-456"
         coEvery { repository.getPlaylistDetails("play-123", any()) } returns Result.success(testPlaylist)
-        every { repository.getPlaylistsFlow() } returns flowOf(listOf(testPlaylist))
         every { repository.getBookWithProgressFlow("book-123") } returns flowOf(testBook to testProgress)
         every { getMiniPlayerStateUseCase() } returns flowOf(null)
     }
@@ -154,23 +153,7 @@ class PlaylistDetailViewModelTest {
         coVerify { bookMenuActionUtil.deleteDownload("book-123") }
     }
 
-    @Test
-    fun testAddToPlaylist() = runTest(testDispatcher) {
-        val viewModel = createViewModel()
-        viewModel.addToPlaylist("another-play", "book-123")
-        testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify { bookMenuActionUtil.addToPlaylist("another-play", "book-123") }
-    }
-
-    @Test
-    fun testCreatePlaylistAndAdd() = runTest(testDispatcher) {
-        val viewModel = createViewModel()
-        viewModel.createPlaylistAndAdd("New Playlist", "book-123")
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify { bookMenuActionUtil.createPlaylistWithBook("New Playlist", "lib-456", "book-123") }
-    }
 
     @Test
     fun testRemoveFromPlaylist() = runTest(testDispatcher) {

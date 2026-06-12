@@ -78,7 +78,7 @@ Detail data flows through these layers:
 2. **Behavior**: Delegated to `BookMenuActionUtil`. Offers quick actions on the selected book item:
    - **Mark as Finished / Mark as Unfinished**: Toggles the audiobook's completed status. If marking as finished while progress is under 100%, displays a confirmation dialog. Updates the progress to the server using `PATCH /api/me/progress/{bookId}` (or local DB if offline).
    - **Discard Progress**: Clears all playback progress. Displays a confirmation dialog: "Are you sure you want to discard progress?". On confirmation, removes progress from server (`DELETE /api/me/progress/{progressId}`) and local database, and updates the UI. Hidden if the book is finished (i.e., when "Mark Unfinished" is showing).
-   - **Add to Playlist**: Opens a playlist selection dialog to add this book to an existing or new playlist.
+   - **Add to Playlist**: Launches the self-contained `AddToPlaylistDialog` (passing `bookId` and `libraryId`). The dialog handles its own playlist list state, syncing, creation, and item insertion logic internally, independent of the host screen's ViewModel.
    - **Delete Download**: Recursively deletes the downloaded audiobook files from local storage (`downloads/{bookId}`) and resets the download status, keeping the metadata cache intact. Disabled/hidden if the book is not downloaded.
    - **Go to Web Client**: Launches a browser/Custom Tab to `{serverUrl}/item/{bookId}` using the active credentials.
 
