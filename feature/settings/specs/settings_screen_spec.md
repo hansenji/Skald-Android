@@ -97,8 +97,8 @@ The UI is organized vertically into grouped categories using `Card` containers o
   - Impact: Alters the skip-backward distance in the player and car dashboards.
 - **Default Playback Speed**:
   - Key: `playback_speed` (Default: `1.0f`)
-  - Layout: A horizontal slider or dropdown selection cycling from `0.5x` to `2.0x` in `0.25x` steps.
-  - Impact: Sets the initial speed applied to the ExoPlayer controller on launch, and is kept in sync with the car's cycling speed commands.
+  - Layout: A horizontal slider or dialog selection that supports granular adjustments from `0.5x` to `2.0x` in `0.1x` steps.
+  - Impact: Sets the initial speed applied to the ExoPlayer controller on launch, and is kept in sync with the car's cycling speed commands (which coerce/interpret the value for its layout).
 - **Go Back on Interrupt**:
   - Key: `go_back_on_interrupt` (Boolean, Default: `true`)
   - Layout: An M3 `Switch` toggle item.

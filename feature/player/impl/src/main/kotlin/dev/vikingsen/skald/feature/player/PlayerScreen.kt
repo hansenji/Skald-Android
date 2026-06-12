@@ -33,6 +33,7 @@ import org.koin.androidx.compose.koinViewModel
 import dev.vikingsen.skald.core.model.PlaybackConstants
 import androidx.compose.ui.graphics.vector.ImageVector
 import dev.vikingsen.skald.feature.player.icons.*
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -341,12 +342,21 @@ fun PlayerScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Speed Control
-                    IconButton(onClick = { viewModel.cyclePlaybackSpeed() }) {
+                    TextButton(
+                        onClick = { showSpeedDialog = true },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
                         Icon(
-                            imageVector = getSpeedIcon(state.playbackSpeed),
+                            imageVector = speed,
                             contentDescription = "Playback Speed",
                             tint = Color.White,
                             modifier = Modifier.size(32.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "%.1fx".format(state.playbackSpeed),
+                            color = Color.White,
+                            fontWeight = FontWeight.Medium
                         )
                     }
 
@@ -425,37 +435,87 @@ fun PlayerScreen(
 
         // Speed Dialog
         if (showSpeedDialog) {
+            var selectedSpeed by remember { mutableStateOf(state.playbackSpeed) }
             AlertDialog(
                 onDismissRequest = { showSpeedDialog = false },
-                title = { Text("Playback Speed") },
+                title = {
+                    Text(
+                        text = "Playback Speed",
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                        fontWeight = FontWeight.Bold
+                    )
+                },
                 text = {
-                    Column {
-                        PlaybackConstants.PLAYBACK_SPEEDS.forEach { speed ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        viewModel.setPlaybackSpeed(speed)
-                                        showSpeedDialog = false
-                                    }
-                                    .padding(vertical = 12.dp, horizontal = 8.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)
+                    ) {
+                        Text(
+                            text = "%.1fx".format(selectedSpeed),
+                            fontSize = 36.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            IconButton(
+                                onClick = {
+                                    val newSpeed = (selectedSpeed - 0.1f).coerceAtLeast(0.5f)
+                                    selectedSpeed = (newSpeed * 10f).roundToInt() / 10f
+                                    viewModel.setPlaybackSpeed(selectedSpeed)
+                                },
+                                enabled = selectedSpeed > 0.5f
                             ) {
-                                Text(
-                                    text = "${speed}x",
-                                    fontWeight = if (state.playbackSpeed == speed) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (state.playbackSpeed == speed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                Icon(
+                                    imageVector = Icons.Default.Remove,
+                                    contentDescription = "Decrease Speed",
+                                    tint = if (selectedSpeed > 0.5f) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                                 )
-                                if (state.playbackSpeed == speed) {
-                                    Icon(Icons.Default.Check, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                }
+                            }
+
+                            Slider(
+                                value = selectedSpeed,
+                                onValueChange = { value ->
+                                    val rounded = (value * 10f).roundToInt() / 10f
+                                    selectedSpeed = rounded
+                                    viewModel.setPlaybackSpeed(rounded)
+                                },
+                                valueRange = 0.5f..2.0f,
+                                steps = 14,
+                                modifier = Modifier.weight(1f),
+                                colors = SliderDefaults.colors(
+                                    thumbColor = MaterialTheme.colorScheme.primary,
+                                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                                    inactiveTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.24f)
+                                )
+                            )
+
+                            IconButton(
+                                onClick = {
+                                    val newSpeed = (selectedSpeed + 0.1f).coerceAtMost(2.0f)
+                                    selectedSpeed = (newSpeed * 10f).roundToInt() / 10f
+                                    viewModel.setPlaybackSpeed(selectedSpeed)
+                                },
+                                enabled = selectedSpeed < 2.0f
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Add,
+                                    contentDescription = "Increase Speed",
+                                    tint = if (selectedSpeed < 2.0f) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                )
                             }
                         }
                     }
                 },
                 confirmButton = {
                     TextButton(onClick = { showSpeedDialog = false }) {
-                        Text("Cancel")
+                        Text("Close")
                     }
                 }
             )
@@ -586,14 +646,4 @@ fun PlayerScreen(
     }
 }
 
-private fun getSpeedIcon(speed: Float): ImageVector {
-    return when {
-        speed < 0.625f -> speed_0_5x
-        speed < 0.875f -> speed_0_7x
-        speed < 1.125f -> speed_1x
-        speed < 1.375f -> speed_1_2x
-        speed < 1.625f -> speed_1_5x
-        speed < 1.875f -> speed_1_7x
-        else -> speed_2x
-    }
-}
+

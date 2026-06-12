@@ -23,12 +23,12 @@ The mobile player UI must support cover art display, a progress scrubber bar, ch
    - Rewinding past 0.0s must reset the playback position to 0.0s.
 
 ### B. Playback Speed Control
-1. **Speed Range & Increments**: The user can adjust the playback speed multiplier. The speed cycles from `0.5x` to `2.0x` in `0.25x` steps (e.g., `1.0x -> 1.25x -> 1.5x -> 1.75x -> 2.0x -> 0.5x`).
+1. **Speed Range & Increments**: The user can adjust the playback speed multiplier. The mobile player supports granular speed controls, allowing adjusting the speed from `0.5x` to `2.0x` in `0.1x` steps.
 2. **Speed Persistence**:
    - The active playback speed must be saved immediately to the `SettingsRepository` via `savePlaybackSpeed(Float)`.
    - The active player speed must be applied to `PlayerManager` and the underlying `ExoPlayer` instance.
    - When a new book begins or playback resumes, the player must initialize using the last persisted speed value.
-3. **Display**: Display the current playback speed in the UI using the SpeedXx.kt icons. With these we don't need an additional lable to display the speed. We can see it in the icon already, e.g. if the user has selected `1.5x` the icon Speed15x.kt is displayed in the UI.
+3. **Display**: Display the current playback speed in the UI using the Speed icon alongside a text label displaying the exact multiplier (e.g. `1.1x`, `1.2x`).
 
 ### C. Sleep Timer
 1. **Trigger Options**: The sleep timer can be set to:
@@ -52,6 +52,6 @@ The mobile player UI must support cover art display, a progress scrubber bar, ch
 
 - **Scrubber Bar**: Displays the current playback position (formatted as `HH:MM:SS`) and remaining duration. The seek bar adapts to the configured **Player Progress Mode** (`use_chapter_track` setting). When chapter progress is enabled, the scrubber tracks the active chapter duration, and timestamp labels reflect the active chapter's elapsed and remaining times. The slider handles drag-to-seek, invoking `seekTo()` upon release.
 - **Chapters Sheet**: A bottom sheet lists all chapters with titles and start/end times. Selecting a chapter seeks directly to the chapter's start position.
-- **Speed Selector**: Tapping the speed label opens a dialog or cycles through the speed options, showing the active speed prominently.
+- **Speed Selector**: Tapping the speed label opens a dialog that allows the user to adjust the playback speed in granular `0.1x` steps (e.g., via a slider, increment/decrement buttons, or standard speed preset buttons), displaying the active speed value prominently.
 - **Settings Hook**: Quick settings inside the player screen let the user change the default skip durations (e.g., 10s, 30s, 60s) via dropdowns, persisting the choices to the preferences store.
 - **Play/Pause Button**: Displays a loading spinner (e.g. `CircularProgressIndicator`) instead of the play/pause icon when the player is in the buffering or preparing state before playback.

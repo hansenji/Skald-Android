@@ -60,4 +60,14 @@ class AudiobookForwardingPlayer(
         commands.remove(Player.COMMAND_SEEK_FORWARD)
         return commands.build()
     }
+
+    override fun setPlaybackSpeed(speed: Float) {
+        val cappedSpeed = speed.coerceAtMost(2.0f)
+        playerManager.setPlaybackSpeed(cappedSpeed)
+    }
+
+    override fun setPlaybackParameters(playbackParameters: androidx.media3.common.PlaybackParameters) {
+        val cappedSpeed = playbackParameters.speed.coerceAtMost(2.0f)
+        playerManager.setPlaybackSpeed(cappedSpeed)
+    }
 }

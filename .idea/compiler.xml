@@ -1,6 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="CompilerConfiguration">
-    <bytecodeTargetLevel target="17" />
+    <bytecodeTargetLevel target="17">
+      <module name="ABS_Client_App.core.database" target="21" />
+      <module name="ABS_Client_App.core.model" target="21" />
+      <module name="ABS_Client_App.core.network" target="21" />
+      <module name="ABS_Client_App.core.player" target="21" />
+      <module name="ABS_Client_App.core.preferences" target="21" />
+      <module name="ABS_Client_App.data" target="21" />
+      <module name="ABS_Client_App.domain" target="21" />
+      <module name="ABS_Client_App.feature.androidauto" target="21" />
+      <module name="ABS_Client_App.feature.home.api" target="21" />
+      <module name="ABS_Client_App.feature.home.impl" target="21" />
+      <module name="ABS_Client_App.feature.library.api" target="21" />
+      <module name="ABS_Client_App.feature.library.impl" target="21" />
+      <module name="ABS_Client_App.feature.login.api" target="21" />
+      <module name="ABS_Client_App.feature.login.impl" target="21" />
+      <module name="ABS_Client_App.feature.miniplayer" target="21" />
+      <module name="ABS_Client_App.feature.player.api" target="21" />
+      <module name="ABS_Client_App.feature.player.impl" target="21" />
+      <module name="ABS_Client_App.feature.settings.api" target="21" />
+      <module name="ABS_Client_App.feature.settings.impl" target="21" />
+    </bytecodeTargetLevel>
   </component>
 </project>

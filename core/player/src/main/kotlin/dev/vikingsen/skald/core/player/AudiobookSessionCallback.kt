@@ -96,6 +96,10 @@ class AudiobookSessionCallback(
 
     override fun onPostConnect(session: MediaSession, controller: MediaSession.ControllerInfo) {
         activeSession = session
+        if (playerManager.playbackSpeed.value > 2.0f) {
+            playerManager.setPlaybackSpeed(2.0f)
+            settingsRepository.savePlaybackSpeed(2.0f)
+        }
         val layout = buildCustomLayout()
         session.setCustomLayout(controller, layout)
         session.setMediaButtonPreferences(layout)
@@ -103,17 +107,13 @@ class AudiobookSessionCallback(
 
     private fun getSpeedIconResId(speed: Float): Int {
         return when {
-            speed < 0.625f -> R.drawable.ic_speed_0_50
-            speed < 0.875f -> R.drawable.ic_speed_0_75
-            speed < 1.125f -> R.drawable.ic_speed_1_00
-            speed < 1.375f -> R.drawable.ic_speed_1_25
-            speed < 1.625f -> R.drawable.ic_speed_1_50
-            speed < 1.875f -> R.drawable.ic_speed_1_75
-            speed < 2.125f -> R.drawable.ic_speed_2_00
-            speed < 2.375f -> R.drawable.ic_speed_2_25
-            speed < 2.625f -> R.drawable.ic_speed_2_50
-            speed < 2.875f -> R.drawable.ic_speed_2_75
-            else -> R.drawable.ic_speed_3_00
+            speed >= 2.0f -> R.drawable.ic_speed_2_00
+            speed >= 1.75f -> R.drawable.ic_speed_1_75
+            speed >= 1.5f -> R.drawable.ic_speed_1_50
+            speed >= 1.25f -> R.drawable.ic_speed_1_25
+            speed >= 1.0f -> R.drawable.ic_speed_1_00
+            speed >= 0.75f -> R.drawable.ic_speed_0_75
+            else -> R.drawable.ic_speed_0_50
         }
     }
 
@@ -213,10 +213,18 @@ class AudiobookSessionCallback(
                 return Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
             }
             COMMAND_CYCLE_SPEED -> {
-                val speeds = PlaybackConstants.PLAYBACK_SPEEDS
+                val speeds = PlaybackConstants.ANDROID_AUTO_SPEEDS
                 val currentSpeed = playerManager.playbackSpeed.value
-                // Find next speed in the cycle. Default to 1.0f if not found.
-                val currentIndex = speeds.indexOfFirst { Math.abs(it - currentSpeed) < 0.01f }
+                val mappedSpeed = when {
+                    currentSpeed >= 2.0f -> 2.0f
+                    currentSpeed >= 1.75f -> 1.75f
+                    currentSpeed >= 1.5f -> 1.5f
+                    currentSpeed >= 1.25f -> 1.25f
+                    currentSpeed >= 1.0f -> 1.0f
+                    currentSpeed >= 0.75f -> 0.75f
+                    else -> 0.5f
+                }
+                val currentIndex = speeds.indexOfFirst { Math.abs(it - mappedSpeed) < 0.01f }
                 val nextSpeed = if (currentIndex != -1 && currentIndex < speeds.lastIndex) {
                     speeds[currentIndex + 1]
                 } else {
