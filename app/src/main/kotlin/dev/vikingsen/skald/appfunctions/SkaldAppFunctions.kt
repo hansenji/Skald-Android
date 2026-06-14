@@ -354,6 +354,82 @@ class SkaldAppFunctions(
         }
     }
 
+    /**
+     * Searches the local library for an audiobook matching the query and starts downloading it.
+     * Searches across title, author, and narrator.
+     *
+     * @param appFunctionContext The execution context.
+     * @param query The search text (title, author, or narrator name).
+     * @throws AppFunctionDisabledException If the user is not logged in, no library is selected, or the download fails to start.
+     * @throws AppFunctionInvalidArgumentException If the query is blank.
+     * @throws AppFunctionElementNotFoundException If no matching book is found.
+     */
+    @AppFunction(isDescribedByKDoc = true)
+    suspend fun searchAndDownloadAudiobook(
+        appFunctionContext: AppFunctionContext,
+        query: String,
+    ) = withContext(Dispatchers.IO) {
+        requireLoggedIn()
+        if (query.isBlank()) {
+            throw AppFunctionInvalidArgumentException("A search query is required.")
+        }
+        val libraryId = settingsRepository.getLibraryId()
+            ?: throw AppFunctionDisabledException(
+                "No library is selected. Please open Skald to choose a library."
+            )
+
+        // Find all books in the library matching the query
+        val allBooks = repository.getBooksWithProgressForLibraryFlow(libraryId).first()
+        val matchingBooks = allBooks.filter { bwp ->
+            val b = bwp.book
+            b.title.contains(query, ignoreCase = true) ||
+                b.author.contains(query, ignoreCase = true) ||
+                b.narrator.contains(query, ignoreCase = true)
+        }
+
+        if (matchingBooks.isEmpty()) {
+            throw AppFunctionElementNotFoundException(
+                "No audiobook found matching '$query'."
+            )
+        }
+
+        // Prioritize currently reading matches (unfinished books with progress)
+        val currentlyReadingMatches = matchingBooks.filter { bwp ->
+            val p = bwp.progress
+            p != null && !p.isFinished && p.currentTime > 0.0
+        }
+        val candidates = currentlyReadingMatches.ifEmpty { matchingBooks }
+
+        // Prefer exact title match, then partial title, then author/narrator, then most recently played
+        val best = candidates.sortedWith(
+            compareBy<dev.vikingsen.skald.core.model.BookWithProgress> { bwp ->
+                when {
+                    bwp.book.title.equals(query, ignoreCase = true) -> 0
+                    bwp.book.title.contains(query, ignoreCase = true) -> 1
+                    bwp.book.author.contains(query, ignoreCase = true) -> 2
+                    else -> 3
+                }
+            }.thenByDescending { bwp ->
+                bwp.progress?.lastUpdated ?: 0L
+            }
+        ).first()
+
+        val book = fetchBookDetailsUseCase(best.book.id).getOrElse { cause ->
+            throw AppFunctionElementNotFoundException(
+                "Could not load book details: ${cause.message}"
+            )
+        }
+
+        if (book.isDownloaded) return@withContext   // already downloaded — idempotent
+
+        downloadAudioFileUseCase(best.book.id).getOrElse { cause ->
+            throw AppFunctionDisabledException(
+                "Failed to start download: ${cause.message}"
+            )
+        }
+    }
+
+
     // -------------------------------------------------------------------------
     // Progress Management
     // -------------------------------------------------------------------------

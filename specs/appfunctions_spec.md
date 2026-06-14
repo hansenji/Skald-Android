@@ -16,7 +16,7 @@ Skald's AppFunctions cover four domains:
 |---|---|
 | **Playback Control** | `resumeCurrentPlayback`, `pauseCurrentPlayback`, `playAudiobook`, `searchAndPlayAudiobook` |
 | **Player Settings** | `setSleepTimer`, `setPlaybackSpeed` |
-| **Library** | `playPlaylist`, `downloadAudiobook` |
+| **Library** | `playPlaylist`, `downloadAudiobook`, `searchAndDownloadAudiobook` |
 | **Progress** | `markBookFinished` |
 
 ---
@@ -92,7 +92,7 @@ bookId format, login requirement, etc.).
 ```
 app/src/main/
 ├── kotlin/dev/vikingsen/skald/appfunctions/
-│   └── SkaldAppFunctions.kt        # @AppFunction implementations (all 9 functions)
+│   └── SkaldAppFunctions.kt        # @AppFunction implementations (all 10 functions)
 └── res/xml/
     └── app_metadata.xml            # AI agent context description
 ```
@@ -312,6 +312,26 @@ At least one must be non-blank.
 
 ---
 
+### 6.10 `searchAndDownloadAudiobook`
+
+**Agent prompts:** *"Download Dune"*, *"Download something by Andy Weir"*
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `query` | `String` | required | Title, author, or narrator search text |
+
+**Logic:**
+1. `requireLoggedIn()`, validate `query` not blank
+2. Get `libraryId` from settings
+3. Filter all books in the library containing `query` in title, author, or narrator
+4. Check for matches in currently reading books first (unfinished books with progress)
+5. If currently reading matches exist, use them as candidates; otherwise fall back to all matching books
+6. Rank candidates: exact title (0) > partial title (1) > author match (2)
+7. Fetch book details, check if already downloaded. If so, return early (idempotent)
+8. Call `downloadAudioFileUseCase(bookId)`
+
+---
+
 ## 7. Security Constraints
 
 | Rule | Detail |
@@ -345,6 +365,9 @@ At least one must be non-blank.
 - [ ] `playPlaylist` — empty playlist → `AppFunctionInvalidArgumentException`
 - [ ] `downloadAudiobook` — already downloaded → early return, no download call
 - [ ] `markBookFinished` — not logged in → `AppFunctionNotEnabledException`
+- [ ] `searchAndDownloadAudiobook` — blank query → `AppFunctionInvalidArgumentException`
+- [ ] `searchAndDownloadAudiobook` — no match → `AppFunctionElementNotFoundException`
+- [ ] `searchAndDownloadAudiobook` — already downloaded → early return, no download call
 
 ### ADB integration tests (on-device, API 36+ device or emulator)
 
@@ -382,4 +405,9 @@ adb shell cmd appfunctions execute dev.vikingsen.skald \
     --function-id dev.vikingsen.skald.appfunctions.SkaldAppFunctions#markBookFinished \
     --param bookId:<your-book-id> \
     --param isFinished:true
+
+# Search and download
+adb shell cmd appfunctions execute dev.vikingsen.skald \
+    --function-id dev.vikingsen.skald.appfunctions.SkaldAppFunctions#searchAndDownloadAudiobook \
+    --param query:"Andy Weir"
 ```

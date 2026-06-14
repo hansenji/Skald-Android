@@ -3,8 +3,10 @@
     xmlns:appfn="http://schemas.android.com/apk/androidx.appfunctions"
     appfn:description="Skald is an audiobook and podcast player for self-hosted Audiobookshelf servers.
     Operational Patterns:
-    - Use 'searchAndPlayAudiobook' when the user provides a title or author name but not a bookId.
-    - Use 'playAudiobook' when you already have a specific bookId.
+    - Use 'searchAndPlayAudiobook' when the user provides a title or author name but not a bookId to play.
+    - Use 'playAudiobook' when you already have a specific bookId to play.
+    - Use 'searchAndDownloadAudiobook' when the user provides a title or author name but not a bookId to download.
+    - Use 'downloadAudiobook' when you already have a specific bookId to download.
     - Always check if playback is already active before calling 'resumeCurrentPlayback'.
     - 'setSleepTimer' with minutes=0 cancels any active timer.
     - 'setPlaybackSpeed' persists the speed for all future sessions.
