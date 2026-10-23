@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "dev.vikingsen.skald.feature.miniplayer"
-    compileSdk = 36
+    compileSdk = 37
     defaultConfig {
         minSdk = 26
     }

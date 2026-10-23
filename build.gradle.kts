@@ -1,3 +1,5 @@
+import com.github.benmanes.gradle.versions.updates.DependencyUpdatesTask
+
 // Top-level build file where you can add configuration options common to all sub-projects/modules.
 plugins {
   alias(libs.plugins.android.application) apply false
@@ -7,6 +9,20 @@ plugins {
   alias(libs.plugins.ksp) apply false
   alias(libs.plugins.koin.compiler) apply false
   alias(libs.plugins.kover)
+  alias(libs.plugins.versions)
+}
+
+fun isNonStable(version: String): Boolean {
+    val stableKeyword = listOf("RELEASE", "FINAL", "GA").any { version.uppercase().contains(it) }
+    val regex = "^[0-9,.v-]+(-r)?$".toRegex()
+    val isStable = stableKeyword || regex.matches(version)
+    return isStable.not()
+}
+
+tasks.withType<DependencyUpdatesTask>().configureEach {
+    rejectVersionIf {
+        isNonStable(candidate.version) && !isNonStable(currentVersion)
+    }
 }
 
 subprojects {
@@ -28,10 +44,8 @@ subprojects {
     }
 
     plugins.withId("io.insert-koin.compiler.plugin") {
-        val extension = extensions.findByName("koinCompiler")
-        if (extension != null) {
-            val setter = extension.javaClass.methods.find { it.name == "setCompileSafety" }
-            setter?.invoke(extension, false)
+        configure<org.koin.compiler.plugin.KoinGradleExtension> {
+            compileSafety.set(false)
         }
     }
 

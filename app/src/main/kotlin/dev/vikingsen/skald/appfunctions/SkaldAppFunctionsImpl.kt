@@ -1,7 +1,6 @@
 package dev.vikingsen.skald.appfunctions
 
-import androidx.appfunctions.AppFunction
-import androidx.appfunctions.AppFunctionContext
+import androidx.appfunctions.AppFunctionDeclaration
 import androidx.appfunctions.AppFunctionDisabledException
 import androidx.appfunctions.AppFunctionElementNotFoundException
 import androidx.appfunctions.AppFunctionInvalidArgumentException
@@ -44,11 +43,10 @@ abstract class SkaldAppFunctionsImpl : AppFunctionService(), KoinComponent {
     /**
      * Resumes playback of the currently loaded audiobook or podcast.
      *
-     * @param appFunctionContext The execution context.
      * @throws AppFunctionDisabledException If no audiobook is currently loaded. Suggest the user play an audiobook first.
      */
-    @AppFunction(isDescribedByKDoc = true)
-    suspend fun resumeCurrentPlayback(appFunctionContext: AppFunctionContext) =
+    @AppFunctionDeclaration(isDescribedByKDoc = true)
+    suspend fun resumeCurrentPlayback() =
         withContext(Dispatchers.Main) {
             val current = playerManager.currentBook.first()
             if (current != null) {
@@ -91,11 +89,10 @@ abstract class SkaldAppFunctionsImpl : AppFunctionService(), KoinComponent {
     /**
      * Pauses the currently playing audiobook or podcast.
      *
-     * @param appFunctionContext The execution context.
      * @throws AppFunctionDisabledException If no audiobook is currently playing. Suggest the user resume playback first.
      */
-    @AppFunction(isDescribedByKDoc = true)
-    suspend fun pauseCurrentPlayback(appFunctionContext: AppFunctionContext) =
+    @AppFunctionDeclaration(isDescribedByKDoc = true)
+    suspend fun pauseCurrentPlayback() =
         withContext(Dispatchers.Main) {
             if (playerManager.currentBook.first() == null) {
                 throw AppFunctionDisabledException(
@@ -110,16 +107,14 @@ abstract class SkaldAppFunctionsImpl : AppFunctionService(), KoinComponent {
      *
      * Required workflow: Call [searchAndPlayAudiobook] first if only the title, author, or narrator is known.
      *
-     * @param appFunctionContext The execution context.
      * @param bookId The Audiobookshelf library item ID (UUID) of the audiobook to play.
      * @param startFromBeginning True to start playback from position 0, ignoring saved progress. Defaults to false.
      * @throws AppFunctionDisabledException If the user is not logged in. Suggest the user log in.
      * @throws AppFunctionInvalidArgumentException If the bookId is blank.
      * @throws AppFunctionElementNotFoundException If the book cannot be found. Suggest the user verify the book ID.
      */
-    @AppFunction(isDescribedByKDoc = true)
+    @AppFunctionDeclaration(isDescribedByKDoc = true)
     suspend fun playAudiobook(
-        appFunctionContext: AppFunctionContext,
         bookId: String,
         startFromBeginning: Boolean = false,
     ) = withContext(Dispatchers.IO) {
@@ -149,15 +144,13 @@ abstract class SkaldAppFunctionsImpl : AppFunctionService(), KoinComponent {
      * Searches the local library for an audiobook matching the query and plays it.
      * Searches across title, author, and narrator.
      *
-     * @param appFunctionContext The execution context.
      * @param query The search text (title, author, or narrator name).
      * @throws AppFunctionDisabledException If the user is not logged in or no library is selected. Suggest logging in or selecting a library.
      * @throws AppFunctionInvalidArgumentException If the query is blank.
      * @throws AppFunctionElementNotFoundException If no matching book is found. Suggest the user search for a different query.
      */
-    @AppFunction(isDescribedByKDoc = true)
+    @AppFunctionDeclaration(isDescribedByKDoc = true)
     suspend fun searchAndPlayAudiobook(
-        appFunctionContext: AppFunctionContext,
         query: String,
     ) = withContext(Dispatchers.IO) {
         requireLoggedIn()
@@ -224,15 +217,13 @@ abstract class SkaldAppFunctionsImpl : AppFunctionService(), KoinComponent {
     /**
      * Sets or cancels a sleep timer for the currently playing audiobook.
      *
-     * @param appFunctionContext The execution context.
      * @param minutes Duration in minutes before playback pauses. Use 0 to cancel. Must be between 0 and 480.
      * @param endOfChapter True to pause playback at the end of the current chapter. Takes priority over minutes.
      * @throws AppFunctionDisabledException If no audiobook is loaded. Suggest playing an audiobook first.
      * @throws AppFunctionInvalidArgumentException If minutes is not between 0 and 480.
      */
-    @AppFunction(isDescribedByKDoc = true)
+    @AppFunctionDeclaration(isDescribedByKDoc = true)
     suspend fun setSleepTimer(
-        appFunctionContext: AppFunctionContext,
         minutes: Int = 0,
         endOfChapter: Boolean = false,
     ) = withContext(Dispatchers.Main) {
@@ -254,13 +245,11 @@ abstract class SkaldAppFunctionsImpl : AppFunctionService(), KoinComponent {
     /**
      * Sets the playback speed.
      *
-     * @param appFunctionContext The execution context.
      * @param speed The playback speed multiplier. Must be between 0.5 and 2.0 inclusive.
      * @throws AppFunctionInvalidArgumentException If the speed is outside the valid range.
      */
-    @AppFunction(isDescribedByKDoc = true)
+    @AppFunctionDeclaration(isDescribedByKDoc = true)
     suspend fun setPlaybackSpeed(
-        appFunctionContext: AppFunctionContext,
         speed: Float,
     ) = withContext(Dispatchers.Main) {
         if (speed !in PlaybackConstants.SPEED_RANGE) {
@@ -281,16 +270,14 @@ abstract class SkaldAppFunctionsImpl : AppFunctionService(), KoinComponent {
     /**
      * Plays a saved playlist from the beginning.
      *
-     * @param appFunctionContext The execution context.
      * @param playlistId The Audiobookshelf playlist ID. Preferred for precision.
      * @param playlistName The playlist name used for lookup when playlistId is unavailable.
      * @throws AppFunctionDisabledException If the user is not logged in. Suggest the user log in.
      * @throws AppFunctionInvalidArgumentException If both playlistId and playlistName are blank, or the playlist is empty.
      * @throws AppFunctionElementNotFoundException If no matching playlist is found. Suggest checking the playlist name or ID.
      */
-    @AppFunction(isDescribedByKDoc = true)
+    @AppFunctionDeclaration(isDescribedByKDoc = true)
     suspend fun playPlaylist(
-        appFunctionContext: AppFunctionContext,
         playlistId: String? = null,
         playlistName: String? = null,
     ) = withContext(Dispatchers.IO) {
@@ -330,15 +317,13 @@ abstract class SkaldAppFunctionsImpl : AppFunctionService(), KoinComponent {
     /**
      * Enqueues an audiobook for offline download.
      *
-     * @param appFunctionContext The execution context.
      * @param bookId The Audiobookshelf library item ID (UUID) of the audiobook to download.
      * @throws AppFunctionDisabledException If the user is not logged in, or the download fails to start. Suggest checking the server connection.
      * @throws AppFunctionInvalidArgumentException If the bookId is blank.
      * @throws AppFunctionElementNotFoundException If the book cannot be found.
      */
-    @AppFunction(isDescribedByKDoc = true)
+    @AppFunctionDeclaration(isDescribedByKDoc = true)
     suspend fun downloadAudiobook(
-        appFunctionContext: AppFunctionContext,
         bookId: String,
     ) = withContext(Dispatchers.IO) {
         requireLoggedIn()
@@ -365,15 +350,13 @@ abstract class SkaldAppFunctionsImpl : AppFunctionService(), KoinComponent {
      * Searches the local library for an audiobook matching the query and starts downloading it.
      * Searches across title, author, and narrator.
      *
-     * @param appFunctionContext The execution context.
      * @param query The search text (title, author, or narrator name).
      * @throws AppFunctionDisabledException If the user is not logged in, no library is selected, or the download fails to start.
      * @throws AppFunctionInvalidArgumentException If the query is blank.
      * @throws AppFunctionElementNotFoundException If no matching book is found.
      */
-    @AppFunction(isDescribedByKDoc = true)
+    @AppFunctionDeclaration(isDescribedByKDoc = true)
     suspend fun searchAndDownloadAudiobook(
-        appFunctionContext: AppFunctionContext,
         query: String,
     ) = withContext(Dispatchers.IO) {
         requireLoggedIn()
@@ -444,15 +427,13 @@ abstract class SkaldAppFunctionsImpl : AppFunctionService(), KoinComponent {
     /**
      * Marks an audiobook as finished or unfinished.
      *
-     * @param appFunctionContext The execution context.
      * @param bookId The Audiobookshelf library item ID (UUID) of the audiobook.
      * @param isFinished True to mark the book as finished; false to mark it as unfinished.
      * @throws AppFunctionDisabledException If not logged in or the update failed. Suggest checking the server connection.
      * @throws AppFunctionInvalidArgumentException If the bookId is blank.
      */
-    @AppFunction(isDescribedByKDoc = true)
+    @AppFunctionDeclaration(isDescribedByKDoc = true)
     suspend fun markBookFinished(
-        appFunctionContext: AppFunctionContext,
         bookId: String,
         isFinished: Boolean = true,
     ) = withContext(Dispatchers.IO) {
