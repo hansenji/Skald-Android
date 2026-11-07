@@ -26,7 +26,7 @@ import org.koin.core.component.inject
  */
 @AppFunctionServiceEntryPoint(
     serviceName = "SkaldAppFunctions",
-    appFunctionXmlFileName = "app_metadata"
+    appFunctionXmlFileName = "skald_app_functions"
 )
 abstract class SkaldAppFunctionsImpl : AppFunctionService(), KoinComponent {
     private val playerManager: PlayerManager by inject()

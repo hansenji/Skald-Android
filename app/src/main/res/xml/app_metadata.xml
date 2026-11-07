@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AppFunctionAppMetadata
     xmlns:appfn="http://schemas.android.com/apk/androidx.appfunctions"
-    appfn:description="Skald is an audiobook and podcast player for self-hosted Audiobookshelf servers.
+    appfn:instructions="Skald is an audiobook and podcast player for self-hosted Audiobookshelf servers.
     Operational Patterns:
     - Use 'searchAndPlayAudiobook' when the user provides a title or author name but not a bookId to play.
     - Use 'playAudiobook' when you already have a specific bookId to play.

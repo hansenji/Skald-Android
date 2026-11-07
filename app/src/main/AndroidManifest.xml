@@ -48,7 +48,7 @@
                 android:value="app_functions_schema.xsd" />
             <property
                 android:name="android.app.appfunctions.v2"
-                android:value="app_metadata.xml" />
+                android:value="skald_app_functions.xml" />
             <intent-filter>
                 <action android:name="android.app.appfunctions.AppFunctionService" />
             </intent-filter>

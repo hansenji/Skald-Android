@@ -16,8 +16,8 @@ android {
         applicationId = "dev.vikingsen.skald"
         minSdk = 26
         targetSdk = 36
-        versionCode = 5
-        versionName = "1.0.0-5"
+        versionCode = 6
+        versionName = "1.0.0-6"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     val keystorePropertiesFile = rootProject.file("keystore.properties")
@@ -71,8 +71,25 @@ android {
         excludes += "/META-INF/io.netty.versions.properties"
         excludes += "/META-INF/LICENSE.md"
         excludes += "/META-INF/LICENSE-notice.md"
+        excludes += "/assets/**"
       }
     }
+
+    sourceSets {
+        getByName("release") {
+            assets.directories.add("build/generated/ksp/release/resources/assets")
+        }
+        getByName("debug") {
+            assets.directories.add("build/generated/ksp/debug/resources/assets")
+        }
+    }
+}
+
+tasks.matching { it.name == "mergeReleaseAssets" }.configureEach {
+    dependsOn("kspReleaseKotlin")
+}
+tasks.matching { it.name == "mergeDebugAssets" }.configureEach {
+    dependsOn("kspDebugKotlin")
 }
 
 kotlin {
