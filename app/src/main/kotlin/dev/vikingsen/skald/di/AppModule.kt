@@ -13,6 +13,7 @@ import dev.vikingsen.skald.feature.androidauto.featureAndroidAutoModule
 import dev.vikingsen.skald.feature.miniplayer.featureMiniPlayerModule
 import dev.vikingsen.skald.feature.home.featureHomeModule
 import dev.vikingsen.skald.feature.settings.featureSettingsModule
+import dev.vikingsen.skald.feature.assistant.featureAssistantModule
 import dev.vikingsen.skald.MainViewModel
 import org.koin.dsl.module
 import org.koin.plugin.module.dsl.viewModel
@@ -31,7 +32,8 @@ val appModule = module {
         featureHomeModule,
         featureSettingsModule,
         featureAndroidAutoModule,
-        featureMiniPlayerModule
+        featureMiniPlayerModule,
+        featureAssistantModule
     )
 
     viewModel<MainViewModel>()

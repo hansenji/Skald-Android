@@ -50,5 +50,7 @@ include(
     ":feature:settings:api",
     ":feature:settings:impl",
     ":feature:androidauto",
-    ":feature:miniplayer"
+    ":feature:miniplayer",
+    ":feature:assistant:api",
+    ":feature:assistant:impl"
 )

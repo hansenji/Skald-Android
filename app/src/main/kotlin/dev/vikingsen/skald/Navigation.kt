@@ -1,21 +1,31 @@
 package dev.vikingsen.skald
 
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.Alignment
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocalLibrary
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.LocalLibrary
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
+import dev.vikingsen.skald.feature.assistant.ui.AssistantBottomSheet
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -125,138 +135,164 @@ fun MainNavigation() {
     }
 
     val isOnLoginScreen = currentKey == Login
+    var showAssistantOverlay by remember { mutableStateOf(false) }
 
     val content: @Composable () -> Unit = {
-        MiniPlayerLayout(
-            showMiniPlayer = showMiniPlayer,
-            onMiniPlayerClick = {
-                backStack.add(Player)
-            },
-            modifier = Modifier.fillMaxSize()
-        ) {
-            NavDisplay(
-                backStack = backStack,
-                onBack = { backStack.removeLastOrNull() },
-                entryProvider = entryProvider {
-                    entry<Login> {
-                        LoginScreen(
-                            onLoginSuccess = {
-                                backStack.add(Home)
-                            }
-                        )
+        Box(modifier = Modifier.fillMaxSize()) {
+            MiniPlayerLayout(
+                showMiniPlayer = showMiniPlayer,
+                onMiniPlayerClick = {
+                    backStack.add(Player)
+                },
+                modifier = Modifier.fillMaxSize()
+            ) {
+                NavDisplay(
+                    backStack = backStack,
+                    onBack = { backStack.removeLastOrNull() },
+                    entryProvider = entryProvider {
+                        entry<Login> {
+                            LoginScreen(
+                                onLoginSuccess = {
+                                    backStack.add(Home)
+                                }
+                            )
+                        }
+                        entry<Home> {
+                            HomeScreen(
+                                onBookClick = { bookId ->
+                                    backStack.add(Detail(bookId))
+                                }
+                            )
+                        }
+                        entry<Library> {
+                            LibraryScreen(
+                                onBookClick = { bookId ->
+                                    backStack.add(Detail(bookId))
+                                },
+                                onSeriesClick = { seriesId ->
+                                    backStack.add(SeriesDetail(seriesId))
+                                },
+                                onAuthorClick = { authorId ->
+                                    backStack.add(AuthorDetail(authorId))
+                                },
+                                onCollectionClick = { collectionId ->
+                                    backStack.add(CollectionDetail(collectionId))
+                                },
+                                onPlaylistClick = { playlistId ->
+                                    backStack.add(PlaylistDetail(playlistId))
+                                },
+                                onPlayClick = {
+                                    backStack.add(Player)
+                                }
+                            )
+                        }
+                        entry<Settings> {
+                            SettingsScreen(
+                                onLogout = {
+                                    // Logout handled by SettingsViewModel;
+                                    // the LaunchedEffect(isLoggedIn) will navigate to Login
+                                }
+                            )
+                        }
+                        entry<Detail> { key ->
+                            DetailScreen(
+                                bookId = key.bookId,
+                                onBackClick = {
+                                    backStack.removeLastOrNull()
+                                },
+                                onPlayClick = {
+                                    backStack.add(Player)
+                                },
+                                onSeriesClick = { seriesId ->
+                                    backStack.add(SeriesDetail(seriesId))
+                                },
+                                onPlaylistClick = { playlistId ->
+                                    backStack.add(PlaylistDetail(playlistId))
+                                },
+                                onCollectionClick = { collectionId ->
+                                    backStack.add(CollectionDetail(collectionId))
+                                }
+                            )
+                        }
+                        entry<SeriesDetail> { key ->
+                            SeriesDetailScreen(
+                                seriesId = key.seriesId,
+                                onBackClick = {
+                                    backStack.removeLastOrNull()
+                                },
+                                onBookClick = { bookId ->
+                                    backStack.add(Detail(bookId))
+                                }
+                            )
+                        }
+                        entry<AuthorDetail> { key ->
+                            AuthorDetailScreen(
+                                authorId = key.authorId,
+                                onBackClick = {
+                                    backStack.removeLastOrNull()
+                                },
+                                onBookClick = { bookId ->
+                                    backStack.add(Detail(bookId))
+                                }
+                            )
+                        }
+                        entry<CollectionDetail> { key ->
+                            CollectionDetailScreen(
+                                collectionId = key.collectionId,
+                                onBackClick = {
+                                    backStack.removeLastOrNull()
+                                },
+                                onBookClick = { bookId ->
+                                    backStack.add(Detail(bookId))
+                                }
+                            )
+                        }
+                        entry<PlaylistDetail> { key ->
+                            PlaylistDetailScreen(
+                                playlistId = key.playlistId,
+                                onBackClick = {
+                                    backStack.removeLastOrNull()
+                                },
+                                onBookClick = { bookId ->
+                                    backStack.add(Detail(bookId))
+                                },
+                                onPlayClick = {
+                                    backStack.add(Player)
+                                }
+                            )
+                        }
+                        entry<Player> {
+                            PlayerScreen(
+                                onBackClick = {
+                                    backStack.removeLastOrNull()
+                                }
+                            )
+                        }
                     }
-                    entry<Home> {
-                        HomeScreen(
-                            onBookClick = { bookId ->
-                                backStack.add(Detail(bookId))
-                            }
-                        )
-                    }
-                    entry<Library> {
-                        LibraryScreen(
-                            onBookClick = { bookId ->
-                                backStack.add(Detail(bookId))
-                            },
-                            onSeriesClick = { seriesId ->
-                                backStack.add(SeriesDetail(seriesId))
-                            },
-                            onAuthorClick = { authorId ->
-                                backStack.add(AuthorDetail(authorId))
-                            },
-                            onCollectionClick = { collectionId ->
-                                backStack.add(CollectionDetail(collectionId))
-                            },
-                            onPlaylistClick = { playlistId ->
-                                backStack.add(PlaylistDetail(playlistId))
-                            },
-                            onPlayClick = {
-                                backStack.add(Player)
-                            }
-                        )
-                    }
-                    entry<Settings> {
-                        SettingsScreen(
-                            onLogout = {
-                                // Logout handled by SettingsViewModel;
-                                // the LaunchedEffect(isLoggedIn) will navigate to Login
-                            }
-                        )
-                    }
-                    entry<Detail> { key ->
-                        DetailScreen(
-                            bookId = key.bookId,
-                            onBackClick = {
-                                backStack.removeLastOrNull()
-                            },
-                            onPlayClick = {
-                                backStack.add(Player)
-                            },
-                            onSeriesClick = { seriesId ->
-                                backStack.add(SeriesDetail(seriesId))
-                            },
-                            onPlaylistClick = { playlistId ->
-                                backStack.add(PlaylistDetail(playlistId))
-                            },
-                            onCollectionClick = { collectionId ->
-                                backStack.add(CollectionDetail(collectionId))
-                            }
-                        )
-                    }
-                    entry<SeriesDetail> { key ->
-                        SeriesDetailScreen(
-                            seriesId = key.seriesId,
-                            onBackClick = {
-                                backStack.removeLastOrNull()
-                            },
-                            onBookClick = { bookId ->
-                                backStack.add(Detail(bookId))
-                            }
-                        )
-                    }
-                    entry<AuthorDetail> { key ->
-                        AuthorDetailScreen(
-                            authorId = key.authorId,
-                            onBackClick = {
-                                backStack.removeLastOrNull()
-                            },
-                            onBookClick = { bookId ->
-                                backStack.add(Detail(bookId))
-                            }
-                        )
-                    }
-                    entry<CollectionDetail> { key ->
-                        CollectionDetailScreen(
-                            collectionId = key.collectionId,
-                            onBackClick = {
-                                backStack.removeLastOrNull()
-                            },
-                            onBookClick = { bookId ->
-                                backStack.add(Detail(bookId))
-                            }
-                        )
-                    }
-                    entry<PlaylistDetail> { key ->
-                        PlaylistDetailScreen(
-                            playlistId = key.playlistId,
-                            onBackClick = {
-                                backStack.removeLastOrNull()
-                            },
-                            onBookClick = { bookId ->
-                                backStack.add(Detail(bookId))
-                            },
-                            onPlayClick = {
-                                backStack.add(Player)
-                            }
-                        )
-                    }
-                    entry<Player> {
-                        PlayerScreen(
-                            onBackClick = {
-                                backStack.removeLastOrNull()
-                            }
-                        )
-                    }
+                )
+            }
+
+            val activeKey = backStack.lastOrNull()
+            if (activeKey != null && activeKey != Player && activeKey != Login) {
+                FloatingActionButton(
+                    onClick = { showAssistantOverlay = true },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 16.dp, bottom = if (showMiniPlayer) 164.dp else 96.dp),
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.AutoAwesome,
+                        contentDescription = stringResource(R.string.nav_assistant)
+                    )
                 }
+            }
+        }
+
+        if (showAssistantOverlay) {
+            AssistantBottomSheet(
+                onDismiss = { showAssistantOverlay = false }
             )
         }
     }

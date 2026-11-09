@@ -81,7 +81,7 @@ interface BookDao {
         p.progress AS progress_progress, p.isFinished AS progress_isFinished, 
         p.lastUpdated AS progress_lastUpdated 
         FROM books b LEFT JOIN playback_progress p ON b.id = p.bookId 
-        WHERE b.libraryId = :libraryId AND b.seriesId IS NOT NULL
+        WHERE b.libraryId = :libraryId
     """)
     fun getBooksWithProgressForLibraryFlow(libraryId: String): Flow<List<BookWithProgressEntity>>
 

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="assistant_title">Skald Assistant</string>
+    <string name="assistant_status_ready">Ready</string>
+    <string name="assistant_status_listening">Listening...</string>
+    <string name="assistant_status_processing">Processing...</string>
+    <string name="assistant_input_placeholder">Ask Skald anything...</string>
+    <string name="assistant_send">Send</string>
+    <string name="assistant_voice_input">Voice input</string>
+    <string name="assistant_stop_voice">Stop listening</string>
+    <string name="assistant_close">Close assistant</string>
+    <string name="assistant_confirm_download">Confirm Download</string>
+    <string name="assistant_cancel">Cancel</string>
+    <string name="assistant_chip_resume">Resume</string>
+    <string name="assistant_chip_pause">Pause</string>
+    <string name="assistant_chip_sleep_timer">Sleep timer 30m</string>
+    <string name="assistant_chip_speed">Speed 1.5x</string>
+    <string name="assistant_chip_status">What\'s playing?</string>
+    <string name="assistant_welcome_message">Hello! I can help you search, play, manage downloads, set sleep timers, and control playback. What would you like to listen to?</string>
+    <string name="assistant_action_cancelled">Action cancelled.</string>
+    <string name="assistant_error_speech_not_available">Speech recognition is not available on this device.</string>
+</resources>

@@ -50,7 +50,8 @@ open class FakeAudiobookshelfRepository : AudiobookshelfRepository {
     override fun getSeriesFlow(libraryId: String): Flow<List<Series>> = emptyFlow()
     override suspend fun getSeriesById(seriesId: String): Series? = null
     override fun getBooksForSeriesFlow(seriesId: String): Flow<List<BookWithProgress>> = emptyFlow()
-    override fun getBooksWithProgressForLibraryFlow(libraryId: String): Flow<List<BookWithProgress>> = emptyFlow()
+    var booksWithProgressFlow: Flow<List<BookWithProgress>> = emptyFlow()
+    override fun getBooksWithProgressForLibraryFlow(libraryId: String): Flow<List<BookWithProgress>> = booksWithProgressFlow
     override fun getAllProgressFlow(): Flow<List<PlaybackProgress>> = emptyFlow()
     override fun getBookWithProgressFlow(bookId: String): Flow<Pair<Book?, PlaybackProgress?>> = emptyFlow()
     override suspend fun fetchBookDetails(bookId: String, forceRefresh: Boolean): Result<Book> = Result.failure(Exception("Not stubbed"))

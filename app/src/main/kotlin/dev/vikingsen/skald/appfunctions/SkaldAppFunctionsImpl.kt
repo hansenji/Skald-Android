@@ -60,8 +60,14 @@ abstract class SkaldAppFunctionsImpl : AppFunctionService(), KoinComponent {
                     "No library is selected. Please open Skald to choose a library."
                 )
 
-            val allBooks = withContext(Dispatchers.IO) {
+            var allBooks = withContext(Dispatchers.IO) {
                 repository.getBooksWithProgressForLibraryFlow(libraryId).first()
+            }
+            if (allBooks.isEmpty()) {
+                withContext(Dispatchers.IO) { runCatching { repository.syncLibraryBooks(libraryId) } }
+                allBooks = withContext(Dispatchers.IO) {
+                    repository.getBooksWithProgressForLibraryFlow(libraryId).first()
+                }
             }
 
             val mostRecent = allBooks
@@ -163,7 +169,11 @@ abstract class SkaldAppFunctionsImpl : AppFunctionService(), KoinComponent {
             )
 
         // Find all books in the library matching the query
-        val allBooks = repository.getBooksWithProgressForLibraryFlow(libraryId).first()
+        var allBooks = repository.getBooksWithProgressForLibraryFlow(libraryId).first()
+        if (allBooks.isEmpty()) {
+            runCatching { repository.syncLibraryBooks(libraryId) }
+            allBooks = repository.getBooksWithProgressForLibraryFlow(libraryId).first()
+        }
         val matchingBooks = allBooks.filter { bwp ->
             val b = bwp.book
             b.title.contains(query, ignoreCase = true) ||
@@ -369,7 +379,11 @@ abstract class SkaldAppFunctionsImpl : AppFunctionService(), KoinComponent {
             )
 
         // Find all books in the library matching the query
-        val allBooks = repository.getBooksWithProgressForLibraryFlow(libraryId).first()
+        var allBooks = repository.getBooksWithProgressForLibraryFlow(libraryId).first()
+        if (allBooks.isEmpty()) {
+            runCatching { repository.syncLibraryBooks(libraryId) }
+            allBooks = repository.getBooksWithProgressForLibraryFlow(libraryId).first()
+        }
         val matchingBooks = allBooks.filter { bwp ->
             val b = bwp.book
             b.title.contains(query, ignoreCase = true) ||

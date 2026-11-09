@@ -168,6 +168,8 @@ dependencies {
   implementation(project(":feature:settings:impl"))
   implementation(project(":feature:androidauto"))
   implementation(project(":feature:miniplayer"))
+  implementation(project(":feature:assistant:api"))
+  implementation(project(":feature:assistant:impl"))
 
   // AppFunctions
   implementation(libs.androidx.appfunctions)
